@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { EmployeeListToolbar } from "@/components/employees/employee-list-toolbar";
 import { EmployeePagination } from "@/components/employees/employee-pagination";
-import { EmployeeTable } from "@/components/employees/employee-table";
+import {
+  EmployeeTable,
+  type EmployeeRecord,
+} from "@/components/employees/employee-table";
 import { PageHeader } from "@/components/shared/page-header";
 
-const employees = [
+const employees: EmployeeRecord[] = [
   {
     id: "EMP-1001",
     fullName: "Olivia Bennett",

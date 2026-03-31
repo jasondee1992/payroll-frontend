@@ -53,7 +53,9 @@ export function createApiClient(config: ApiClientConfig = {}) {
       const normalizedPath = path.startsWith("/") ? path : `/${path}`;
       return `${baseUrl}${normalizedPath}${buildQueryString(query)}`;
     },
-    async request<T>(_path: string, _options?: ApiRequestOptions): Promise<T> {
+    async request<T>(path: string, options?: ApiRequestOptions): Promise<T> {
+      void path;
+      void options;
       throw new Error(
         "API client is not wired yet. Connect this client when FastAPI endpoints are available.",
       );
@@ -62,4 +64,3 @@ export function createApiClient(config: ApiClientConfig = {}) {
 }
 
 export const apiClient = createApiClient();
-

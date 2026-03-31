@@ -1,7 +1,13 @@
+import { DetailItem } from "@/components/ui/detail-item";
+import {
+  DataTableBodyCell,
+  DataTableHeaderCell,
+  DataTableShell,
+} from "@/components/ui/data-table";
 import {
   PayrollStatusBadge,
-  type PayrollStatus,
 } from "@/components/payroll/payroll-status-badge";
+import type { PayrollStatus } from "@/types/payroll";
 
 type PayslipItem = {
   employeeId: string;
@@ -19,42 +25,42 @@ type RecentPayslipsTableProps = {
 export function RecentPayslipsTable({ items }: RecentPayslipsTableProps) {
   return (
     <>
-      <div className="hidden ui-table-shell xl:block">
+      <DataTableShell className="hidden xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0">
             <thead className="bg-slate-50/80">
               <tr className="text-left">
-                <HeaderCell>Employee ID</HeaderCell>
-                <HeaderCell>Employee Name</HeaderCell>
-                <HeaderCell>Period</HeaderCell>
-                <HeaderCell>Released On</HeaderCell>
-                <HeaderCell>Net Pay</HeaderCell>
-                <HeaderCell>Status</HeaderCell>
+                <DataTableHeaderCell>Employee ID</DataTableHeaderCell>
+                <DataTableHeaderCell>Employee Name</DataTableHeaderCell>
+                <DataTableHeaderCell>Period</DataTableHeaderCell>
+                <DataTableHeaderCell>Released On</DataTableHeaderCell>
+                <DataTableHeaderCell>Net Pay</DataTableHeaderCell>
+                <DataTableHeaderCell>Status</DataTableHeaderCell>
               </tr>
             </thead>
             <tbody className="bg-white">
               {items.map((item) => (
                 <tr key={`${item.employeeId}-${item.period}`}>
-                  <BodyCell>{item.employeeId}</BodyCell>
-                  <BodyCell>
+                  <DataTableBodyCell>{item.employeeId}</DataTableBodyCell>
+                  <DataTableBodyCell>
                     <span className="font-medium text-slate-900">
                       {item.employeeName}
                     </span>
-                  </BodyCell>
-                  <BodyCell>{item.period}</BodyCell>
-                  <BodyCell>{item.releasedOn}</BodyCell>
-                  <BodyCell>
+                  </DataTableBodyCell>
+                  <DataTableBodyCell>{item.period}</DataTableBodyCell>
+                  <DataTableBodyCell>{item.releasedOn}</DataTableBodyCell>
+                  <DataTableBodyCell>
                     <span className="font-semibold text-slate-900">{item.netPay}</span>
-                  </BodyCell>
-                  <BodyCell>
+                  </DataTableBodyCell>
+                  <DataTableBodyCell>
                     <PayrollStatusBadge status={item.status} />
-                  </BodyCell>
+                  </DataTableBodyCell>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </DataTableShell>
 
       <div className="grid gap-3 xl:hidden">
         {items.map((item) => (
@@ -76,31 +82,12 @@ export function RecentPayslipsTable({ items }: RecentPayslipsTableProps) {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InfoItem label="Released On" value={item.releasedOn} />
-              <InfoItem label="Net Pay" value={item.netPay} />
+              <DetailItem label="Released On" value={item.releasedOn} />
+              <DetailItem label="Net Pay" value={item.netPay} />
             </div>
           </article>
         ))}
       </div>
     </>
-  );
-}
-
-function HeaderCell({ children }: { children: React.ReactNode }) {
-  return <th className="ui-table-head-cell">{children}</th>;
-}
-
-function BodyCell({ children }: { children: React.ReactNode }) {
-  return <td className="ui-table-body-cell">{children}</td>;
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </span>
-      <span className="text-sm text-slate-700">{value}</span>
-    </div>
   );
 }

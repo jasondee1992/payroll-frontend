@@ -1,17 +1,14 @@
 import { Eye } from "lucide-react";
+import { DetailItem } from "@/components/ui/detail-item";
+import {
+  DataTableBodyCell,
+  DataTableHeaderCell,
+  DataTableShell,
+} from "@/components/ui/data-table";
 import {
   PayrollStatusBadge,
-  type PayrollStatus,
 } from "@/components/payroll/payroll-status-badge";
-
-type PayrollPeriod = {
-  id: string;
-  periodName: string;
-  startDate: string;
-  endDate: string;
-  payoutDate: string;
-  status: PayrollStatus;
-};
+import type { PayrollPeriod } from "@/types/payroll";
 
 type PayrollPeriodsTableProps = {
   periods: PayrollPeriod[];
@@ -20,37 +17,37 @@ type PayrollPeriodsTableProps = {
 export function PayrollPeriodsTable({ periods }: PayrollPeriodsTableProps) {
   return (
     <>
-      <div className="hidden ui-table-shell xl:block">
+      <DataTableShell className="hidden xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0">
             <thead className="bg-slate-50/80">
               <tr className="text-left">
-                <HeaderCell>Period Name</HeaderCell>
-                <HeaderCell>Start Date</HeaderCell>
-                <HeaderCell>End Date</HeaderCell>
-                <HeaderCell>Payout Date</HeaderCell>
-                <HeaderCell>Status</HeaderCell>
-                <HeaderCell>Actions</HeaderCell>
+                <DataTableHeaderCell>Period Name</DataTableHeaderCell>
+                <DataTableHeaderCell>Start Date</DataTableHeaderCell>
+                <DataTableHeaderCell>End Date</DataTableHeaderCell>
+                <DataTableHeaderCell>Payout Date</DataTableHeaderCell>
+                <DataTableHeaderCell>Status</DataTableHeaderCell>
+                <DataTableHeaderCell>Actions</DataTableHeaderCell>
               </tr>
             </thead>
             <tbody className="bg-white">
               {periods.map((period) => (
                 <tr key={period.id}>
-                  <BodyCell>
+                  <DataTableBodyCell>
                     <div>
                       <p className="font-semibold text-slate-900">
                         {period.periodName}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">ID: {period.id}</p>
                     </div>
-                  </BodyCell>
-                  <BodyCell>{period.startDate}</BodyCell>
-                  <BodyCell>{period.endDate}</BodyCell>
-                  <BodyCell>{period.payoutDate}</BodyCell>
-                  <BodyCell>
+                  </DataTableBodyCell>
+                  <DataTableBodyCell>{period.startDate}</DataTableBodyCell>
+                  <DataTableBodyCell>{period.endDate}</DataTableBodyCell>
+                  <DataTableBodyCell>{period.payoutDate}</DataTableBodyCell>
+                  <DataTableBodyCell>
                     <PayrollStatusBadge status={period.status} />
-                  </BodyCell>
-                  <BodyCell>
+                  </DataTableBodyCell>
+                  <DataTableBodyCell>
                     <button
                       type="button"
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
@@ -58,13 +55,13 @@ export function PayrollPeriodsTable({ periods }: PayrollPeriodsTableProps) {
                       <Eye className="h-4 w-4" />
                       View
                     </button>
-                  </BodyCell>
+                  </DataTableBodyCell>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </DataTableShell>
 
       <div className="grid gap-3 xl:hidden">
         {periods.map((period) => (
@@ -83,9 +80,9 @@ export function PayrollPeriodsTable({ periods }: PayrollPeriodsTableProps) {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InfoItem label="Start Date" value={period.startDate} />
-              <InfoItem label="End Date" value={period.endDate} />
-              <InfoItem label="Payout Date" value={period.payoutDate} />
+              <DetailItem label="Start Date" value={period.startDate} />
+              <DetailItem label="End Date" value={period.endDate} />
+              <DetailItem label="Payout Date" value={period.payoutDate} />
             </div>
 
             <div className="mt-4">
@@ -101,24 +98,5 @@ export function PayrollPeriodsTable({ periods }: PayrollPeriodsTableProps) {
         ))}
       </div>
     </>
-  );
-}
-
-function HeaderCell({ children }: { children: React.ReactNode }) {
-  return <th className="ui-table-head-cell">{children}</th>;
-}
-
-function BodyCell({ children }: { children: React.ReactNode }) {
-  return <td className="ui-table-body-cell">{children}</td>;
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </span>
-      <span className="text-sm text-slate-700">{value}</span>
-    </div>
   );
 }

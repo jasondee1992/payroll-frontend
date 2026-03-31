@@ -1,7 +1,13 @@
+import { DetailItem } from "@/components/ui/detail-item";
+import {
+  DataTableBodyCell,
+  DataTableHeaderCell,
+  DataTableShell,
+} from "@/components/ui/data-table";
 import {
   PayrollStatusBadge,
-  type PayrollStatus,
 } from "@/components/payroll/payroll-status-badge";
+import type { PayrollStatus } from "@/types/payroll";
 
 type PayrollResult = {
   employeeId: string;
@@ -20,44 +26,44 @@ type PayrollResultsTableProps = {
 export function PayrollResultsTable({ results }: PayrollResultsTableProps) {
   return (
     <>
-      <div className="hidden ui-table-shell xl:block">
+      <DataTableShell className="hidden xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0">
             <thead className="bg-slate-50/80">
               <tr className="text-left">
-                <HeaderCell>Employee ID</HeaderCell>
-                <HeaderCell>Name</HeaderCell>
-                <HeaderCell>Gross Pay</HeaderCell>
-                <HeaderCell>Deductions</HeaderCell>
-                <HeaderCell>Tax</HeaderCell>
-                <HeaderCell>Net Pay</HeaderCell>
-                <HeaderCell>Status</HeaderCell>
+                <DataTableHeaderCell>Employee ID</DataTableHeaderCell>
+                <DataTableHeaderCell>Name</DataTableHeaderCell>
+                <DataTableHeaderCell>Gross Pay</DataTableHeaderCell>
+                <DataTableHeaderCell>Deductions</DataTableHeaderCell>
+                <DataTableHeaderCell>Tax</DataTableHeaderCell>
+                <DataTableHeaderCell>Net Pay</DataTableHeaderCell>
+                <DataTableHeaderCell>Status</DataTableHeaderCell>
               </tr>
             </thead>
             <tbody className="bg-white">
               {results.map((result) => (
                 <tr key={result.employeeId}>
-                  <BodyCell>{result.employeeId}</BodyCell>
-                  <BodyCell>
+                  <DataTableBodyCell>{result.employeeId}</DataTableBodyCell>
+                  <DataTableBodyCell>
                     <span className="font-medium text-slate-900">{result.name}</span>
-                  </BodyCell>
-                  <BodyCell>{result.grossPay}</BodyCell>
-                  <BodyCell>{result.deductions}</BodyCell>
-                  <BodyCell>{result.tax}</BodyCell>
-                  <BodyCell>
+                  </DataTableBodyCell>
+                  <DataTableBodyCell>{result.grossPay}</DataTableBodyCell>
+                  <DataTableBodyCell>{result.deductions}</DataTableBodyCell>
+                  <DataTableBodyCell>{result.tax}</DataTableBodyCell>
+                  <DataTableBodyCell>
                     <span className="font-semibold text-slate-900">
                       {result.netPay}
                     </span>
-                  </BodyCell>
-                  <BodyCell>
+                  </DataTableBodyCell>
+                  <DataTableBodyCell>
                     <PayrollStatusBadge status={result.status} />
-                  </BodyCell>
+                  </DataTableBodyCell>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </DataTableShell>
 
       <div className="grid gap-3 xl:hidden">
         {results.map((result) => (
@@ -78,33 +84,14 @@ export function PayrollResultsTable({ results }: PayrollResultsTableProps) {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InfoItem label="Gross Pay" value={result.grossPay} />
-              <InfoItem label="Deductions" value={result.deductions} />
-              <InfoItem label="Tax" value={result.tax} />
-              <InfoItem label="Net Pay" value={result.netPay} />
+              <DetailItem label="Gross Pay" value={result.grossPay} />
+              <DetailItem label="Deductions" value={result.deductions} />
+              <DetailItem label="Tax" value={result.tax} />
+              <DetailItem label="Net Pay" value={result.netPay} />
             </div>
           </article>
         ))}
       </div>
     </>
-  );
-}
-
-function HeaderCell({ children }: { children: React.ReactNode }) {
-  return <th className="ui-table-head-cell">{children}</th>;
-}
-
-function BodyCell({ children }: { children: React.ReactNode }) {
-  return <td className="ui-table-body-cell">{children}</td>;
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </span>
-      <span className="text-sm text-slate-700">{value}</span>
-    </div>
   );
 }

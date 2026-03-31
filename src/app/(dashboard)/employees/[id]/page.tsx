@@ -4,10 +4,10 @@ import { EmployeeDetailGrid } from "@/components/employees/employee-detail-grid"
 import { EmployeeDetailSection } from "@/components/employees/employee-detail-section";
 import { EmployeeDetailTabs } from "@/components/employees/employee-detail-tabs";
 import { EmployeePayrollHistoryTable } from "@/components/employees/employee-payroll-history-table";
-import {
-  EmployeeStatusBadge,
-  type EmployeeStatus,
-} from "@/components/employees/employee-status-badge";
+import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
+import { DetailItem } from "@/components/ui/detail-item";
+import { PageHeader } from "@/components/shared/page-header";
+import type { EmployeeStatus } from "@/types/employees";
 
 type EmployeeDetailPageProps = {
   params: Promise<{
@@ -109,37 +109,29 @@ export default async function EmployeeDetailPage({
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Employees
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            Employee Profile
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Review employee profile details, payroll setup, and recent payroll
-            activity from a single internal record screen.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/employees"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Employees
-          </Link>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
-          >
-            <PencilLine className="h-4 w-4" />
-            Edit Employee
-          </button>
-        </div>
-      </section>
+      <PageHeader
+        title="Employee Profile"
+        description="Review employee profile details, payroll setup, and recent payroll activity from a single internal record screen."
+        eyebrow="Employees"
+        actions={
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/employees"
+              className="ui-button-secondary gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Employees
+            </Link>
+            <button
+              type="button"
+              className="ui-button-primary gap-2"
+            >
+              <PencilLine className="h-4 w-4" />
+              Edit Employee
+            </button>
+          </div>
+        }
+      />
 
       <section className="panel p-6 sm:p-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -168,8 +160,8 @@ export default async function EmployeeDetailPage({
           </div>
 
           <div className="grid gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4 sm:min-w-72">
-            <QuickInfo label="Email" value={employee.email} />
-            <QuickInfo label="Username" value={employee.username} />
+            <DetailItem label="Email" value={employee.email} />
+            <DetailItem label="Username" value={employee.username} />
           </div>
         </div>
       </section>
@@ -182,21 +174,11 @@ export default async function EmployeeDetailPage({
 function HeaderMeta({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
-    </div>
-  );
-}
-
-function QuickInfo({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-1 text-sm text-slate-700">{value}</p>
+      <DetailItem
+        label={label}
+        value={value}
+        valueClassName="font-medium text-slate-900"
+      />
     </div>
   );
 }
