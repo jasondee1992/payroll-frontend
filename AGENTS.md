@@ -171,3 +171,4 @@ If touching backend-connected employee flows, also verify:
 - If login fails, verify the FastAPI user exists and the backend accepts `username_or_email`.
 - If lint suddenly starts scanning generated output, confirm `.next-runtime/**` is still ignored in ESLint.
 - If login works in FastAPI but fails in the UI, inspect the frontend proxy route before changing the backend contract.
+
