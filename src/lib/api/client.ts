@@ -1,17 +1,24 @@
 import { getApiBaseUrl } from "@/lib/api/config";
 
 type QueryValue = string | number | boolean | undefined;
+type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export type ApiFetchOptions = {
+  revalidate?: number | false;
+  tags?: string[];
+};
 
 export type ApiQueryParams = Record<string, QueryValue>;
 export type ApiResponseParser<TParsed> = (response: unknown) => TParsed;
 
 export type ApiRequestOptions<TParsed = unknown> = {
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  method?: ApiMethod;
   query?: ApiQueryParams;
   headers?: HeadersInit;
   body?: unknown;
   signal?: AbortSignal;
   cache?: RequestCache;
+  next?: ApiFetchOptions;
   parser?: ApiResponseParser<TParsed>;
 };
 
@@ -90,6 +97,28 @@ export function buildApiUrl(path: string, query?: ApiQueryParams) {
   return `${baseUrl}${normalizedPath}${buildQueryString(query)}`;
 }
 
+function mergeHeaders(
+  defaultHeaders: HeadersInit | undefined,
+  requestHeaders: HeadersInit | undefined,
+  hasBody: boolean,
+) {
+  const headers = new Headers(defaultHeaders);
+
+  headers.set("Accept", "application/json");
+
+  if (hasBody) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (requestHeaders) {
+    for (const [key, value] of new Headers(requestHeaders).entries()) {
+      headers.set(key, value);
+    }
+  }
+
+  return headers;
+}
+
 export function createApiClient(config: ApiClientConfig = {}) {
   const baseUrl = config.baseUrl ?? getApiBaseUrl();
   const defaultHeaders = config.defaultHeaders ?? {};
@@ -112,19 +141,11 @@ export function createApiClient(config: ApiClientConfig = {}) {
       }
 
       const url = this.buildUrl(path, options.query);
-      const headers = new Headers(defaultHeaders);
-
-      headers.set("Accept", "application/json");
-
-      if (options.body !== undefined) {
-        headers.set("Content-Type", "application/json");
-      }
-
-      if (options.headers) {
-        for (const [key, value] of new Headers(options.headers).entries()) {
-          headers.set(key, value);
-        }
-      }
+      const headers = mergeHeaders(
+        defaultHeaders,
+        options.headers,
+        options.body !== undefined,
+      );
 
       const response = await fetch(url, {
         method: options.method ?? "GET",
@@ -133,6 +154,7 @@ export function createApiClient(config: ApiClientConfig = {}) {
           options.body !== undefined ? JSON.stringify(options.body) : undefined,
         signal: options.signal,
         cache: options.cache ?? "no-store",
+        next: options.next,
       });
 
       const contentType = response.headers.get("content-type") ?? "";

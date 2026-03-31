@@ -1,14 +1,18 @@
 import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import {
+  createCollectionParser,
+  loadApiResource,
+} from "@/lib/api/resources";
+import {
   parseBoolean,
-  parseCollection,
   parseNumber,
   parseRecord,
   parseString,
 } from "@/lib/api/parsers";
 import type {
   EmployeeApiRecord,
+  EmployeeListResponse,
   EmployeeListItem,
   EmployeeStatus,
 } from "@/types/employees";
@@ -85,7 +89,7 @@ function normalizePayrollSchedule(
   return "Monthly";
 }
 
-function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
+export function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
   const record = parseRecord(value, "employee");
 
   return {
@@ -123,7 +127,9 @@ function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
   };
 }
 
-function mapEmployeeListItem(employee: EmployeeApiRecord): EmployeeListItem {
+export function mapEmployeeListItem(
+  employee: EmployeeApiRecord,
+): EmployeeListItem {
   return {
     id: employee.employee_code,
     fullName: buildFullName(employee),
@@ -138,17 +144,24 @@ function mapEmployeeListItem(employee: EmployeeApiRecord): EmployeeListItem {
   };
 }
 
-function parseEmployeeListResponse(response: unknown) {
-  return parseCollection(response, (employee) => {
-    return mapEmployeeListItem(parseEmployeeRecord(employee));
-  }, "employees");
-}
+const parseEmployeeListResponse = createCollectionParser({
+  label: "employees",
+  parseItem: (employee: unknown) => parseEmployeeRecord(employee),
+  mapItem: (employee: EmployeeApiRecord) => mapEmployeeListItem(employee),
+});
 
 export async function getEmployees() {
-  return apiClient.get<EmployeeApiRecord[], EmployeeListItem[]>(
+  return apiClient.get<EmployeeListResponse, EmployeeListItem[]>(
     apiEndpoints.employees.list,
     {
       parser: parseEmployeeListResponse,
     },
   );
+}
+
+export async function getEmployeesResource() {
+  return loadApiResource(() => getEmployees(), {
+    fallbackData: [],
+    errorMessage: "Unable to load employee data from the backend.",
+  });
 }

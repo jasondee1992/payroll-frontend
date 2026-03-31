@@ -27,8 +27,17 @@ export function parseRecord(value: unknown, label: string) {
 export function parseString(
   value: unknown,
   label: string,
+): string;
+export function parseString(
+  value: unknown,
+  label: string,
+  options: { optional: true },
+): string | undefined;
+export function parseString(
+  value: unknown,
+  label: string,
   options?: { optional?: boolean },
-) {
+): string | undefined {
   if (value == null || value === "") {
     if (options?.optional) {
       return undefined;

@@ -66,6 +66,8 @@ export interface EmployeeApiRecord {
   updated_at: string;
 }
 
+export type EmployeeListResponse = EmployeeApiRecord[];
+
 export type EmployeeListItem = Pick<
   Employee,
   "id" | "fullName" | "department" | "position" | "employmentType" | "payrollSchedule"

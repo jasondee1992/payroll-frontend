@@ -3,23 +3,13 @@ import { EmployeeListToolbar } from "@/components/employees/employee-list-toolba
 import { EmployeePagination } from "@/components/employees/employee-pagination";
 import { EmployeeTable } from "@/components/employees/employee-table";
 import { PageHeader } from "@/components/shared/page-header";
-import { getEmployees } from "@/lib/api/employees";
-import type { EmployeeListItem } from "@/types/employees";
+import { ResourceErrorState } from "@/components/shared/resource-state";
+import { getEmployeesResource } from "@/lib/api/employees";
 
 export const dynamic = "force-dynamic";
 
 export default async function EmployeesPage() {
-  let employees: EmployeeListItem[] = [];
-  let errorMessage: string | null = null;
-
-  try {
-    employees = await getEmployees();
-  } catch (error) {
-    errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unable to load employee data from the backend.";
-  }
+  const { data: employees, errorMessage } = await getEmployeesResource();
 
   return (
     <>
@@ -41,16 +31,10 @@ export default async function EmployeesPage() {
 
         <div className="mt-6">
           {errorMessage ? (
-            <div className="ui-empty-state">
-              <h2 className="text-lg font-semibold text-slate-950">
-                Unable to load employees
-              </h2>
-              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                {errorMessage} Make sure the FastAPI backend is running at the
-                configured API URL and the `/api/v1/employees` endpoint is
-                available.
-              </p>
-            </div>
+            <ResourceErrorState
+              title="Unable to load employees"
+              description={`${errorMessage} Make sure the FastAPI backend is running at the configured API URL and the \`/api/v1/employees\` endpoint is available.`}
+            />
           ) : (
             <EmployeeTable employees={employees} />
           )}
