@@ -47,3 +47,28 @@ export interface Employee {
   salaryProfile?: EmployeeSalaryProfile;
 }
 
+export interface EmployeeApiRecord {
+  id: number;
+  employee_code: string;
+  first_name: string;
+  middle_name?: string | null;
+  last_name: string;
+  suffix?: string | null;
+  birth_date?: string | null;
+  hire_date?: string | null;
+  employment_status: string;
+  employment_type: string;
+  department: string;
+  position: string;
+  payroll_schedule: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EmployeeListItem = Pick<
+  Employee,
+  "id" | "fullName" | "department" | "position" | "employmentType" | "payrollSchedule"
+> & {
+  status: EmployeeStatus;
+};

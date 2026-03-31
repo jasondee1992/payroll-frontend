@@ -1,79 +1,26 @@
 import Link from "next/link";
 import { EmployeeListToolbar } from "@/components/employees/employee-list-toolbar";
 import { EmployeePagination } from "@/components/employees/employee-pagination";
-import {
-  EmployeeTable,
-  type EmployeeRecord,
-} from "@/components/employees/employee-table";
+import { EmployeeTable } from "@/components/employees/employee-table";
 import { PageHeader } from "@/components/shared/page-header";
+import { getEmployees } from "@/lib/api/employees";
+import type { EmployeeListItem } from "@/types/employees";
 
-const employees: EmployeeRecord[] = [
-  {
-    id: "EMP-1001",
-    fullName: "Olivia Bennett",
-    department: "Finance",
-    position: "Payroll Specialist",
-    employmentType: "Full-time",
-    payrollSchedule: "Monthly",
-    status: "Active" as const,
-  },
-  {
-    id: "EMP-1008",
-    fullName: "Marcus Rivera",
-    department: "Operations",
-    position: "Attendance Coordinator",
-    employmentType: "Full-time",
-    payrollSchedule: "Bi-weekly",
-    status: "Active" as const,
-  },
-  {
-    id: "EMP-1015",
-    fullName: "Sophia Turner",
-    department: "Human Resources",
-    position: "HR Business Partner",
-    employmentType: "Full-time",
-    payrollSchedule: "Monthly",
-    status: "On Leave" as const,
-  },
-  {
-    id: "EMP-1022",
-    fullName: "Daniel Kim",
-    department: "Engineering",
-    position: "Frontend Engineer",
-    employmentType: "Contract",
-    payrollSchedule: "Bi-weekly",
-    status: "Active" as const,
-  },
-  {
-    id: "EMP-1031",
-    fullName: "Priya Shah",
-    department: "Customer Support",
-    position: "Support Manager",
-    employmentType: "Full-time",
-    payrollSchedule: "Monthly",
-    status: "Pending" as const,
-  },
-  {
-    id: "EMP-1044",
-    fullName: "Ethan Walker",
-    department: "Sales",
-    position: "Account Executive",
-    employmentType: "Part-time",
-    payrollSchedule: "Monthly",
-    status: "Active" as const,
-  },
-  {
-    id: "EMP-1056",
-    fullName: "Ava Collins",
-    department: "Compliance",
-    position: "Compliance Analyst",
-    employmentType: "Full-time",
-    payrollSchedule: "Monthly",
-    status: "Inactive" as const,
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function EmployeesPage() {
+export default async function EmployeesPage() {
+  let employees: EmployeeListItem[] = [];
+  let errorMessage: string | null = null;
+
+  try {
+    employees = await getEmployees();
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unable to load employee data from the backend.";
+  }
+
   return (
     <>
       <PageHeader
@@ -93,17 +40,32 @@ export default function EmployeesPage() {
         <EmployeeListToolbar />
 
         <div className="mt-6">
-          <EmployeeTable employees={employees} />
+          {errorMessage ? (
+            <div className="ui-empty-state">
+              <h2 className="text-lg font-semibold text-slate-950">
+                Unable to load employees
+              </h2>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                {errorMessage} Make sure the FastAPI backend is running at the
+                configured API URL and the `/api/v1/employees` endpoint is
+                available.
+              </p>
+            </div>
+          ) : (
+            <EmployeeTable employees={employees} />
+          )}
         </div>
 
-        <div className="mt-6">
-          <EmployeePagination
-            currentPage={1}
-            totalPages={8}
-            pageSize={10}
-            totalItems={76}
-          />
-        </div>
+        {!errorMessage && employees.length > 0 ? (
+          <div className="mt-6">
+            <EmployeePagination
+              currentPage={1}
+              totalPages={1}
+              pageSize={employees.length}
+              totalItems={employees.length}
+            />
+          </div>
+        ) : null}
       </section>
     </>
   );

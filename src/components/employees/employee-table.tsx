@@ -4,25 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Eye } from "lucide-react";
 import { DetailItem } from "@/components/ui/detail-item";
+import { ResourceEmptyState } from "@/components/shared/resource-state";
 import {
   DataTableBodyCell,
   DataTableHeaderCell,
   DataTableShell,
 } from "@/components/ui/data-table";
-import {
-  EmployeeStatusBadge,
-} from "@/components/employees/employee-status-badge";
-import type { Employee, EmployeeStatus } from "@/types/employees";
-
-export type EmployeeRecord = Pick<
-  Employee,
-  "id" | "fullName" | "department" | "position" | "employmentType" | "payrollSchedule"
-> & {
-  status: EmployeeStatus;
-};
+import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
+import type { EmployeeListItem } from "@/types/employees";
 
 type EmployeeTableProps = {
-  employees: EmployeeRecord[];
+  employees: EmployeeListItem[];
 };
 
 export function EmployeeTable({ employees }: EmployeeTableProps) {
@@ -137,20 +129,17 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
 
 function EmployeeEmptyState() {
   return (
-    <div className="ui-empty-state">
-      <h2 className="text-lg font-semibold text-slate-950">No employees found</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-        When employee records are available, the directory table will appear here
-        with search, filters, payroll metadata, and detail actions.
-      </p>
-      <div className="mt-6">
+    <ResourceEmptyState
+      title="No employees found"
+      description="When employee records are available, the directory table will appear here with search, filters, payroll metadata, and detail actions."
+      action={
         <Link
           href="/employees/new"
           className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           Add Employee
         </Link>
-      </div>
-    </div>
+      }
+    />
   );
 }
