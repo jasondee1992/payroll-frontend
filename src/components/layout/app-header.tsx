@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 type AppHeaderProps = {
   collapsed: boolean;
@@ -57,6 +58,8 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          <LogoutButton />
+
           <div className="hidden rounded-2xl border border-emerald-200/80 bg-emerald-50 px-4 py-2.5 text-right sm:block">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
               Current period

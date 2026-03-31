@@ -40,11 +40,16 @@ export default function LoginPage() {
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-slate-950">
-                  Frontend foundation only
+                  FastAPI auth is connected
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  This screen is ready for real authentication wiring later. No
-                  backend integration or auth implementation has been added yet.
+                  This form now signs in through the local FastAPI backend. If
+                  you still need an account, create one from the backend
+                  Swagger UI at{" "}
+                  <code className="font-mono text-[13px]">/docs</code> using
+                  <code className="ml-1 font-mono text-[13px]">
+                    POST /api/v1/users
+                  </code>.
                 </p>
               </div>
             </div>
@@ -54,4 +59,3 @@ export default function LoginPage() {
     </main>
   );
 }
-
