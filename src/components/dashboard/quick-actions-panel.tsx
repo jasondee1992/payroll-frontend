@@ -1,0 +1,66 @@
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import { CalendarPlus2, PlayCircle, Upload, UserPlus } from "lucide-react";
+
+type QuickAction = {
+  title: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+const quickActions: QuickAction[] = [
+  {
+    title: "Add Employee",
+    description: "Create a new employee record and begin payroll setup.",
+    href: "/employees/new",
+    icon: UserPlus,
+  },
+  {
+    title: "Upload Attendance",
+    description: "Prepare the attendance import workflow for the active period.",
+    href: "/attendance",
+    icon: Upload,
+  },
+  {
+    title: "Create Payroll Period",
+    description: "Define a new pay cycle and configure processing dates.",
+    href: "/payroll/periods",
+    icon: CalendarPlus2,
+  },
+  {
+    title: "Run Payroll",
+    description: "Open the payroll execution workspace for the current cycle.",
+    href: "/payroll/run",
+    icon: PlayCircle,
+  },
+];
+
+export function QuickActionsPanel() {
+  return (
+    <div className="grid gap-3">
+      {quickActions.map((action) => {
+        const Icon = action.icon;
+
+        return (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="group flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white transition group-hover:bg-slate-800">
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-950">{action.title}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {action.description}
+              </p>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
