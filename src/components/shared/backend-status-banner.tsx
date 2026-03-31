@@ -12,7 +12,7 @@ export function BackendStatusBanner() {
 
   return (
     <div className="border-b border-amber-300/80 bg-amber-50/95 text-amber-950 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl items-start gap-3 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="flex w-full items-start gap-3 px-4 py-3 sm:px-5 lg:px-4">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
           <AlertTriangle className="h-4 w-4" />
         </div>

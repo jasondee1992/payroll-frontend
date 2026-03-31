@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import { BackendStatusBanner } from "@/components/shared/backend-status-banner";
+import { APP_NAME } from "@/config/branding";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -9,7 +10,7 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Payroll Workspace",
+  title: APP_NAME,
   description: "Enterprise payroll management frontend foundation.",
 };
 

@@ -1,6 +1,7 @@
 import { Building2 } from "lucide-react";
 import { LoginBackendStatusCard } from "@/components/auth/login-backend-status-card";
 import { LoginForm } from "@/components/auth/login-form";
+import { APP_NAME } from "@/config/branding";
 
 export default function LoginPage() {
   return (
@@ -21,7 +22,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-              Northstar Payroll
+              {APP_NAME}
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
               Sign in to your workspace

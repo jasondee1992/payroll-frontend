@@ -1,4 +1,5 @@
 import { FileText, ReceiptText } from "lucide-react";
+import { APP_NAME } from "@/config/branding";
 
 type PayslipPreviewCardProps = {
   employeeName: string;
@@ -48,7 +49,7 @@ export function PayslipPreviewCard({
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-950">
-                    Northstar Payroll
+                    {APP_NAME}
                   </p>
                   <p className="text-sm text-slate-500">
                     Employee earnings statement

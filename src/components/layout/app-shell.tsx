@@ -65,8 +65,8 @@ export function AppShell({
             onOpenMobileNav={() => setMobileOpen(true)}
           />
 
-          <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
-            <div className="mx-auto flex w-full max-w-7xl flex-col gap-7">
+          <main className="flex-1 px-4 py-5 sm:px-5 sm:py-6 lg:px-4 lg:py-7">
+            <div className="flex w-full flex-col gap-7">
               {children}
             </div>
           </main>

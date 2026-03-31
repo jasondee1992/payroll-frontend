@@ -6,6 +6,7 @@ import {
   getActiveNavigationItem,
   navigationItems,
 } from "@/config/navigation";
+import { APP_NAME, APP_SUBTITLE } from "@/config/branding";
 import { cn } from "@/lib/utils";
 import { NavigationLink } from "./navigation-link";
 
@@ -43,10 +44,10 @@ export function AppSidebar({
           </div>
           <div className={cn("min-w-0", collapsed && "lg:hidden")}>
             <p className="truncate text-sm font-semibold text-white">
-              Northstar Payroll
+              {APP_NAME}
             </p>
             <p className="truncate text-xs text-slate-400">
-              Enterprise workspace
+              {APP_SUBTITLE}
             </p>
           </div>
         </div>
