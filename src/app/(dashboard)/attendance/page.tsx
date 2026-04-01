@@ -1,107 +1,83 @@
 import { Clock3, FileWarning, TimerReset, UserRoundX } from "lucide-react";
 import { AttendanceTable } from "@/components/attendance/attendance-table";
-import { UploadHistoryPanel } from "@/components/attendance/upload-history-panel";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  ResourceEmptyState,
+  ResourceErrorState,
+} from "@/components/shared/resource-state";
+import { getAttendanceRecordsResource } from "@/lib/api/attendance";
+import {
+  buildEmployeeFullName,
+  getEmployeeRecordsResource,
+} from "@/lib/api/employees";
+import { getPayrollPeriodRecordsResource } from "@/lib/api/payroll";
+import { formatDate, formatTime } from "@/lib/format";
 
-const attendanceRecords = [
-  {
-    employeeId: "EMP-1001",
-    employeeName: "Olivia Bennett",
-    workDate: "Apr 01, 2026",
-    timeIn: "8:07 AM",
-    timeOut: "5:42 PM",
-    lateMinutes: 7,
-    undertimeMinutes: 0,
-    overtimeMinutes: 35,
-    remarks: "Approved overtime",
-  },
-  {
-    employeeId: "EMP-1008",
-    employeeName: "Marcus Rivera",
-    workDate: "Apr 01, 2026",
-    timeIn: "8:23 AM",
-    timeOut: "5:01 PM",
-    lateMinutes: 23,
-    undertimeMinutes: 0,
-    overtimeMinutes: 0,
-    remarks: "Late arrival due to client visit",
-  },
-  {
-    employeeId: "EMP-1015",
-    employeeName: "Sophia Turner",
-    workDate: "Apr 01, 2026",
-    timeIn: "8:00 AM",
-    timeOut: "4:48 PM",
-    lateMinutes: 0,
-    undertimeMinutes: 12,
-    overtimeMinutes: 0,
-    remarks: "Left early with manager approval",
-  },
-  {
-    employeeId: "EMP-1022",
-    employeeName: "Daniel Kim",
-    workDate: "Apr 01, 2026",
-    timeIn: "7:56 AM",
-    timeOut: "6:14 PM",
-    lateMinutes: 0,
-    undertimeMinutes: 0,
-    overtimeMinutes: 74,
-    remarks: "Sprint deployment support",
-  },
-  {
-    employeeId: "EMP-1031",
-    employeeName: "Priya Shah",
-    workDate: "Apr 01, 2026",
-    timeIn: "--",
-    timeOut: "--",
-    lateMinutes: 0,
-    undertimeMinutes: 0,
-    overtimeMinutes: 0,
-    remarks: "Missing time entry",
-  },
-  {
-    employeeId: "EMP-1044",
-    employeeName: "Ethan Walker",
-    workDate: "Apr 01, 2026",
-    timeIn: "9:11 AM",
-    timeOut: "6:03 PM",
-    lateMinutes: 11,
-    undertimeMinutes: 0,
-    overtimeMinutes: 3,
-    remarks: "Field sales meeting",
-  },
-];
+export const dynamic = "force-dynamic";
 
-const uploadHistory = [
-  {
-    fileName: "attendance_apr01_finance.csv",
-    period: "Apr 01 - Apr 15, 2026",
-    uploadedBy: "Payroll Admin",
-    uploadedAt: "Apr 01, 2026 9:12 AM",
-    records: "84 records",
-    status: "Imported" as const,
-  },
-  {
-    fileName: "attendance_apr01_operations.xlsx",
-    period: "Apr 01 - Apr 15, 2026",
-    uploadedBy: "Marcus Rivera",
-    uploadedAt: "Apr 01, 2026 8:46 AM",
-    records: "112 records",
-    status: "Validated" as const,
-  },
-  {
-    fileName: "attendance_apr01_support.csv",
-    period: "Apr 01 - Apr 15, 2026",
-    uploadedBy: "Support Lead",
-    uploadedAt: "Apr 01, 2026 8:05 AM",
-    records: "36 records",
-    status: "Needs review" as const,
-  },
-];
+export default async function AttendancePage() {
+  const [attendanceResult, employeesResult, periodsResult] = await Promise.all([
+    getAttendanceRecordsResource(),
+    getEmployeeRecordsResource(),
+    getPayrollPeriodRecordsResource(),
+  ]);
 
-export default function AttendancePage() {
+  const errorMessages = [
+    attendanceResult.errorMessage,
+    employeesResult.errorMessage,
+    periodsResult.errorMessage,
+  ].filter(Boolean);
+
+  if (errorMessages.length > 0) {
+    return (
+      <>
+        <PageHeader
+          title="Attendance"
+          description="Review attendance records, payroll exceptions, and import activity for the selected payroll period."
+        />
+
+        <ResourceErrorState
+          title="Unable to load attendance from the backend"
+          description={errorMessages.join(" ")}
+        />
+      </>
+    );
+  }
+
+  const employeesById = new Map(
+    employeesResult.data.map((employee) => [employee.id, employee]),
+  );
+  const activePeriod =
+    periodsResult.data.find((period) => period.status.trim().toLowerCase() === "open") ??
+    periodsResult.data[0];
+  const attendanceRows = attendanceResult.data.map((record) => {
+    const employee = employeesById.get(record.employee_id);
+
+    return {
+      employeeId: employee?.employee_code ?? `EMP-${record.employee_id}`,
+      employeeName: employee ? buildEmployeeFullName(employee) : "Unknown employee",
+      workDate: formatDate(record.work_date),
+      timeIn: formatTime(record.time_in),
+      timeOut: formatTime(record.time_out),
+      lateMinutes: record.late_minutes,
+      undertimeMinutes: record.undertime_minutes,
+      overtimeMinutes: record.overtime_minutes,
+      remarks: record.remarks ?? (record.absence_flag ? "Absent" : "No remarks"),
+    };
+  });
+
+  const employeesWithLate = attendanceResult.data.filter(
+    (record) => record.late_minutes > 0,
+  ).length;
+  const employeesWithOvertime = attendanceResult.data.filter(
+    (record) => record.overtime_minutes > 0,
+  ).length;
+  const missingEntries = attendanceResult.data.filter((record) => {
+    return record.absence_flag || !record.time_in || !record.time_out;
+  }).length;
+
   return (
     <>
       <PageHeader
@@ -124,58 +100,57 @@ export default function AttendancePage() {
               Processing note
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Attendance records for the active period are used to compute late,
-              undertime, and overtime adjustments before payroll approval.
+              Attendance rows below are loaded from the live attendance endpoint
+              and mapped to employee records before payroll review.
             </p>
           </div>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Selected Payroll Period
-            </span>
-            <select
-              defaultValue="Apr 01 - Apr 15, 2026"
-              className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10"
-            >
-              <option>Apr 01 - Apr 15, 2026</option>
-              <option>Mar 16 - Mar 31, 2026</option>
-              <option>Mar 01 - Mar 15, 2026</option>
-            </select>
-          </label>
+          <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Active Payroll Period
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-900">
+              {activePeriod?.period_name ?? "No payroll period available"}
+            </p>
+          </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Records"
-          value="232"
-          detail="Attendance rows imported and ready for payroll review in the current period."
-          trend="+18 today"
+          value={String(attendanceResult.data.length)}
+          detail="Attendance rows currently available from the backend."
+          trend={`${employeesResult.data.length} employees`}
           trendTone="positive"
           icon={Clock3}
         />
         <StatCard
           title="Employees with Late"
-          value="21"
-          detail="Employees with recorded late time entries that may affect payroll deductions."
-          trend="9.1%"
-          trendTone="attention"
+          value={String(employeesWithLate)}
+          detail="Attendance rows with positive late minutes."
+          trend={
+            attendanceResult.data.length > 0
+              ? `${Math.round((employeesWithLate / attendanceResult.data.length) * 100)}%`
+              : "0%"
+          }
+          trendTone={employeesWithLate > 0 ? "attention" : "positive"}
           icon={FileWarning}
         />
         <StatCard
           title="Employees with Overtime"
-          value="34"
-          detail="Approved or review-pending overtime records detected for the active cycle."
-          trend="+7 today"
+          value={String(employeesWithOvertime)}
+          detail="Attendance rows with positive overtime minutes."
+          trend="Live attendance data"
           trendTone="positive"
           icon={TimerReset}
         />
         <StatCard
           title="Missing Time Entries"
-          value="6"
-          detail="Records still require manual correction or attendance re-upload before closing."
-          trend="Needs review"
-          trendTone="attention"
+          value={String(missingEntries)}
+          detail="Rows missing a time-in/time-out value or explicitly flagged absent."
+          trend={missingEntries > 0 ? "Needs review" : "Clear"}
+          trendTone={missingEntries > 0 ? "attention" : "positive"}
           icon={UserRoundX}
         />
       </section>
@@ -183,16 +158,26 @@ export default function AttendancePage() {
       <section className="grid gap-4 xl:grid-cols-[1.7fr_0.9fr]">
         <DashboardSection
           title="Attendance records"
-          description="Daily attendance entries prepared for payroll adjustment review."
+          description="Daily attendance entries loaded from the backend."
         >
-          <AttendanceTable records={attendanceRecords} />
+          {attendanceRows.length > 0 ? (
+            <AttendanceTable records={attendanceRows} />
+          ) : (
+            <ResourceEmptyState
+              title="No attendance records found"
+              description="Attendance rows will appear here once the backend has logs to return."
+            />
+          )}
         </DashboardSection>
 
         <DashboardSection
           title="Import history"
-          description="Recent attendance uploads and validation outcomes for the selected period."
+          description="Attendance import history is not exposed by the current backend API."
         >
-          <UploadHistoryPanel items={uploadHistory} />
+          <ResourceEmptyState
+            title="No import-history endpoint available"
+            description="The frontend mock upload history was removed. Add a backend route for attendance import jobs if this panel should return."
+          />
         </DashboardSection>
       </section>
     </>

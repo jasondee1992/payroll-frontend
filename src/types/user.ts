@@ -10,3 +10,14 @@ export interface User {
   avatarInitials: string;
 }
 
+export interface UserApiRecord {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  employee_id?: number;
+  created_at: string;
+  updated_at: string;
+}
+

@@ -2,56 +2,101 @@ import { BadgeCheck, CircleDollarSign, Landmark, WalletCards } from "lucide-reac
 import { PayrollResultsTable } from "@/components/payroll/payroll-results-table";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  ResourceEmptyState,
+  ResourceErrorState,
+} from "@/components/shared/resource-state";
+import {
+  buildEmployeeFullName,
+  getEmployeeRecordsResource,
+} from "@/lib/api/employees";
+import {
+  getPayrollPeriodRecordsResource,
+  getPayrollRunRecordsResource,
+  normalizePayrollStatus,
+} from "@/lib/api/payroll";
+import { formatCompactCurrency, formatCurrency } from "@/lib/format";
 
-const results = [
-  {
-    employeeId: "EMP-1001",
-    name: "Olivia Bennett",
-    grossPay: "PHP 51,500.00",
-    deductions: "PHP 4,050.00",
-    tax: "PHP 3,220.00",
-    netPay: "PHP 44,230.00",
-    status: "Paid" as const,
-  },
-  {
-    employeeId: "EMP-1008",
-    name: "Marcus Rivera",
-    grossPay: "PHP 42,100.00",
-    deductions: "PHP 3,680.00",
-    tax: "PHP 2,920.00",
-    netPay: "PHP 35,500.00",
-    status: "Paid" as const,
-  },
-  {
-    employeeId: "EMP-1015",
-    name: "Sophia Turner",
-    grossPay: "PHP 58,900.00",
-    deductions: "PHP 4,410.00",
-    tax: "PHP 4,680.00",
-    netPay: "PHP 49,810.00",
-    status: "Needs review" as const,
-  },
-  {
-    employeeId: "EMP-1022",
-    name: "Daniel Kim",
-    grossPay: "PHP 38,700.00",
-    deductions: "PHP 3,240.00",
-    tax: "PHP 2,580.00",
-    netPay: "PHP 32,880.00",
-    status: "Paid" as const,
-  },
-  {
-    employeeId: "EMP-1031",
-    name: "Priya Shah",
-    grossPay: "PHP 47,300.00",
-    deductions: "PHP 3,820.00",
-    tax: "PHP 3,610.00",
-    netPay: "PHP 39,870.00",
-    status: "Processing" as const,
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function PayrollResultsPage() {
+export default async function PayrollResultsPage() {
+  const [runsResult, employeesResult, periodsResult] = await Promise.all([
+    getPayrollRunRecordsResource(),
+    getEmployeeRecordsResource(),
+    getPayrollPeriodRecordsResource(),
+  ]);
+
+  const errorMessages = [
+    runsResult.errorMessage,
+    employeesResult.errorMessage,
+    periodsResult.errorMessage,
+  ].filter(Boolean);
+
+  if (errorMessages.length > 0) {
+    return (
+      <>
+        <PageHeader
+          title="Payroll Results"
+          description="Review payroll outputs, validate deduction and tax totals, and prepare payroll results for downstream release."
+        />
+
+        <ResourceErrorState
+          title="Unable to load payroll results"
+          description={errorMessages.join(" ")}
+        />
+      </>
+    );
+  }
+
+  const periods = [...periodsResult.data].sort((left, right) =>
+    right.period_start.localeCompare(left.period_start),
+  );
+  const selectedPeriod =
+    periods.find((period) => period.status.trim().toLowerCase() === "open") ??
+    periods[0];
+  const employeeById = new Map(
+    employeesResult.data.map((employee) => [employee.id, employee]),
+  );
+  const scopedRuns = selectedPeriod
+    ? runsResult.data.filter((run) => run.payroll_period_id === selectedPeriod.id)
+    : runsResult.data;
+
+  const results = scopedRuns.map((run) => {
+    const employee = employeeById.get(run.employee_id);
+    const deductions =
+      Number(run.total_deductions) + Number(run.government_deductions);
+
+    return {
+      employeeId: employee?.employee_code ?? `EMP-${run.employee_id}`,
+      name: employee ? buildEmployeeFullName(employee) : "Unknown employee",
+      grossPay: formatCurrency(run.gross_pay),
+      deductions: formatCurrency(deductions),
+      tax: formatCurrency(run.withholding_tax),
+      netPay: formatCurrency(run.net_pay),
+      status: normalizePayrollStatus(run.status),
+    };
+  });
+
+  const grossPayroll = scopedRuns.reduce((total, run) => {
+    return total + Number(run.gross_pay);
+  }, 0);
+  const totalDeductions = scopedRuns.reduce((total, run) => {
+    return (
+      total +
+      Number(run.total_deductions) +
+      Number(run.government_deductions) +
+      Number(run.withholding_tax)
+    );
+  }, 0);
+  const netPayout = scopedRuns.reduce((total, run) => {
+    return total + Number(run.net_pay);
+  }, 0);
+  const readyResults = scopedRuns.filter((run) => {
+    const status = normalizePayrollStatus(run.status);
+    return status === "Processed" || status === "Completed" || status === "Paid";
+  }).length;
+  const pendingResults = scopedRuns.length - readyResults;
+
   return (
     <>
       <PageHeader
@@ -70,39 +115,48 @@ export default function PayrollResultsPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Processed Employees"
-          value="248"
-          detail="Employees included in the current payroll result set."
-          trend="97% ready"
+          value={String(scopedRuns.length)}
+          detail="Employees included in the selected backend payroll period."
+          trend={`${readyResults} ready`}
           trendTone="positive"
           icon={BadgeCheck}
         />
         <StatCard
           title="Gross Payroll"
-          value="PHP 412.8K"
-          detail="Total gross pay before taxes and contribution deductions."
-          trend="+2.8%"
+          value={formatCompactCurrency(grossPayroll)}
+          detail="Total gross pay returned by the payroll-runs endpoint."
+          trend={selectedPeriod?.period_name ?? "All periods"}
           trendTone="positive"
           icon={CircleDollarSign}
         />
         <StatCard
           title="Total Deductions"
-          value="PHP 36.4K"
-          detail="Combined deductions for contributions, loans, and other payroll items."
-          trend="Within range"
+          value={formatCompactCurrency(totalDeductions)}
+          detail="Combined deductions, government deductions, and withholding tax."
+          trend="Calculated from live runs"
           icon={Landmark}
         />
         <StatCard
           title="Net Payout"
-          value="PHP 347.6K"
-          detail="Projected net payout after deductions and tax calculations."
-          trend="3 records pending"
-          trendTone="attention"
+          value={formatCompactCurrency(netPayout)}
+          detail="Net pay across the currently displayed payroll results."
+          trend={
+            pendingResults > 0 ? `${pendingResults} pending` : "All processed"
+          }
+          trendTone={pendingResults > 0 ? "attention" : "positive"}
           icon={WalletCards}
         />
       </section>
 
       <section className="panel p-5 sm:p-6">
-        <PayrollResultsTable results={results} />
+        {results.length > 0 ? (
+          <PayrollResultsTable results={results} />
+        ) : (
+          <ResourceEmptyState
+            title="No payroll results found"
+            description="The backend returned no payroll runs for the active or latest payroll period."
+          />
+        )}
       </section>
     </>
   );

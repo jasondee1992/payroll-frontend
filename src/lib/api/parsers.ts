@@ -68,3 +68,33 @@ export function parseNumber(value: unknown, label: string) {
 
   return value;
 }
+
+export function parseNumericString(value: unknown, label: string): string;
+export function parseNumericString(
+  value: unknown,
+  label: string,
+  options: { optional: true },
+): string | undefined;
+export function parseNumericString(
+  value: unknown,
+  label: string,
+  options?: { optional?: boolean },
+): string | undefined {
+  if (value == null || value === "") {
+    if (options?.optional) {
+      return undefined;
+    }
+
+    throw getParserError(`Expected ${label} to be a numeric string or number.`);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  throw getParserError(`Expected ${label} to be a numeric string or number.`);
+}

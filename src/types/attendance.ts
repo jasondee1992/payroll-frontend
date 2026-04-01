@@ -10,3 +10,18 @@ export interface AttendanceLog {
   remarks: string;
 }
 
+export interface AttendanceApiRecord {
+  id: number;
+  employee_id: number;
+  work_date: string;
+  time_in?: string;
+  time_out?: string;
+  late_minutes: number;
+  undertime_minutes: number;
+  overtime_minutes: number;
+  absence_flag: boolean;
+  remarks?: string;
+  created_at: string;
+  updated_at: string;
+}
+

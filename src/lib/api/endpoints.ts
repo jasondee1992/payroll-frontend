@@ -8,18 +8,23 @@ export const apiEndpoints = {
   employees: {
     list: `${API_V1_PREFIX}/employees`,
     detail: (employeeId: string) => `${API_V1_PREFIX}/employees/${employeeId}`,
+    governmentInfo: (employeeId: string) =>
+      `${API_V1_PREFIX}/employees/${employeeId}/government-info`,
+    salaryProfile: (employeeId: string) =>
+      `${API_V1_PREFIX}/employees/${employeeId}/salary-profile`,
   },
   attendance: {
     list: `${API_V1_PREFIX}/attendance`,
-    upload: `${API_V1_PREFIX}/attendance/imports`,
   },
   payroll: {
-    periods: `${API_V1_PREFIX}/payroll/periods`,
-    runs: `${API_V1_PREFIX}/payroll/runs`,
-    results: `${API_V1_PREFIX}/payroll/results`,
-    payslips: `${API_V1_PREFIX}/payroll/payslips`,
+    periods: `${API_V1_PREFIX}/payroll-periods`,
+    periodDetail: (periodId: string) => `${API_V1_PREFIX}/payroll-periods/${periodId}`,
+    runs: `${API_V1_PREFIX}/payroll-runs`,
+    runDetail: (runId: string) => `${API_V1_PREFIX}/payroll-runs/${runId}`,
+    process: `${API_V1_PREFIX}/payroll-runs/process`,
   },
-  reports: {
-    list: `${API_V1_PREFIX}/reports`,
+  users: {
+    list: `${API_V1_PREFIX}/users`,
+    detail: (userId: string) => `${API_V1_PREFIX}/users/${userId}`,
   },
 } as const;

@@ -7,7 +7,11 @@ import { EmployeePayrollHistoryTable } from "@/components/employees/employee-pay
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
 import { DetailItem } from "@/components/ui/detail-item";
 import { PageHeader } from "@/components/shared/page-header";
-import type { EmployeeStatus } from "@/types/employees";
+import {
+  ResourceEmptyState,
+  ResourceErrorState,
+} from "@/components/shared/resource-state";
+import { getEmployeeProfileResource } from "@/lib/api/employee-details";
 
 type EmployeeDetailPageProps = {
   params: Promise<{
@@ -15,34 +19,27 @@ type EmployeeDetailPageProps = {
   }>;
 };
 
-type EmployeeProfile = {
-  id: string;
-  fullName: string;
-  department: string;
-  position: string;
-  status: EmployeeStatus;
-  employmentType: string;
-  payrollSchedule: string;
-  email: string;
-  username: string;
-  basicInformation: Array<{ label: string; value: string }>;
-  workInformation: Array<{ label: string; value: string }>;
-  governmentInformation: Array<{ label: string; value: string }>;
-  salaryProfile: Array<{ label: string; value: string }>;
-  payrollHistory: Array<{
-    period: string;
-    runDate: string;
-    grossPay: string;
-    netPay: string;
-    status: string;
-  }>;
-};
+export const dynamic = "force-dynamic";
 
 export default async function EmployeeDetailPage({
   params,
 }: EmployeeDetailPageProps) {
   const { id } = await params;
-  const employee = getEmployeeProfile(id);
+  const { data: employee, errorMessage } = await getEmployeeProfileResource(id);
+
+  if (errorMessage || !employee) {
+    return (
+      <ResourceErrorState
+        title="Unable to load employee profile"
+        description={errorMessage ?? "Employee data is unavailable."}
+        action={
+          <Link href="/employees" className="ui-button-secondary">
+            Back to Employees
+          </Link>
+        }
+      />
+    );
+  }
 
   const tabs = [
     {
@@ -101,7 +98,14 @@ export default async function EmployeeDetailPage({
           title="Payroll History"
           description="Recent payroll runs and release summaries for this employee."
         >
-          <EmployeePayrollHistoryTable items={employee.payrollHistory} />
+          {employee.payrollHistory.length > 0 ? (
+            <EmployeePayrollHistoryTable items={employee.payrollHistory} />
+          ) : (
+            <ResourceEmptyState
+              title="No payroll history found"
+              description="The backend returned no payroll runs linked to this employee yet."
+            />
+          )}
         </EmployeeDetailSection>
       ),
     },
@@ -115,17 +119,11 @@ export default async function EmployeeDetailPage({
         eyebrow="Employees"
         actions={
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/employees"
-              className="ui-button-secondary gap-2"
-            >
+            <Link href="/employees" className="ui-button-secondary gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Employees
             </Link>
-            <button
-              type="button"
-              className="ui-button-primary gap-2"
-            >
+            <button type="button" className="ui-button-primary gap-2">
               <PencilLine className="h-4 w-4" />
               Edit Employee
             </button>
@@ -190,126 +188,4 @@ function getInitials(fullName: string) {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
-}
-
-function getEmployeeProfile(id: string): EmployeeProfile {
-  const profiles: Record<string, EmployeeProfile> = {
-    "EMP-1001": {
-      id: "EMP-1001",
-      fullName: "Olivia Bennett",
-      department: "Finance",
-      position: "Payroll Specialist",
-      status: "Active",
-      employmentType: "Full-time",
-      payrollSchedule: "Monthly",
-      email: "olivia.bennett@northstarpayroll.com",
-      username: "olivia.bennett",
-      basicInformation: [
-        { label: "First Name", value: "Olivia" },
-        { label: "Middle Name", value: "Grace" },
-        { label: "Last Name", value: "Bennett" },
-        { label: "Birth Date", value: "June 18, 1991" },
-        { label: "Hire Date", value: "January 8, 2021" },
-        { label: "Suffix", value: "None" },
-      ],
-      workInformation: [
-        { label: "Department", value: "Finance" },
-        { label: "Position", value: "Payroll Specialist" },
-        { label: "Employment Type", value: "Full-time" },
-        { label: "Employment Status", value: "Active" },
-        { label: "Payroll Schedule", value: "Monthly" },
-        { label: "Work Location", value: "Manila HQ" },
-      ],
-      governmentInformation: [
-        { label: "TIN", value: "123-456-789-000" },
-        { label: "SSS Number", value: "34-5678901-2" },
-        { label: "PhilHealth Number", value: "12-345678901-2" },
-        { label: "Pag-IBIG Number", value: "1234-5678-9012" },
-        { label: "Tax Status", value: "Single" },
-        { label: "Withholding Setup", value: "Standard monthly withholding" },
-      ],
-      salaryProfile: [
-        { label: "Basic Salary", value: "PHP 48,000.00" },
-        { label: "Rate Type", value: "Monthly" },
-        { label: "Allowance", value: "PHP 3,500.00" },
-        { label: "Bank Account", value: "Metrobank ending in 2481" },
-      ],
-      payrollHistory: [
-        {
-          period: "March 2026",
-          runDate: "March 15, 2026",
-          grossPay: "PHP 51,500.00",
-          netPay: "PHP 44,230.00",
-          status: "Paid",
-        },
-        {
-          period: "February 2026",
-          runDate: "February 15, 2026",
-          grossPay: "PHP 51,500.00",
-          netPay: "PHP 44,180.00",
-          status: "Paid",
-        },
-        {
-          period: "January 2026",
-          runDate: "January 15, 2026",
-          grossPay: "PHP 51,500.00",
-          netPay: "PHP 44,160.00",
-          status: "Paid",
-        },
-      ],
-    },
-  };
-
-  return (
-    profiles[id] ?? {
-      id,
-      fullName: "Jordan Lee",
-      department: "Operations",
-      position: "Workforce Coordinator",
-      status: "Pending",
-      employmentType: "Full-time",
-      payrollSchedule: "Bi-weekly",
-      email: "jordan.lee@northstarpayroll.com",
-      username: "jordan.lee",
-      basicInformation: [
-        { label: "First Name", value: "Jordan" },
-        { label: "Middle Name", value: "A." },
-        { label: "Last Name", value: "Lee" },
-        { label: "Birth Date", value: "September 2, 1994" },
-        { label: "Hire Date", value: "March 30, 2026" },
-        { label: "Suffix", value: "None" },
-      ],
-      workInformation: [
-        { label: "Department", value: "Operations" },
-        { label: "Position", value: "Workforce Coordinator" },
-        { label: "Employment Type", value: "Full-time" },
-        { label: "Employment Status", value: "Pending" },
-        { label: "Payroll Schedule", value: "Bi-weekly" },
-        { label: "Work Location", value: "Cebu Operations Center" },
-      ],
-      governmentInformation: [
-        { label: "TIN", value: "Pending setup" },
-        { label: "SSS Number", value: "Pending setup" },
-        { label: "PhilHealth Number", value: "Pending setup" },
-        { label: "Pag-IBIG Number", value: "Pending setup" },
-        { label: "Tax Status", value: "Single" },
-        { label: "Withholding Setup", value: "For review during onboarding" },
-      ],
-      salaryProfile: [
-        { label: "Basic Salary", value: "PHP 32,000.00" },
-        { label: "Rate Type", value: "Bi-weekly" },
-        { label: "Allowance", value: "PHP 1,500.00" },
-        { label: "Bank Account", value: "To be enrolled" },
-      ],
-      payrollHistory: [
-        {
-          period: "April 2026",
-          runDate: "Scheduled for April 5, 2026",
-          grossPay: "PHP 33,500.00",
-          netPay: "Pending release",
-          status: "Scheduled",
-        },
-      ],
-    }
-  );
 }

@@ -1,16 +1,79 @@
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { PayrollRunForm } from "@/components/payroll/payroll-run-form";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  ResourceEmptyState,
+  ResourceErrorState,
+} from "@/components/shared/resource-state";
+import { getAttendanceRecordsResource } from "@/lib/api/attendance";
+import { getEmployeeRecordsResource } from "@/lib/api/employees";
+import { getPayrollPeriodRecordsResource } from "@/lib/api/payroll";
+import { formatDate } from "@/lib/format";
 
-const processingItems = [
-  { label: "Employees included", value: "248 active employees" },
-  { label: "Payroll group", value: "All Active Employees" },
-  { label: "Attendance records", value: "232 records synced for review" },
-  { label: "Variable pay items", value: "18 adjustments pending confirmation" },
-  { label: "Expected gross payout", value: "PHP 412,840.00" },
-];
+export const dynamic = "force-dynamic";
 
-export default function PayrollRunPage() {
+export default async function PayrollRunPage() {
+  const [periodsResult, employeesResult, attendanceResult] = await Promise.all([
+    getPayrollPeriodRecordsResource(),
+    getEmployeeRecordsResource(),
+    getAttendanceRecordsResource(),
+  ]);
+
+  const errorMessages = [
+    periodsResult.errorMessage,
+    employeesResult.errorMessage,
+    attendanceResult.errorMessage,
+  ].filter(Boolean);
+
+  if (errorMessages.length > 0) {
+    return (
+      <>
+        <PageHeader
+          title="Run Payroll"
+          description="Prepare a payroll run by selecting the period, scope, and notes before moving to confirmation."
+        />
+
+        <ResourceErrorState
+          title="Unable to prepare payroll run setup"
+          description={errorMessages.join(" ")}
+        />
+      </>
+    );
+  }
+
+  const periods = [...periodsResult.data].sort((left, right) =>
+    right.period_start.localeCompare(left.period_start),
+  );
+  const activePeriod =
+    periods.find((period) => period.status.trim().toLowerCase() === "open") ??
+    periods[0];
+  const activeEmployees = employeesResult.data.filter((employee) => employee.is_active);
+
+  const processingItems = [
+    {
+      label: "Employees included",
+      value: `${activeEmployees.length} active employees`,
+    },
+    {
+      label: "Payroll period",
+      value: activePeriod
+        ? `${activePeriod.period_name} (${formatDate(activePeriod.period_start)} to ${formatDate(activePeriod.period_end)})`
+        : "No payroll period available",
+    },
+    {
+      label: "Attendance records",
+      value: `${attendanceResult.data.length} rows available from the attendance endpoint`,
+    },
+    {
+      label: "Backend process scope",
+      value: "Current backend process route handles one employee per request",
+    },
+    {
+      label: "Estimated batch value",
+      value: "Not available from current backend endpoints",
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -21,15 +84,25 @@ export default function PayrollRunPage() {
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.9fr]">
         <DashboardSection
           title="Payroll run setup"
-          description="Choose the payroll period and review scope before processing."
+          description="Choose the payroll period exposed by the backend before processing."
         >
-          <PayrollRunForm />
+          {periods.length > 0 ? (
+            <PayrollRunForm
+              periodOptions={periods.map((period) => period.period_name)}
+              defaultPeriod={activePeriod?.period_name}
+            />
+          ) : (
+            <ResourceEmptyState
+              title="No payroll periods available"
+              description="Create a payroll period in the backend before attempting a payroll run."
+            />
+          )}
         </DashboardSection>
 
         <div className="space-y-4">
           <DashboardSection
             title="Processing summary"
-            description="Overview of what will be included in this payroll run."
+            description="Overview of the live backend data available to this run screen."
           >
             <div className="grid gap-3">
               {processingItems.map((item) => (
@@ -50,12 +123,12 @@ export default function PayrollRunPage() {
 
           <DashboardSection
             title="Confirmation note"
-            description="This page is confirmation-ready but does not execute payroll."
+            description="Current backend capability for payroll execution."
           >
             <p className="text-sm leading-6 text-slate-600">
-              Use this screen to finalize setup details, then wire the actual
-              payroll processing workflow later when backend contracts are
-              available.
+              The old mock confirmation copy was removed. This screen now uses
+              live payroll-period, employee, and attendance data, but batch run
+              execution still needs a dedicated backend workflow.
             </p>
           </DashboardSection>
         </div>
@@ -63,4 +136,3 @@ export default function PayrollRunPage() {
     </>
   );
 }
-

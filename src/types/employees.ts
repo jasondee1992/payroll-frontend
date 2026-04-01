@@ -66,6 +66,33 @@ export interface EmployeeApiRecord {
   updated_at: string;
 }
 
+export interface EmployeeGovernmentInfoApiRecord {
+  id: number;
+  employee_id: number;
+  tin: string;
+  sss_number: string;
+  philhealth_number: string;
+  pagibig_number: string;
+  tax_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeSalaryProfileApiRecord {
+  id: number;
+  employee_id: number;
+  basic_salary: string;
+  allowance: string;
+  pay_frequency: string;
+  rate_type: string;
+  daily_rate?: string;
+  monthly_rate?: string;
+  effective_date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export type EmployeeListResponse = EmployeeApiRecord[];
 
 export type EmployeeListItem = Pick<

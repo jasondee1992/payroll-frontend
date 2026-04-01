@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock3, FileSpreadsheet, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { PayrollStatus } from "@/types/payroll";
 
 type ActivityItem = {
   id: string;
@@ -8,7 +9,7 @@ type ActivityItem = {
   processedOn: string;
   employees: string;
   amount: string;
-  status: "Completed" | "In review" | "Scheduled";
+  status: PayrollStatus;
 };
 
 type ActivityTableProps = {
@@ -16,14 +17,26 @@ type ActivityTableProps = {
 };
 
 const statusStyles: Record<ActivityItem["status"], string> = {
+  Draft: "bg-slate-100 text-slate-700",
+  Open: "bg-blue-50 text-blue-700",
+  Processed: "bg-emerald-50 text-emerald-700",
+  Processing: "bg-amber-50 text-amber-700",
   Completed: "bg-emerald-50 text-emerald-700",
-  "In review": "bg-amber-50 text-amber-700",
+  Closed: "bg-slate-200 text-slate-700",
+  Paid: "bg-emerald-50 text-emerald-700",
+  "Needs review": "bg-amber-50 text-amber-700",
   Scheduled: "bg-blue-50 text-blue-700",
 };
 
 const statusIcons = {
+  Draft: FileSpreadsheet,
+  Open: PlayCircle,
+  Processed: CheckCircle2,
+  Processing: Clock3,
   Completed: CheckCircle2,
-  "In review": Clock3,
+  Closed: CheckCircle2,
+  Paid: CheckCircle2,
+  "Needs review": Clock3,
   Scheduled: PlayCircle,
 } satisfies Record<ActivityItem["status"], typeof CheckCircle2>;
 

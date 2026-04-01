@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Building2 } from "lucide-react";
 import { LoginBackendStatusCard } from "@/components/auth/login-backend-status-card";
 import { LoginForm } from "@/components/auth/login-form";
@@ -33,7 +34,9 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <LoginForm />
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
 
           <LoginBackendStatusCard />
         </div>

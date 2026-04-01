@@ -1,42 +1,16 @@
 import { PayrollPeriodsTable } from "@/components/payroll/payroll-periods-table";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  ResourceEmptyState,
+  ResourceErrorState,
+} from "@/components/shared/resource-state";
+import { getPayrollPeriodsResource } from "@/lib/api/payroll";
 
-const periods = [
-  {
-    id: "PER-2026-04",
-    periodName: "April 2026 Monthly Payroll",
-    startDate: "Apr 01, 2026",
-    endDate: "Apr 30, 2026",
-    payoutDate: "May 05, 2026",
-    status: "Open" as const,
-  },
-  {
-    id: "PER-2026-03-OFF",
-    periodName: "March 2026 Off-cycle Adjustments",
-    startDate: "Mar 21, 2026",
-    endDate: "Mar 21, 2026",
-    payoutDate: "Mar 23, 2026",
-    status: "Completed" as const,
-  },
-  {
-    id: "PER-2026-03",
-    periodName: "March 2026 Monthly Payroll",
-    startDate: "Mar 01, 2026",
-    endDate: "Mar 31, 2026",
-    payoutDate: "Apr 05, 2026",
-    status: "Closed" as const,
-  },
-  {
-    id: "PER-2026-05",
-    periodName: "May 2026 Monthly Payroll",
-    startDate: "May 01, 2026",
-    endDate: "May 31, 2026",
-    payoutDate: "Jun 05, 2026",
-    status: "Draft" as const,
-  },
-];
+export const dynamic = "force-dynamic";
 
-export default function PayrollPeriodsPage() {
+export default async function PayrollPeriodsPage() {
+  const { data: periods, errorMessage } = await getPayrollPeriodsResource();
+
   return (
     <>
       <PageHeader
@@ -53,9 +27,20 @@ export default function PayrollPeriodsPage() {
       />
 
       <section className="panel p-5 sm:p-6">
-        <PayrollPeriodsTable periods={periods} />
+        {errorMessage ? (
+          <ResourceErrorState
+            title="Unable to load payroll periods"
+            description={errorMessage}
+          />
+        ) : periods.length > 0 ? (
+          <PayrollPeriodsTable periods={periods} />
+        ) : (
+          <ResourceEmptyState
+            title="No payroll periods found"
+            description="Create a payroll period in the backend to populate this page."
+          />
+        )}
       </section>
     </>
   );
 }
-
