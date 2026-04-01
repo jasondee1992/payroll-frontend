@@ -4,6 +4,7 @@ export const apiEndpoints = {
   auth: {
     login: `${API_V1_PREFIX}/auth/login`,
     me: `${API_V1_PREFIX}/auth/me`,
+    changePassword: `${API_V1_PREFIX}/auth/change-password`,
   },
   employees: {
     list: `${API_V1_PREFIX}/employees`,

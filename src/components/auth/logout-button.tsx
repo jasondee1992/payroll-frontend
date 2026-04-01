@@ -1,23 +1,25 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LogoutButton() {
-  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
 
   async function handleLogout() {
     setIsPending(true);
 
     try {
-      await fetch("/api/auth/logout", {
+      const response = await fetch("/api/auth/logout", {
         method: "POST",
       });
+
+      const responseBody = (await response.json()) as {
+        redirectTo?: string;
+      };
+
+      window.location.assign(responseBody.redirectTo ?? "/login");
     } finally {
-      router.replace("/login");
-      router.refresh();
       setIsPending(false);
     }
   }

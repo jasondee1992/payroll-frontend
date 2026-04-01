@@ -3,7 +3,9 @@ import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import {
   AUTH_SESSION_MAX_AGE,
+  CHANGE_PASSWORD_REDIRECT,
   AUTH_TOKEN_COOKIE,
+  PASSWORD_CHANGE_REQUIRED_COOKIE,
   getSafeRedirectPath,
 } from "@/lib/auth/session";
 
@@ -102,9 +104,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const passwordChangeRequired =
+      responseBody &&
+      typeof responseBody === "object" &&
+      "password_change_required" in responseBody &&
+      responseBody.password_change_required === true;
+
     const response = NextResponse.json({
       ok: true,
-      redirectTo,
+      redirectTo: passwordChangeRequired ? CHANGE_PASSWORD_REDIRECT : redirectTo,
     });
 
     response.cookies.set({
@@ -116,6 +124,28 @@ export async function POST(request: Request) {
       path: "/",
       ...(remember ? { maxAge: AUTH_SESSION_MAX_AGE } : {}),
     });
+
+    if (passwordChangeRequired) {
+      response.cookies.set({
+        name: PASSWORD_CHANGE_REQUIRED_COOKIE,
+        value: "1",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        ...(remember ? { maxAge: AUTH_SESSION_MAX_AGE } : {}),
+      });
+    } else {
+      response.cookies.set({
+        name: PASSWORD_CHANGE_REQUIRED_COOKIE,
+        value: "",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        expires: new Date(0),
+      });
+    }
 
     return response;
   } catch {

@@ -1,12 +1,11 @@
 "use client";
 
 import { ArrowRight, LoaderCircle } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { AuthInput } from "@/components/auth/auth-input";
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,8 +42,7 @@ export function LoginForm() {
         return;
       }
 
-      router.replace(responseBody.redirectTo ?? "/dashboard");
-      router.refresh();
+      window.location.assign(responseBody.redirectTo ?? "/dashboard");
     } catch {
       setErrorMessage("Unable to reach the frontend auth bridge.");
     } finally {

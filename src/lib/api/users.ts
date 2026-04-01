@@ -15,6 +15,7 @@ export type UserUpdatePayload = {
   password?: string;
   role?: string;
   is_active?: boolean;
+  must_change_password?: boolean;
   employee_id?: number | null;
 };
 

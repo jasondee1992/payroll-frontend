@@ -146,6 +146,11 @@ type LinkedAccountNotice =
       role: string;
     };
 
+type SelectValidationError = {
+  id: string;
+  label: string;
+};
+
 const defaultEmployeeData: EditableEmployeeData = {
   employeeId: 0,
   employeeCode: "",
@@ -204,6 +209,16 @@ export function EmployeeForm({
     formDataDefaults.employmentStatus,
   );
   const [endDate, setEndDate] = useState(formDataDefaults.endDate);
+  const [tin, setTin] = useState(formatTinValue(formDataDefaults.tin));
+  const [sssNumber, setSssNumber] = useState(
+    formatSssNumberValue(formDataDefaults.sssNumber),
+  );
+  const [philHealthNumber, setPhilHealthNumber] = useState(
+    formatPhilHealthNumberValue(formDataDefaults.philHealthNumber),
+  );
+  const [pagIbigNumber, setPagIbigNumber] = useState(
+    formatPagIbigNumberValue(formDataDefaults.pagIbigNumber),
+  );
   const [basicSalary, setBasicSalary] = useState(formDataDefaults.basicSalary);
   const [linkedAccountRole, setLinkedAccountRole] = useState(
     formDataDefaults.accountAccess.role || "Select account role",
@@ -232,6 +247,9 @@ export function EmployeeForm({
     useState<LinkedAccountNotice | null>(null);
   const [linkedAccountError, setLinkedAccountError] = useState<string | null>(null);
   const [isUpdatingLinkedAccount, setIsUpdatingLinkedAccount] = useState(false);
+  const [selectValidationErrors, setSelectValidationErrors] = useState<
+    SelectValidationError[]
+  >([]);
 
   const selectedAllowanceOptions = allowanceFieldOptions.filter((allowance) =>
     selectedAllowances.includes(allowance),
@@ -278,6 +296,7 @@ export function EmployeeForm({
   }
 
   function handleEmploymentStatusChange(value: string) {
+    clearSelectValidationError("employment-status");
     setEmploymentStatus(value);
 
     if (value !== "Inactive") {
@@ -295,17 +314,38 @@ export function EmployeeForm({
     const payrollSchedule = getRequiredFormValue(formData, "payroll-schedule");
     const taxStatus = getRequiredFormValue(formData, "tax-status");
     const rateType = getRequiredFormValue(formData, "rate-type");
+    const missingSelectFields = [
+      { id: "department", label: "Department", value: department },
+      {
+        id: "employment-type",
+        label: "Employment Type",
+        value: employmentType,
+      },
+      {
+        id: "employment-status",
+        label: "Employment Status",
+        value: employmentStatus,
+      },
+      {
+        id: "payroll-schedule",
+        label: "Payroll Schedule",
+        value: payrollSchedule,
+      },
+      { id: "tax-status", label: "Tax Status", value: taxStatus },
+      { id: "rate-type", label: "Rate Type", value: rateType },
+    ].filter((field) => isPlaceholderSelection(field.value));
 
-    if (
-      isPlaceholderSelection(department) ||
-      isPlaceholderSelection(employmentType) ||
-      isPlaceholderSelection(employmentStatus) ||
-      isPlaceholderSelection(payrollSchedule) ||
-      isPlaceholderSelection(taxStatus) ||
-      isPlaceholderSelection(rateType)
-    ) {
+    if (missingSelectFields.length > 0) {
+      setSelectValidationErrors(
+        missingSelectFields.map(({ id, label }) => ({ id, label })),
+      );
       setSubmitSuccess(null);
-      setSubmitError("Complete all required select fields before saving the employee.");
+      setSubmitError(
+        `Complete the required dropdown fields before saving: ${missingSelectFields
+          .map((field) => field.label)
+          .join(", ")}.`,
+      );
+      focusFieldById(missingSelectFields[0].id);
       return;
     }
 
@@ -313,8 +353,10 @@ export function EmployeeForm({
       const accountRole = getRequiredFormValue(formData, "account-role");
 
       if (isPlaceholderSelection(accountRole)) {
+        setSelectValidationErrors([{ id: "account-role", label: "Role" }]);
         setSubmitSuccess(null);
         setSubmitError("Choose an account role before creating login access.");
+        focusFieldById("account-role");
         return;
       }
     }
@@ -322,6 +364,7 @@ export function EmployeeForm({
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(null);
+    setSelectValidationErrors([]);
 
     try {
       const hireDate = getOptionalFormValue(formData, "hire-date");
@@ -412,6 +455,10 @@ export function EmployeeForm({
       setDraftAllowances([]);
       setEmploymentStatus("Select status");
       setEndDate("");
+      setTin("");
+      setSssNumber("");
+      setPhilHealthNumber("");
+      setPagIbigNumber("");
       setBasicSalary("");
       setAllowanceValues({});
     } catch (error) {
@@ -482,6 +529,7 @@ export function EmployeeForm({
     try {
       await updateUserAccount(formDataDefaults.accountAccess.userId, {
         password: temporaryPassword,
+        must_change_password: true,
       });
 
       setLinkedAccountNotice({
@@ -497,6 +545,12 @@ export function EmployeeForm({
     } finally {
       setIsUpdatingLinkedAccount(false);
     }
+  }
+
+  function clearSelectValidationError(fieldId: string) {
+    setSelectValidationErrors((current) =>
+      current.filter((field) => field.id !== fieldId),
+    );
   }
 
   return (
@@ -581,6 +635,9 @@ export function EmployeeForm({
                 label="Department"
                 options={departmentOptions}
                 defaultValue={formDataDefaults.department || "Select department"}
+                onChange={() => clearSelectValidationError("department")}
+                invalid={hasSelectValidationError(selectValidationErrors, "department")}
+                errorText={getSelectValidationMessage(selectValidationErrors, "department")}
                 required
               />
               <EmployeeInputField
@@ -595,6 +652,12 @@ export function EmployeeForm({
                 label="Employment Type"
                 options={employmentTypeOptions}
                 defaultValue={formDataDefaults.employmentType || "Select employment type"}
+                onChange={() => clearSelectValidationError("employment-type")}
+                invalid={hasSelectValidationError(selectValidationErrors, "employment-type")}
+                errorText={getSelectValidationMessage(
+                  selectValidationErrors,
+                  "employment-type",
+                )}
                 required
               />
               <EmployeeSelectField
@@ -606,6 +669,11 @@ export function EmployeeForm({
                 onChange={(event) =>
                   handleEmploymentStatusChange(event.target.value)
                 }
+                invalid={hasSelectValidationError(selectValidationErrors, "employment-status")}
+                errorText={getSelectValidationMessage(
+                  selectValidationErrors,
+                  "employment-status",
+                )}
                 required
               />
               <EmployeeSelectField
@@ -613,6 +681,12 @@ export function EmployeeForm({
                 label="Payroll Schedule"
                 options={payrollScheduleOptions}
                 defaultValue={formDataDefaults.payrollSchedule || "Select payroll schedule"}
+                onChange={() => clearSelectValidationError("payroll-schedule")}
+                invalid={hasSelectValidationError(selectValidationErrors, "payroll-schedule")}
+                errorText={getSelectValidationMessage(
+                  selectValidationErrors,
+                  "payroll-schedule",
+                )}
                 required
               />
             </div>
@@ -627,28 +701,52 @@ export function EmployeeForm({
                 id="tin"
                 label="TIN"
                 placeholder="000-000-000-000"
-                defaultValue={formDataDefaults.tin}
+                value={tin}
+                onChange={(event) => setTin(formatTinValue(event.target.value))}
+                inputMode="numeric"
+                maxLength={15}
+                helperText="Enter digits only. Hyphens are added automatically."
                 required
               />
               <EmployeeInputField
                 id="sss"
                 label="SSS Number"
                 placeholder="00-0000000-0"
-                defaultValue={formDataDefaults.sssNumber}
+                value={sssNumber}
+                onChange={(event) =>
+                  setSssNumber(formatSssNumberValue(event.target.value))
+                }
+                inputMode="numeric"
+                maxLength={12}
+                helperText="Enter digits only. Hyphens are added automatically."
                 required
               />
               <EmployeeInputField
                 id="philhealth"
                 label="PhilHealth Number"
                 placeholder="00-000000000-0"
-                defaultValue={formDataDefaults.philHealthNumber}
+                value={philHealthNumber}
+                onChange={(event) =>
+                  setPhilHealthNumber(
+                    formatPhilHealthNumberValue(event.target.value),
+                  )
+                }
+                inputMode="numeric"
+                maxLength={14}
+                helperText="Enter digits only. Hyphens are added automatically."
                 required
               />
               <EmployeeInputField
                 id="pagibig"
                 label="Pag-IBIG Number"
                 placeholder="0000-0000-0000"
-                defaultValue={formDataDefaults.pagIbigNumber}
+                value={pagIbigNumber}
+                onChange={(event) =>
+                  setPagIbigNumber(formatPagIbigNumberValue(event.target.value))
+                }
+                inputMode="numeric"
+                maxLength={14}
+                helperText="Enter digits only. Hyphens are added automatically."
                 required
               />
               <EmployeeSelectField
@@ -656,6 +754,9 @@ export function EmployeeForm({
                 label="Tax Status"
                 options={taxStatusOptions}
                 defaultValue={formDataDefaults.taxStatus || "Select tax status"}
+                onChange={() => clearSelectValidationError("tax-status")}
+                invalid={hasSelectValidationError(selectValidationErrors, "tax-status")}
+                errorText={getSelectValidationMessage(selectValidationErrors, "tax-status")}
                 required
               />
             </div>
@@ -704,6 +805,9 @@ export function EmployeeForm({
                   label="Rate Type"
                   options={rateTypeOptions}
                   defaultValue={formDataDefaults.rateType || "Select rate type"}
+                  onChange={() => clearSelectValidationError("rate-type")}
+                  invalid={hasSelectValidationError(selectValidationErrors, "rate-type")}
+                  errorText={getSelectValidationMessage(selectValidationErrors, "rate-type")}
                   required
                 />
               </div>
@@ -936,8 +1040,14 @@ export function EmployeeForm({
                     label="Role"
                     options={accountRoleOptions}
                     defaultValue="Select account role"
+                    onChange={() => clearSelectValidationError("account-role")}
                     required={createAccount}
                     disabled={!createAccount}
+                    invalid={hasSelectValidationError(selectValidationErrors, "account-role")}
+                    errorText={getSelectValidationMessage(
+                      selectValidationErrors,
+                      "account-role",
+                    )}
                     helperText={
                       createAccount
                         ? "Choose the access level to assign once account creation is wired."
@@ -982,6 +1092,20 @@ export function EmployeeForm({
           {submitError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-700">
               {submitError}
+              {selectValidationErrors.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectValidationErrors.map((field) => (
+                    <button
+                      key={field.id}
+                      type="button"
+                      onClick={() => focusFieldById(field.id)}
+                      className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                    >
+                      {field.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -1249,6 +1373,42 @@ function isPlaceholderSelection(value: string) {
   return value.trim().toLowerCase().startsWith("select ");
 }
 
+function focusFieldById(fieldId: string) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const field = document.getElementById(fieldId);
+
+  if (!field) {
+    return;
+  }
+
+  field.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+  field.focus();
+}
+
+function hasSelectValidationError(
+  errors: SelectValidationError[],
+  fieldId: string,
+) {
+  return errors.some((field) => field.id === fieldId);
+}
+
+function getSelectValidationMessage(
+  errors: SelectValidationError[],
+  fieldId: string,
+) {
+  if (!hasSelectValidationError(errors, fieldId)) {
+    return undefined;
+  }
+
+  return "Please choose a value before saving.";
+}
+
 function normalizeOptionalSelection(value: string | null) {
   if (!value || value === "None") {
     return null;
@@ -1439,4 +1599,37 @@ function generateTemporaryPassword(length = 12) {
   return Array.from(randomValues, (value) => alphabet[value % alphabet.length]).join(
     "",
   );
+}
+
+function formatTinValue(value: string) {
+  return formatDigitGroups(value, [3, 3, 3, 3]);
+}
+
+function formatSssNumberValue(value: string) {
+  return formatDigitGroups(value, [2, 7, 1]);
+}
+
+function formatPhilHealthNumberValue(value: string) {
+  return formatDigitGroups(value, [2, 9, 1]);
+}
+
+function formatPagIbigNumberValue(value: string) {
+  return formatDigitGroups(value, [4, 4, 4]);
+}
+
+function formatDigitGroups(value: string, groups: number[]) {
+  const digitsOnly = value.replace(/\D/g, "");
+  let currentIndex = 0;
+  const parts: string[] = [];
+
+  for (const groupLength of groups) {
+    if (currentIndex >= digitsOnly.length) {
+      break;
+    }
+
+    parts.push(digitsOnly.slice(currentIndex, currentIndex + groupLength));
+    currentIndex += groupLength;
+  }
+
+  return parts.join("-");
 }

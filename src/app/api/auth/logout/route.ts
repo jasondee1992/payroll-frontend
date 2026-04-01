@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { AUTH_TOKEN_COOKIE } from "@/lib/auth/session";
+import {
+  AUTH_TOKEN_COOKIE,
+  PASSWORD_CHANGE_REQUIRED_COOKIE,
+} from "@/lib/auth/session";
 
 export async function POST() {
   const response = NextResponse.json({
@@ -9,6 +12,15 @@ export async function POST() {
 
   response.cookies.set({
     name: AUTH_TOKEN_COOKIE,
+    value: "",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: new Date(0),
+  });
+  response.cookies.set({
+    name: PASSWORD_CHANGE_REQUIRED_COOKIE,
     value: "",
     httpOnly: true,
     sameSite: "lax",
