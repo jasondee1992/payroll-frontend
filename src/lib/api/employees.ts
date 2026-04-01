@@ -6,6 +6,7 @@ import {
   loadApiResource,
 } from "@/lib/api/resources";
 import {
+  parseCollection,
   parseBoolean,
   parseNumericString,
   parseNumber,
@@ -17,6 +18,7 @@ import type {
   EmployeeGovernmentInfoApiRecord,
   EmployeeListResponse,
   EmployeeListItem,
+  EmployeeSalaryProfileAllowanceApiRecord,
   EmployeeSalaryProfileApiRecord,
   EmployeeStatus,
 } from "@/types/employees";
@@ -97,6 +99,9 @@ export function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
     hire_date: parseString(record.hire_date, "employee.hire_date", {
       optional: true,
     }),
+    end_date: parseString(record.end_date, "employee.end_date", {
+      optional: true,
+    }),
     employment_status: parseString(
       record.employment_status,
       "employee.employment_status",
@@ -154,6 +159,10 @@ export function parseEmployeeSalaryProfileRecord(
       "salaryProfile.basic_salary",
     ),
     allowance: parseNumericString(record.allowance, "salaryProfile.allowance"),
+    total_allowance: parseNumericString(
+      record.total_allowance,
+      "salaryProfile.total_allowance",
+    ),
     pay_frequency: parseString(
       record.pay_frequency,
       "salaryProfile.pay_frequency",
@@ -167,13 +176,55 @@ export function parseEmployeeSalaryProfileRecord(
       "salaryProfile.monthly_rate",
       { optional: true },
     ),
+    hourly_rate: parseNumericString(
+      record.hourly_rate,
+      "salaryProfile.hourly_rate",
+      { optional: true },
+    ),
     effective_date: parseString(
       record.effective_date,
       "salaryProfile.effective_date",
     ),
     is_active: parseBoolean(record.is_active, "salaryProfile.is_active"),
+    allowances: parseCollection(
+      record.allowances ?? [],
+      (allowance, index) =>
+        parseEmployeeSalaryProfileAllowanceRecord(allowance, index),
+      "salaryProfile.allowances",
+    ),
     created_at: parseString(record.created_at, "salaryProfile.created_at"),
     updated_at: parseString(record.updated_at, "salaryProfile.updated_at"),
+  };
+}
+
+export function parseEmployeeSalaryProfileAllowanceRecord(
+  value: unknown,
+  index = 0,
+): EmployeeSalaryProfileAllowanceApiRecord {
+  const record = parseRecord(value, `salaryProfile.allowances[${index}]`);
+
+  return {
+    id: parseNumber(record.id, `salaryProfile.allowances[${index}].id`),
+    allowance_name: parseString(
+      record.allowance_name,
+      `salaryProfile.allowances[${index}].allowance_name`,
+    ),
+    amount: parseNumericString(
+      record.amount,
+      `salaryProfile.allowances[${index}].amount`,
+    ),
+    is_active: parseBoolean(
+      record.is_active,
+      `salaryProfile.allowances[${index}].is_active`,
+    ),
+    created_at: parseString(
+      record.created_at,
+      `salaryProfile.allowances[${index}].created_at`,
+    ),
+    updated_at: parseString(
+      record.updated_at,
+      `salaryProfile.allowances[${index}].updated_at`,
+    ),
   };
 }
 
@@ -269,6 +320,15 @@ export function mapEmployeeSalaryProfile(record: EmployeeSalaryProfileApiRecord)
     basicSalary: record.basic_salary,
     rateType: normalizeRateType(record.rate_type),
     allowance: record.allowance,
+    totalAllowance: record.total_allowance,
+    allowanceItems: record.allowances
+      .filter((allowance) => allowance.is_active)
+      .map((allowance) => ({
+        id: allowance.id,
+        allowanceName: allowance.allowance_name,
+        amount: allowance.amount,
+        isActive: allowance.is_active,
+      })),
     currency: "PHP",
   };
 }
@@ -321,4 +381,237 @@ export async function getEmployeeRecordsResource() {
     fallbackData: [],
     errorMessage: "Unable to load employee data from the backend.",
   });
+}
+
+export type EmployeeOnboardingPayload = {
+  employee: {
+    employee_code: string;
+    first_name: string;
+    middle_name?: string | null;
+    last_name: string;
+    suffix?: string | null;
+    birth_date?: string | null;
+    hire_date?: string | null;
+    end_date?: string | null;
+    employment_status: string;
+    employment_type: string;
+    department: string;
+    position: string;
+    payroll_schedule: string;
+    is_active: boolean;
+  };
+  government_info: {
+    tin: string;
+    sss_number: string;
+    philhealth_number: string;
+    pagibig_number: string;
+    tax_status: string;
+  };
+  salary_profile: {
+    basic_salary: number;
+    rate_type: string;
+    pay_frequency?: string;
+    effective_date?: string | null;
+    allowances: Array<{
+      allowance_name: string;
+      amount: number;
+    }>;
+  };
+  account_access: {
+    enabled: boolean;
+    email?: string;
+    username?: string;
+    role?: string;
+  };
+};
+
+export type EmployeeOnboardingResult = {
+  employeeCode: string;
+  employeeFullName: string;
+  linkedUsername?: string;
+  salarySubtotal: string;
+  totalAllowance: string;
+  temporaryPassword?: string;
+};
+
+export type EmployeeUpdatePayload = {
+  employee: {
+    employee_code: string;
+    first_name: string;
+    middle_name?: string | null;
+    last_name: string;
+    suffix?: string | null;
+    birth_date?: string | null;
+    hire_date?: string | null;
+    end_date?: string | null;
+    employment_status: string;
+    employment_type: string;
+    department: string;
+    position: string;
+    payroll_schedule: string;
+    is_active: boolean;
+  };
+  government_info: {
+    tin: string;
+    sss_number: string;
+    philhealth_number: string;
+    pagibig_number: string;
+    tax_status: string;
+  };
+  salary_profile: {
+    basic_salary: number;
+    rate_type: string;
+    pay_frequency: string;
+    allowances: Array<{
+      allowance_name: string;
+      amount: number;
+    }>;
+  };
+};
+
+function parseEmployeeOnboardingResponse(
+  value: unknown,
+): EmployeeOnboardingResult {
+  const record = parseRecord(value, "employee onboarding response");
+  const employee = parseEmployeeRecord(record.employee);
+  const linkedUser =
+    record.linked_user == null
+      ? undefined
+      : parseRecord(record.linked_user, "linked user");
+  const temporaryPassword = parseString(
+    record.temporary_password,
+    "employee onboarding temporary_password",
+    { optional: true },
+  );
+
+  return {
+    employeeCode: employee.employee_code,
+    employeeFullName: buildEmployeeFullName(employee),
+    linkedUsername: linkedUser
+      ? parseString(linkedUser.username, "linked user.username")
+      : undefined,
+    salarySubtotal: parseNumericString(
+      record.salary_subtotal,
+      "employee onboarding salary_subtotal",
+    ),
+    totalAllowance: parseNumericString(
+      record.total_allowance,
+      "employee onboarding total_allowance",
+    ),
+    temporaryPassword,
+  };
+}
+
+function getEmployeeOnboardingErrorMessage(responseBody: unknown) {
+  if (
+    responseBody &&
+    typeof responseBody === "object" &&
+    !Array.isArray(responseBody)
+  ) {
+    if (
+      "error" in responseBody &&
+      typeof responseBody.error === "string" &&
+      responseBody.error.trim().length > 0
+    ) {
+      return responseBody.error;
+    }
+
+    if (
+      "detail" in responseBody &&
+      typeof responseBody.detail === "string" &&
+      responseBody.detail.trim().length > 0
+    ) {
+      return responseBody.detail;
+    }
+
+    if ("detail" in responseBody && Array.isArray(responseBody.detail)) {
+      const detailMessages = responseBody.detail
+        .map((detail) => {
+          if (
+            detail &&
+            typeof detail === "object" &&
+            "msg" in detail &&
+            typeof detail.msg === "string"
+          ) {
+            return detail.msg;
+          }
+
+          return null;
+        })
+        .filter((detail): detail is string => detail !== null);
+
+      if (detailMessages.length > 0) {
+        return detailMessages.join(" ");
+      }
+    }
+  }
+
+  if (typeof responseBody === "string" && responseBody.trim().length > 0) {
+    return responseBody;
+  }
+
+  return "Unable to save the employee record.";
+}
+
+export async function onboardEmployee(
+  payload: EmployeeOnboardingPayload,
+) {
+  const response = await fetch("/api/employees/onboard", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    throw new Error(getEmployeeOnboardingErrorMessage(responseBody));
+  }
+
+  return parseEmployeeOnboardingResponse(responseBody);
+}
+
+export async function updateEmployeeProfile(
+  employeeId: number,
+  payload: EmployeeUpdatePayload,
+) {
+  const response = await fetch(`/api/employees/${employeeId}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    throw new Error(getEmployeeOnboardingErrorMessage(responseBody));
+  }
+
+  if (
+    responseBody &&
+    typeof responseBody === "object" &&
+    !Array.isArray(responseBody) &&
+    "employee" in responseBody
+  ) {
+    const employee = parseEmployeeRecord(responseBody.employee);
+    return {
+      employeeCode: employee.employee_code,
+    };
+  }
+
+  return {
+    employeeCode: payload.employee.employee_code,
+  };
 }

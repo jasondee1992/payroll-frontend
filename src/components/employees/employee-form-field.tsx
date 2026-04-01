@@ -1,3 +1,4 @@
+import type { ChangeEventHandler } from "react";
 import { cn } from "@/lib/utils";
 
 type FieldBaseProps = {
@@ -12,12 +13,16 @@ type EmployeeInputFieldProps = FieldBaseProps & {
   type?: "text" | "date" | "email" | "number";
   placeholder?: string;
   defaultValue?: string;
+  value?: string;
+  onChange?: ChangeEventHandler<HTMLInputElement>;
   prefix?: string;
 };
 
 type EmployeeSelectFieldProps = FieldBaseProps & {
   options: string[];
   defaultValue?: string;
+  value?: string;
+  onChange?: ChangeEventHandler<HTMLSelectElement>;
 };
 
 export function EmployeeInputField({
@@ -28,6 +33,8 @@ export function EmployeeInputField({
   type = "text",
   placeholder,
   defaultValue,
+  value,
+  onChange,
   disabled = false,
   prefix,
 }: EmployeeInputFieldProps) {
@@ -48,9 +55,13 @@ export function EmployeeInputField({
         ) : null}
         <input
           id={id}
+          name={id}
           type={type}
           placeholder={placeholder}
           defaultValue={defaultValue}
+          value={value}
+          onChange={onChange}
+          required={required}
           disabled={disabled}
           className={cn(
             "h-full w-full rounded-2xl bg-transparent px-4 text-sm text-slate-950 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:text-slate-400",
@@ -72,14 +83,24 @@ export function EmployeeSelectField({
   helperText,
   options,
   defaultValue,
+  value,
+  onChange,
   disabled = false,
 }: EmployeeSelectFieldProps) {
+  const selectProps =
+    value !== undefined
+      ? { value }
+      : { defaultValue: defaultValue ?? options[0] };
+
   return (
     <label className="flex flex-col gap-2">
       <FieldLabel label={label} required={required} />
       <select
         id={id}
-        defaultValue={defaultValue ?? options[0]}
+        name={id}
+        {...selectProps}
+        onChange={onChange}
+        required={required}
         disabled={disabled}
         className="ui-select"
       >

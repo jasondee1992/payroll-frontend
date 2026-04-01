@@ -28,7 +28,9 @@ export type EmployeeProfileData = {
   basicInformation: Array<{ label: string; value: string }>;
   workInformation: Array<{ label: string; value: string }>;
   governmentInformation: Array<{ label: string; value: string }>;
-  salaryProfile: Array<{ label: string; value: string }>;
+  salaryProfileSummary: Array<{ label: string; value: string }>;
+  salaryAllowanceItems: Array<{ label: string; value: string }>;
+  salaryAllowanceTotal: string;
   payrollHistory: Array<{
     period: string;
     runDate: string;
@@ -116,6 +118,40 @@ export async function getEmployeeProfileResource(
   const salaryProfile = salaryProfileRecord
     ? mapEmployeeSalaryProfile(salaryProfileRecord)
     : null;
+  const salaryProfileSummary = salaryProfile
+    ? [
+        {
+          label: "Basic Salary",
+          value: formatCurrency(salaryProfile.basicSalary),
+        },
+        { label: "Rate Type", value: salaryProfile.rateType },
+        {
+          label: "Effective Date",
+          value: formatDate(salaryProfileRecord.effective_date),
+        },
+      ]
+    : [
+        {
+          label: "Basic Salary",
+          value: "Not available",
+        },
+        { label: "Rate Type", value: "Not available" },
+        {
+          label: "Effective Date",
+          value: "Not available",
+        },
+      ];
+  const salaryAllowanceItems = salaryProfile
+    ? salaryProfile.allowanceItems
+        .filter((allowance) => Number(allowance.amount) > 0)
+        .map((allowance) => ({
+          label: allowance.allowanceName,
+          value: formatCurrency(allowance.amount),
+        }))
+    : [];
+  const salaryAllowanceTotal = salaryProfile?.totalAllowance
+    ? formatCurrency(salaryProfile.totalAllowance)
+    : "Not available";
 
   return {
     data: {
@@ -163,25 +199,9 @@ export async function getEmployeeProfileResource(
         },
         { label: "Tax Status", value: governmentInfo?.taxStatus ?? "Not available" },
       ],
-      salaryProfile: [
-        {
-          label: "Basic Salary",
-          value: salaryProfile ? formatCurrency(salaryProfile.basicSalary) : "Not available",
-        },
-        { label: "Rate Type", value: salaryProfile?.rateType ?? "Not available" },
-        {
-          label: "Allowance",
-          value: salaryProfile?.allowance
-            ? formatCurrency(salaryProfile.allowance)
-            : "Not available",
-        },
-        {
-          label: "Effective Date",
-          value: salaryProfileRecord
-            ? formatDate(salaryProfileRecord.effective_date)
-            : "Not available",
-        },
-      ],
+      salaryProfileSummary,
+      salaryAllowanceItems,
+      salaryAllowanceTotal,
       payrollHistory,
     },
     errorMessage: null,

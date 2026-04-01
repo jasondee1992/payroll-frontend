@@ -22,8 +22,17 @@ export interface EmployeeSalaryProfile {
   basicSalary: string;
   rateType: RateType;
   allowance?: string;
+  totalAllowance?: string;
+  allowanceItems?: EmployeeSalaryProfileAllowance[];
   bankAccount?: string;
   currency?: string;
+}
+
+export interface EmployeeSalaryProfileAllowance {
+  id: number;
+  allowanceName: string;
+  amount: string;
+  isActive: boolean;
 }
 
 export interface Employee {
@@ -56,6 +65,7 @@ export interface EmployeeApiRecord {
   suffix?: string | null;
   birth_date?: string | null;
   hire_date?: string | null;
+  end_date?: string | null;
   employment_status: string;
   employment_type: string;
   department: string;
@@ -83,11 +93,23 @@ export interface EmployeeSalaryProfileApiRecord {
   employee_id: number;
   basic_salary: string;
   allowance: string;
+  total_allowance: string;
   pay_frequency: string;
   rate_type: string;
   daily_rate?: string;
   monthly_rate?: string;
+  hourly_rate?: string;
   effective_date: string;
+  is_active: boolean;
+  allowances: EmployeeSalaryProfileAllowanceApiRecord[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeSalaryProfileAllowanceApiRecord {
+  id: number;
+  allowance_name: string;
+  amount: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;

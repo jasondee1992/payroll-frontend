@@ -7,6 +7,7 @@ export const apiEndpoints = {
   },
   employees: {
     list: `${API_V1_PREFIX}/employees`,
+    onboard: `${API_V1_PREFIX}/employees/onboard`,
     detail: (employeeId: string) => `${API_V1_PREFIX}/employees/${employeeId}`,
     governmentInfo: (employeeId: string) =>
       `${API_V1_PREFIX}/employees/${employeeId}/government-info`,

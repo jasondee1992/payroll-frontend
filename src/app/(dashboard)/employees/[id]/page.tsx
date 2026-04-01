@@ -86,7 +86,53 @@ export default async function EmployeeDetailPage({
           title="Salary Profile"
           description="Compensation details and recurring amounts used during payroll preparation."
         >
-          <EmployeeDetailGrid items={employee.salaryProfile} columns="two" />
+          <div className="space-y-5">
+            <EmployeeDetailGrid items={employee.salaryProfileSummary} columns="two" />
+
+            <div className="rounded-[26px] border border-slate-200/80 bg-slate-50/80 p-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-950">
+                    Allowance Breakdown
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Recurring allowances currently attached to this employee&apos;s
+                    salary profile.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                    Allowance subtotal
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {employee.salaryAllowanceTotal}
+                  </p>
+                </div>
+              </div>
+
+              {employee.salaryAllowanceItems.length > 0 ? (
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {employee.salaryAllowanceItems.map((allowance) => (
+                    <div
+                      key={allowance.label}
+                      className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4"
+                    >
+                      <DetailItem
+                        label={allowance.label}
+                        value={allowance.value}
+                        valueClassName="font-medium text-slate-900"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-500">
+                  No allowance amounts are currently assigned to this employee.
+                </div>
+              )}
+            </div>
+          </div>
         </EmployeeDetailSection>
       ),
     },
@@ -123,10 +169,10 @@ export default async function EmployeeDetailPage({
               <ArrowLeft className="h-4 w-4" />
               Back to Employees
             </Link>
-            <button type="button" className="ui-button-primary gap-2">
+            <Link href={`/employees/${id}/edit`} className="ui-button-primary gap-2">
               <PencilLine className="h-4 w-4" />
               Edit Employee
-            </button>
+            </Link>
           </div>
         }
       />
