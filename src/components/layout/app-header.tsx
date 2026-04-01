@@ -2,6 +2,7 @@
 
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import type { AppRole } from "@/lib/auth/session";
 
 type AppHeaderProps = {
   collapsed: boolean;
@@ -9,6 +10,7 @@ type AppHeaderProps = {
   currentDescription: string;
   onToggleCollapsed: () => void;
   onOpenMobileNav: () => void;
+  currentRole: AppRole | null;
 };
 
 export function AppHeader({
@@ -17,7 +19,10 @@ export function AppHeader({
   currentDescription,
   onToggleCollapsed,
   onOpenMobileNav,
+  currentRole,
 }: AppHeaderProps) {
+  const roleLabel = currentRole === "employee" ? "Employee" : "Admin";
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/92 backdrop-blur">
       <div className="flex min-h-20 w-full items-center justify-between gap-4 px-4 py-3 sm:px-5 lg:px-4">
@@ -62,20 +67,22 @@ export function AppHeader({
 
           <div className="hidden rounded-2xl border border-emerald-200/80 bg-emerald-50 px-4 py-2.5 text-right sm:block">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
-              Current period
+              {currentRole === "employee" ? "Portal access" : "Current period"}
             </p>
             <p className="mt-1 text-sm font-semibold text-emerald-900">
-              Apr 1 - Apr 30
+              {currentRole === "employee" ? "Payslips only" : "Apr 1 - Apr 30"}
             </p>
           </div>
 
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-slate-900">Payroll Admin</p>
-              <p className="text-xs text-slate-500">Operations team</p>
+              <p className="text-sm font-medium text-slate-900">{roleLabel}</p>
+              <p className="text-xs text-slate-500">
+                {currentRole === "employee" ? "Self-service portal" : "Operations team"}
+              </p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
-              PA
+              {currentRole === "employee" ? "EP" : "PA"}
             </div>
           </div>
         </div>

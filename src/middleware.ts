@@ -1,12 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
+  AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
   CHANGE_PASSWORD_REDIRECT,
   DEFAULT_AUTH_REDIRECT,
   PASSWORD_CHANGE_REQUIRED_COOKIE,
   getSafeRedirectPath,
   isProtectedPath,
+  normalizeAppRole,
 } from "@/lib/auth/session";
 
 export function middleware(request: NextRequest) {
@@ -21,6 +23,7 @@ export function middleware(request: NextRequest) {
   }
 
   const hasAuthToken = Boolean(request.cookies.get(AUTH_TOKEN_COOKIE)?.value);
+  const userRole = normalizeAppRole(request.cookies.get(AUTH_ROLE_COOKIE)?.value);
   const passwordChangeRequired =
     request.cookies.get(PASSWORD_CHANGE_REQUIRED_COOKIE)?.value === "1";
 
@@ -64,6 +67,15 @@ export function middleware(request: NextRequest) {
 
   if (hasAuthToken && passwordChangeRequired && isProtectedPath(pathname)) {
     return NextResponse.redirect(new URL(CHANGE_PASSWORD_REDIRECT, request.url));
+  }
+
+  if (
+    hasAuthToken &&
+    userRole === "employee" &&
+    isProtectedPath(pathname) &&
+    pathname !== "/dashboard"
+  ) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
   }
 
   return NextResponse.next();

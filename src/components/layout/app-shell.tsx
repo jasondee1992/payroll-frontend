@@ -5,14 +5,17 @@ import { usePathname } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { getActiveNavigationItem } from "@/config/navigation";
+import type { AppRole } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
 const SIDEBAR_STORAGE_KEY = "payroll.sidebar.collapsed";
 
 export function AppShell({
   children,
+  currentRole = null,
 }: Readonly<{
   children: React.ReactNode;
+  currentRole?: AppRole | null;
 }>) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -35,8 +38,8 @@ export function AppShell({
   }, [pathname]);
 
   const currentItem = useMemo(
-    () => getActiveNavigationItem(pathname),
-    [pathname],
+    () => getActiveNavigationItem(pathname, currentRole),
+    [currentRole, pathname],
   );
 
   return (
@@ -53,6 +56,7 @@ export function AppShell({
         <AppSidebar
           collapsed={collapsed}
           mobileOpen={mobileOpen}
+          currentRole={currentRole}
           onClose={() => setMobileOpen(false)}
         />
 
@@ -61,6 +65,7 @@ export function AppShell({
             collapsed={collapsed}
             currentTitle={currentItem.title}
             currentDescription={currentItem.description}
+            currentRole={currentRole}
             onToggleCollapsed={() => setCollapsed((current) => !current)}
             onOpenMobileNav={() => setMobileOpen(true)}
           />

@@ -1,10 +1,13 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { getServerAuthSession } from "@/lib/auth/server-session";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <AppShell>{children}</AppShell>;
+  const session = await getServerAuthSession();
+
+  return <AppShell currentRole={session.role}>{children}</AppShell>;
 }
 

@@ -4,9 +4,10 @@ import { Building2, ChevronLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   getActiveNavigationItem,
-  navigationItems,
+  getNavigationItemsForRole,
 } from "@/config/navigation";
 import { APP_NAME, APP_SUBTITLE } from "@/config/branding";
+import type { AppRole } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import { NavigationLink } from "./navigation-link";
 
@@ -14,15 +15,18 @@ type AppSidebarProps = {
   collapsed: boolean;
   mobileOpen: boolean;
   onClose: () => void;
+  currentRole: AppRole | null;
 };
 
 export function AppSidebar({
   collapsed,
   mobileOpen,
   onClose,
+  currentRole,
 }: AppSidebarProps) {
   const pathname = usePathname();
-  const activeItem = getActiveNavigationItem(pathname);
+  const activeItem = getActiveNavigationItem(pathname, currentRole);
+  const availableNavigationItems = getNavigationItemsForRole(currentRole);
 
   return (
     <aside
@@ -99,7 +103,7 @@ export function AppSidebar({
             Main navigation
           </p>
           <nav className="flex flex-col gap-2">
-            {navigationItems.map((item) => (
+            {availableNavigationItems.map((item) => (
               <NavigationLink
                 key={item.href}
                 item={item}

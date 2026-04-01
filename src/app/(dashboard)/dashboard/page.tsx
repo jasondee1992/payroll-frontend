@@ -8,6 +8,7 @@ import { ActivityTable } from "@/components/dashboard/activity-table";
 import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { DateList } from "@/components/dashboard/date-list";
+import { EmployeePayslipDashboard } from "@/components/dashboard/employee-payslip-dashboard";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PageIntro } from "@/components/shared/page-intro";
@@ -17,16 +18,30 @@ import {
 } from "@/components/shared/resource-state";
 import { getAttendanceRecordsResource } from "@/lib/api/attendance";
 import { buildEmployeeFullName, getEmployeeRecordsResource } from "@/lib/api/employees";
+import { getServerAuthSession } from "@/lib/auth/server-session";
 import {
   getPayrollPeriodRecordsResource,
   getPayrollRunRecordsResource,
   normalizePayrollStatus,
 } from "@/lib/api/payroll";
 import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/format";
+import { employeePayslipHistory } from "@/lib/mock/employee-payslips";
+import { employeeMonthlyPayTrend } from "@/lib/mock/employee-payslips";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const session = await getServerAuthSession();
+
+  if (session.role === "employee") {
+    return (
+      <EmployeePayslipDashboard
+        payslips={employeePayslipHistory}
+        monthlyTrend={employeeMonthlyPayTrend}
+      />
+    );
+  }
+
   const [employeesResult, periodsResult, runsResult, attendanceResult] =
     await Promise.all([
       getEmployeeRecordsResource(),

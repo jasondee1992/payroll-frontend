@@ -4,10 +4,12 @@ import { getApiBaseUrl } from "@/lib/api/config";
 import {
   AUTH_SESSION_MAX_AGE,
   CHANGE_PASSWORD_REDIRECT,
+  AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
   PASSWORD_CHANGE_REQUIRED_COOKIE,
   getSafeRedirectPath,
 } from "@/lib/auth/session";
+import { getRoleFromAccessToken } from "@/lib/auth/token";
 
 type LoginRequestBody = {
   usernameOrEmail?: unknown;
@@ -109,6 +111,7 @@ export async function POST(request: Request) {
       typeof responseBody === "object" &&
       "password_change_required" in responseBody &&
       responseBody.password_change_required === true;
+    const role = getRoleFromAccessToken(accessToken);
 
     const response = NextResponse.json({
       ok: true,
@@ -118,6 +121,15 @@ export async function POST(request: Request) {
     response.cookies.set({
       name: AUTH_TOKEN_COOKIE,
       value: accessToken,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      ...(remember ? { maxAge: AUTH_SESSION_MAX_AGE } : {}),
+    });
+    response.cookies.set({
+      name: AUTH_ROLE_COOKIE,
+      value: role ?? "",
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
