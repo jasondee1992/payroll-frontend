@@ -18,6 +18,7 @@ import type {
   EmployeeGovernmentInfoApiRecord,
   EmployeeListResponse,
   EmployeeListItem,
+  EmployeeManagerOption,
   EmployeeSalaryProfileAllowanceApiRecord,
   EmployeeSalaryProfileApiRecord,
   EmployeeStatus,
@@ -115,6 +116,15 @@ export function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
     payroll_schedule: parseString(
       record.payroll_schedule,
       "employee.payroll_schedule",
+    ),
+    reporting_manager_id:
+      record.reporting_manager_id == null
+        ? null
+        : parseNumber(record.reporting_manager_id, "employee.reporting_manager_id"),
+    reporting_manager_name: parseString(
+      record.reporting_manager_name,
+      "employee.reporting_manager_name",
+      { optional: true },
     ),
     is_active: parseBoolean(record.is_active, "employee.is_active"),
     created_at: parseString(record.created_at, "employee.created_at"),
@@ -315,6 +325,28 @@ export function mapEmployeeGovernmentInfo(record: EmployeeGovernmentInfoApiRecor
   };
 }
 
+export function mapEmployeeManagerOption(
+  employee: EmployeeApiRecord,
+): EmployeeManagerOption {
+  return {
+    value: String(employee.id),
+    label: formatEmployeeManagerLabel(employee),
+    description: employee.employee_code,
+  };
+}
+
+function formatEmployeeManagerLabel(employee: EmployeeApiRecord) {
+  const firstNameParts = [
+    employee.first_name,
+    employee.middle_name ?? undefined,
+    employee.suffix ?? undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return [employee.last_name, firstNameParts].filter(Boolean).join(", ");
+}
+
 export function mapEmployeeSalaryProfile(record: EmployeeSalaryProfileApiRecord) {
   return {
     basicSalary: record.basic_salary,
@@ -383,6 +415,28 @@ export async function getEmployeeRecordsResource() {
   });
 }
 
+export async function getActiveEmployeeManagerOptionsResource(
+  excludedEmployeeId?: number,
+) {
+  const employeeResult = await getEmployeeRecordsResource();
+
+  return {
+    data: employeeResult.data
+      .filter((employee) => {
+        if (excludedEmployeeId != null && employee.id === excludedEmployeeId) {
+          return false;
+        }
+
+        return (
+          normalizeEmployeeStatus(employee.employment_status, employee.is_active) ===
+          "Active"
+        );
+      })
+      .map((employee) => mapEmployeeManagerOption(employee)),
+    errorMessage: employeeResult.errorMessage,
+  };
+}
+
 export type EmployeeOnboardingPayload = {
   employee: {
     employee_code: string;
@@ -398,6 +452,7 @@ export type EmployeeOnboardingPayload = {
     department: string;
     position: string;
     payroll_schedule: string;
+    reporting_manager_id?: number | null;
     is_active: boolean;
   };
   government_info: {
@@ -449,6 +504,7 @@ export type EmployeeUpdatePayload = {
     department: string;
     position: string;
     payroll_schedule: string;
+    reporting_manager_id?: number | null;
     is_active: boolean;
   };
   government_info: {

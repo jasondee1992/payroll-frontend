@@ -71,6 +71,8 @@ export interface EmployeeApiRecord {
   department: string;
   position: string;
   payroll_schedule: string;
+  reporting_manager_id?: number | null;
+  reporting_manager_name?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -122,4 +124,10 @@ export type EmployeeListItem = Pick<
   "id" | "fullName" | "department" | "position" | "employmentType" | "payrollSchedule"
 > & {
   status: EmployeeStatus;
+};
+
+export type EmployeeManagerOption = {
+  value: string;
+  label: string;
+  description: string;
 };

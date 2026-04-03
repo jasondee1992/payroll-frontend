@@ -17,7 +17,9 @@ import {
   EmployeeInputField,
   EmployeeSelectField,
 } from "@/components/employees/employee-form-field";
+import { EmployeeSearchSelectField } from "@/components/employees/employee-search-select-field";
 import { EmployeeFormSection } from "@/components/employees/employee-form-section";
+import type { EmployeeManagerOption } from "@/types/employees";
 
 const departmentOptions = [
   "Select department",
@@ -123,6 +125,8 @@ type EmployeeFormMode = "create" | "edit";
 type EmployeeFormProps = {
   mode?: EmployeeFormMode;
   initialData?: EditableEmployeeData;
+  activeEmployeeOptions?: EmployeeManagerOption[];
+  managerOptionsErrorMessage?: string | null;
 };
 
 type EditChangeItem = {
@@ -163,6 +167,8 @@ const defaultEmployeeData: EditableEmployeeData = {
   endDate: "",
   department: "Select department",
   position: "",
+  reportingManagerId: "",
+  reportingManagerName: "",
   employmentType: "Select employment type",
   employmentStatus: "Select status",
   payrollSchedule: "Select payroll schedule",
@@ -186,6 +192,8 @@ const defaultEmployeeData: EditableEmployeeData = {
 export function EmployeeForm({
   mode = "create",
   initialData,
+  activeEmployeeOptions = [],
+  managerOptionsErrorMessage = null,
 }: EmployeeFormProps) {
   const router = useRouter();
   const isEditMode = mode === "edit";
@@ -222,6 +230,9 @@ export function EmployeeForm({
   const [basicSalary, setBasicSalary] = useState(formDataDefaults.basicSalary);
   const [linkedAccountRole, setLinkedAccountRole] = useState(
     formDataDefaults.accountAccess.role || "Select account role",
+  );
+  const [reportingManagerId, setReportingManagerId] = useState(
+    formDataDefaults.reportingManagerId,
   );
   const [allowanceValues, setAllowanceValues] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -382,6 +393,7 @@ export function EmployeeForm({
         department,
         position: getRequiredFormValue(formData, "position"),
         payroll_schedule: payrollSchedule,
+        reporting_manager_id: reportingManagerId ? Number(reportingManagerId) : null,
         is_active: employmentStatus !== "Inactive",
       };
       const governmentInfoPayload = {
@@ -414,11 +426,12 @@ export function EmployeeForm({
           government_info: governmentInfoPayload,
           salary_profile: salaryProfilePayload,
         };
-        const changes = buildEditChangeSummary(
-          initialData,
-          payload,
-          linkedAccountRole,
-        );
+          const changes = buildEditChangeSummary(
+            initialData,
+            payload,
+            linkedAccountRole,
+            activeEmployeeOptions,
+          );
 
         if (changes.length === 0) {
           setSubmitError("No changes detected to save.");
@@ -461,6 +474,7 @@ export function EmployeeForm({
       setPagIbigNumber("");
       setBasicSalary("");
       setAllowanceValues({});
+      setReportingManagerId("");
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -646,6 +660,21 @@ export function EmployeeForm({
                 placeholder="Payroll Analyst"
                 defaultValue={formDataDefaults.position}
                 required
+              />
+              <EmployeeSearchSelectField
+                id="reporting-manager"
+                label="Reporting Manager"
+                value={reportingManagerId}
+                onChange={setReportingManagerId}
+                options={activeEmployeeOptions}
+                disabled={activeEmployeeOptions.length === 0}
+                helperText={
+                  managerOptionsErrorMessage
+                    ? `${managerOptionsErrorMessage} You can retry once the employee list is available again.`
+                    : activeEmployeeOptions.length > 0
+                      ? "Search active employees to assign a reporting manager."
+                      : "No active employees are currently available to select as reporting manager."
+                }
               />
               <EmployeeSelectField
                 id="employment-type"
@@ -1168,6 +1197,7 @@ export function EmployeeForm({
             <div className="mt-5 space-y-3">
               <ChecklistItem label="Identity and employment dates" />
               <ChecklistItem label="Department and payroll setup" />
+              <ChecklistItem label="Reporting manager assignment" />
               <ChecklistItem label="Government and tax information" />
               <ChecklistItem label="Salary and allowance values" />
               <ChecklistItem
@@ -1427,6 +1457,7 @@ function buildEditChangeSummary(
   initialData: EditableEmployeeData,
   payload: EmployeeUpdatePayload,
   linkedAccountRole: string,
+  activeEmployeeOptions: EmployeeManagerOption[],
 ): EditChangeItem[] {
   const changes: EditChangeItem[] = [];
 
@@ -1445,6 +1476,22 @@ function buildEditChangeSummary(
   pushFieldChange(changes, "End Date / Resign Date", initialData.endDate, payload.employee.end_date);
   pushFieldChange(changes, "Department", initialData.department, payload.employee.department);
   pushFieldChange(changes, "Position", initialData.position, payload.employee.position);
+  pushFieldChange(
+    changes,
+    "Reporting Manager",
+    resolveManagerLabel(
+      initialData.reportingManagerId,
+      initialData.reportingManagerName,
+      activeEmployeeOptions,
+    ),
+    resolveManagerLabel(
+      payload.employee.reporting_manager_id != null
+        ? String(payload.employee.reporting_manager_id)
+        : "",
+      "",
+      activeEmployeeOptions,
+    ),
+  );
   pushFieldChange(
     changes,
     "Employment Type",
@@ -1588,6 +1635,26 @@ function normalizeRoleValue(value?: string | null) {
   }
 
   return value.trim().toLowerCase();
+}
+
+function resolveManagerLabel(
+  managerId: string,
+  fallbackName: string,
+  activeEmployeeOptions: EmployeeManagerOption[],
+) {
+  if (!managerId) {
+    return "Not set";
+  }
+
+  const selectedManager = activeEmployeeOptions.find(
+    (option) => option.value === managerId,
+  );
+
+  if (selectedManager) {
+    return selectedManager.label;
+  }
+
+  return fallbackName.trim() || `Employee #${managerId}`;
 }
 
 function generateTemporaryPassword(length = 12) {

@@ -9,3 +9,4 @@ coverage
 .idea
 /.turbo
 .env.local
+.next-build

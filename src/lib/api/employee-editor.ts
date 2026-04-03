@@ -23,6 +23,8 @@ export type EditableEmployeeData = {
   endDate: string;
   department: string;
   position: string;
+  reportingManagerId: string;
+  reportingManagerName: string;
   employmentType: string;
   employmentStatus: string;
   payrollSchedule: string;
@@ -117,6 +119,10 @@ export async function getEditableEmployeeResource(
       endDate: toEditableDate(employee.end_date),
       department: employee.department,
       position: employee.position,
+      reportingManagerId: employee.reporting_manager_id
+        ? String(employee.reporting_manager_id)
+        : "",
+      reportingManagerName: employee.reporting_manager_name ?? "",
       employmentType: normalizeEmploymentType(employee.employment_type),
       employmentStatus: normalizeEmployeeStatus(
         employee.employment_status,

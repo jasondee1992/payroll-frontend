@@ -4,6 +4,7 @@ import { EmployeeForm } from "@/components/employees/employee-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceErrorState } from "@/components/shared/resource-state";
 import { getEditableEmployeeResource } from "@/lib/api/employee-editor";
+import { getActiveEmployeeManagerOptionsResource } from "@/lib/api/employees";
 
 type EditEmployeePageProps = {
   params: Promise<{
@@ -33,6 +34,9 @@ export default async function EditEmployeePage({
     );
   }
 
+  const { data: activeEmployeeOptions, errorMessage: managerOptionsErrorMessage } =
+    await getActiveEmployeeManagerOptionsResource(employee.employeeId);
+
   return (
     <>
       <PageHeader
@@ -47,7 +51,12 @@ export default async function EditEmployeePage({
         }
       />
 
-      <EmployeeForm mode="edit" initialData={employee} />
+      <EmployeeForm
+        mode="edit"
+        initialData={employee}
+        activeEmployeeOptions={activeEmployeeOptions}
+        managerOptionsErrorMessage={managerOptionsErrorMessage}
+      />
     </>
   );
 }
