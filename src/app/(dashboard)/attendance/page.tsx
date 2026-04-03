@@ -25,6 +25,14 @@ export default async function AttendancePage() {
   const session = await getServerAuthSession();
   const pageDescription =
     "Review attendance records, payroll exceptions, and import activity for the selected payroll period.";
+  const uploadAttendanceAction = (
+    <button
+      type="button"
+      className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
+    >
+      Upload Attendance
+    </button>
+  );
 
   if (session.role === "employee") {
     return <EmployeeAttendanceDashboard months={employeeAttendanceHistory} />;
@@ -192,6 +200,7 @@ export default async function AttendancePage() {
         <PageHeader
           title="Attendance"
           description={pageDescription}
+          actions={uploadAttendanceAction}
         />
 
         <AttendanceDashboardTabs
@@ -222,14 +231,7 @@ export default async function AttendancePage() {
       <PageHeader
         title="Attendance"
         description={pageDescription}
-        actions={
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
-          >
-            Upload Attendance
-          </button>
-        }
+        actions={uploadAttendanceAction}
       />
       {teamAttendanceContent}
     </>

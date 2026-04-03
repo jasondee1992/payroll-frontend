@@ -11,18 +11,24 @@ import {
   normalizeAppRole,
 } from "@/lib/auth/session";
 
-const EMPLOYEE_ALLOWED_PATHS = new Set<string>(["/dashboard", "/attendance"]);
+const EMPLOYEE_ALLOWED_PATHS = new Set<string>([
+  "/dashboard",
+  "/attendance",
+  "/leave-requests",
+]);
 const ADMIN_FINANCE_BLOCKED_PATHS = new Set<string>(["/employees"]);
 const SYSTEM_ADMIN_ALLOWED_PATHS = new Set<string>(["/employees", "/settings"]);
 const HR_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
   "/employees",
   "/attendance",
+  "/leave-requests",
   "/settings",
 ]);
 const FINANCE_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
   "/attendance",
+  "/leave-requests",
   "/payroll",
   "/payslips",
 ]);

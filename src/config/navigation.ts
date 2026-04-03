@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  CalendarDays,
   Clock3,
   LayoutDashboard,
   Receipt,
@@ -40,6 +41,13 @@ export const navigationItems: NavigationItem[] = [
     href: "/attendance",
     description: "Time tracking, shifts, and attendance exceptions.",
     icon: Clock3,
+    roles: ["admin", "admin-finance", "finance", "hr", "employee"],
+  },
+  {
+    title: "Time Requests",
+    href: "/leave-requests",
+    description: "File leave, overtime, undertime, half-day, and related requests.",
+    icon: CalendarDays,
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {

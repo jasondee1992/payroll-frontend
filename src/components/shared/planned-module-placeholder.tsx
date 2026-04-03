@@ -12,12 +12,12 @@ export function PlannedModulePlaceholder({
 }: PlannedModulePlaceholderProps) {
   return (
     <>
-      <PageHeader title={title} description={description} eyebrow="HR workspace" />
+      <PageHeader title={title} description={description} eyebrow="Workspace" />
 
       <section className="panel p-6 sm:p-7">
         <ResourceEmptyState
           title="Module content pending"
-          description="This HR view is intentionally blank for now while we decide which tables, actions, and workflow states belong here."
+          description="This view is intentionally blank for now while we decide which tables, actions, and workflow states belong here."
         />
       </section>
     </>
