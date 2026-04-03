@@ -31,7 +31,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/employees",
     description: "Workforce records, onboarding, and directory views.",
     icon: Users,
-    roles: ["admin", "admin-finance", "finance", "hr"],
+    roles: ["admin", "hr"],
   },
   {
     title: "Attendance",
@@ -59,14 +59,14 @@ export const navigationItems: NavigationItem[] = [
     href: "/reports",
     description: "Reporting views for payroll, attendance, and costs.",
     icon: BarChart3,
-    roles: ["admin", "admin-finance", "finance"],
+    roles: ["admin", "admin-finance"],
   },
   {
     title: "Settings",
     href: "/settings",
     description: "Organization settings and payroll configuration.",
     icon: Settings,
-    roles: ["admin", "admin-finance", "finance", "hr"],
+    roles: ["admin", "admin-finance", "hr"],
   },
 ];
 

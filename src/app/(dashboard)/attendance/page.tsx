@@ -182,7 +182,11 @@ export default async function AttendancePage() {
     </>
   );
 
-  if (session.role === "hr") {
+  if (
+    session.role === "hr" ||
+    session.role === "finance" ||
+    session.role === "admin-finance"
+  ) {
     return (
       <>
         <PageHeader

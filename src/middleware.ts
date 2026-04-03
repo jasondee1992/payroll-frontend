@@ -12,11 +12,18 @@ import {
 } from "@/lib/auth/session";
 
 const EMPLOYEE_ALLOWED_PATHS = new Set<string>(["/dashboard", "/attendance"]);
+const ADMIN_FINANCE_BLOCKED_PATHS = new Set<string>(["/employees"]);
 const HR_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
   "/employees",
   "/attendance",
   "/settings",
+]);
+const FINANCE_ALLOWED_PATHS = new Set<string>([
+  "/dashboard",
+  "/attendance",
+  "/payroll",
+  "/payslips",
 ]);
 
 export function middleware(request: NextRequest) {
@@ -79,6 +86,15 @@ export function middleware(request: NextRequest) {
 
   if (
     hasAuthToken &&
+    userRole === "admin-finance" &&
+    isProtectedPath(pathname) &&
+    isAdminFinanceBlockedPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
+  }
+
+  if (
+    hasAuthToken &&
     userRole === "employee" &&
     isProtectedPath(pathname) &&
     !isEmployeeAllowedPath(pathname)
@@ -91,6 +107,15 @@ export function middleware(request: NextRequest) {
     userRole === "hr" &&
     isProtectedPath(pathname) &&
     !isHrAllowedPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
+  }
+
+  if (
+    hasAuthToken &&
+    userRole === "finance" &&
+    isProtectedPath(pathname) &&
+    !isFinanceAllowedPath(pathname)
   ) {
     return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
   }
@@ -112,8 +137,28 @@ function isEmployeeAllowedPath(pathname: string) {
   return false;
 }
 
+function isAdminFinanceBlockedPath(pathname: string) {
+  for (const blockedPath of ADMIN_FINANCE_BLOCKED_PATHS) {
+    if (pathname === blockedPath || pathname.startsWith(`${blockedPath}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function isHrAllowedPath(pathname: string) {
   for (const allowedPath of HR_ALLOWED_PATHS) {
+    if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isFinanceAllowedPath(pathname: string) {
+  for (const allowedPath of FINANCE_ALLOWED_PATHS) {
     if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
       return true;
     }

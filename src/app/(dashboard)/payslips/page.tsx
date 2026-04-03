@@ -1,7 +1,20 @@
+import { PlannedModulePlaceholder } from "@/components/shared/planned-module-placeholder";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceEmptyState } from "@/components/shared/resource-state";
+import { getServerAuthSession } from "@/lib/auth/server-session";
 
-export default function PayslipsPage() {
+export default async function PayslipsPage() {
+  const session = await getServerAuthSession();
+
+  if (session.role === "finance") {
+    return (
+      <PlannedModulePlaceholder
+        title="Payslips"
+        description="Finance payslips space reserved for the release and statement views we will define next."
+      />
+    );
+  }
+
   return (
     <>
       <PageHeader

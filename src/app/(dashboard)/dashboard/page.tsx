@@ -7,6 +7,7 @@ import {
 import { ActivityTable } from "@/components/dashboard/activity-table";
 import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
+import { DashboardViewTabs } from "@/components/dashboard/dashboard-view-tabs";
 import { DateList } from "@/components/dashboard/date-list";
 import { EmployeePayslipDashboard } from "@/components/dashboard/employee-payslip-dashboard";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
@@ -33,7 +34,11 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await getServerAuthSession();
 
-  if (session.role === "employee" || session.role === "hr") {
+  if (
+    session.role === "employee" ||
+    session.role === "hr" ||
+    session.role === "finance"
+  ) {
     return (
       <EmployeePayslipDashboard
         payslips={employeePayslipHistory}
@@ -176,13 +181,8 @@ export default async function DashboardPage() {
       : null,
   ].filter((alert): alert is NonNullable<typeof alert> => alert !== null);
 
-  return (
+  const operationalDashboardContent = (
     <>
-      <PageIntro
-        title="Dashboard"
-        description="Monitor payroll readiness, workforce administration, and key operational actions from a single internal workspace."
-      />
-
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Employees"
@@ -314,6 +314,38 @@ export default async function DashboardPage() {
           </div>
         </DashboardSection>
       </section>
+    </>
+  );
+
+  return (
+    <>
+      <PageIntro
+        title="Dashboard"
+        description="Monitor payroll readiness, workforce administration, and key operational actions from a single internal workspace."
+      />
+      {session.role === "admin-finance" ? (
+        <DashboardViewTabs
+          tabs={[
+            {
+              id: "operational-dashboard",
+              label: "Operational Dashboard",
+              content: operationalDashboardContent,
+            },
+            {
+              id: "my-dashboard",
+              label: "My Dashboard",
+              content: (
+                <EmployeePayslipDashboard
+                  payslips={employeePayslipHistory}
+                  monthlyTrend={employeeMonthlyPayTrend}
+                />
+              ),
+            },
+          ]}
+        />
+      ) : (
+        operationalDashboardContent
+      )}
     </>
   );
 }
