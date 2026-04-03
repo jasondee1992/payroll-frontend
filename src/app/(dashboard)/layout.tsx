@@ -8,6 +8,14 @@ export default async function DashboardLayout({
 }>) {
   const session = await getServerAuthSession();
 
-  return <AppShell currentRole={session.role}>{children}</AppShell>;
+  return (
+    <AppShell
+      currentRole={session.role}
+      currentUsername={session.username}
+      currentDisplayRole={session.displayRole}
+    >
+      {children}
+    </AppShell>
+  );
 }
 

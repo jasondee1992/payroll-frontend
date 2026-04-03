@@ -13,6 +13,7 @@ import {
 
 const EMPLOYEE_ALLOWED_PATHS = new Set<string>(["/dashboard", "/attendance"]);
 const ADMIN_FINANCE_BLOCKED_PATHS = new Set<string>(["/employees"]);
+const SYSTEM_ADMIN_ALLOWED_PATHS = new Set<string>(["/employees", "/settings"]);
 const HR_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
   "/employees",
@@ -38,7 +39,8 @@ export function middleware(request: NextRequest) {
   }
 
   const hasAuthToken = Boolean(request.cookies.get(AUTH_TOKEN_COOKIE)?.value);
-  const userRole = normalizeAppRole(request.cookies.get(AUTH_ROLE_COOKIE)?.value);
+  const rawUserRole = request.cookies.get(AUTH_ROLE_COOKIE)?.value?.trim().toLowerCase();
+  const userRole = normalizeAppRole(rawUserRole);
   const passwordChangeRequired =
     request.cookies.get(PASSWORD_CHANGE_REQUIRED_COOKIE)?.value === "1";
 
@@ -47,7 +49,7 @@ export function middleware(request: NextRequest) {
       ? CHANGE_PASSWORD_REDIRECT
       : getSafeRedirectPath(
           request.nextUrl.searchParams.get("next"),
-          DEFAULT_AUTH_REDIRECT,
+          getDefaultRedirectForRole(rawUserRole),
         );
     return NextResponse.redirect(new URL(redirectTarget, request.url));
   }
@@ -82,6 +84,15 @@ export function middleware(request: NextRequest) {
 
   if (hasAuthToken && passwordChangeRequired && isProtectedPath(pathname)) {
     return NextResponse.redirect(new URL(CHANGE_PASSWORD_REDIRECT, request.url));
+  }
+
+  if (
+    hasAuthToken &&
+    rawUserRole === "system-admin" &&
+    isProtectedPath(pathname) &&
+    !isSystemAdminAllowedPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL("/employees", request.url));
   }
 
   if (
@@ -127,8 +138,26 @@ export const config = {
   matcher: ["/:path*"],
 };
 
+function getDefaultRedirectForRole(role: string | undefined) {
+  if (role === "system-admin") {
+    return "/employees";
+  }
+
+  return DEFAULT_AUTH_REDIRECT;
+}
+
 function isEmployeeAllowedPath(pathname: string) {
   for (const allowedPath of EMPLOYEE_ALLOWED_PATHS) {
+    if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isSystemAdminAllowedPath(pathname: string) {
+  for (const allowedPath of SYSTEM_ADMIN_ALLOWED_PATHS) {
     if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
       return true;
     }

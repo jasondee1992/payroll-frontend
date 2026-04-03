@@ -54,6 +54,10 @@ export function normalizeAppRole(value: string | null | undefined): AppRole | nu
 
   const normalizedValue = value.trim().toLowerCase();
 
+  if (normalizedValue === "system-admin") {
+    return "admin";
+  }
+
   if (
     normalizedValue === "admin" ||
     normalizedValue === "admin-finance" ||

@@ -11,6 +11,8 @@ type AppHeaderProps = {
   onToggleCollapsed: () => void;
   onOpenMobileNav: () => void;
   currentRole: AppRole | null;
+  currentUsername: string | null;
+  currentDisplayRole: string | null;
 };
 
 export function AppHeader({
@@ -20,8 +22,12 @@ export function AppHeader({
   onToggleCollapsed,
   onOpenMobileNav,
   currentRole,
+  currentUsername,
+  currentDisplayRole,
 }: AppHeaderProps) {
-  const roleLabel = currentRole === "employee" ? "Employee" : "Admin";
+  const userLabel = currentUsername ?? (currentRole === "employee" ? "Employee" : "Admin");
+  const roleLabel = formatRoleLabel(currentDisplayRole ?? currentRole);
+  const initials = getInitials(currentUsername ?? roleLabel ?? "Admin");
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/92 backdrop-blur">
@@ -76,17 +82,41 @@ export function AppHeader({
 
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-slate-900">{roleLabel}</p>
-              <p className="text-xs text-slate-500">
-                {currentRole === "employee" ? "Self-service portal" : "Operations team"}
-              </p>
+              <p className="text-sm font-medium text-slate-900">{userLabel}</p>
+              <p className="text-xs text-slate-500">{roleLabel ?? "Workspace access"}</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
-              {currentRole === "employee" ? "EP" : "PA"}
+              {initials}
             </div>
           </div>
         </div>
       </div>
     </header>
   );
+}
+
+function formatRoleLabel(value: string | AppRole | null) {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .trim()
+    .split(/[-\s]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getInitials(value: string) {
+  const parts = value
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) {
+    return "NA";
+  }
+
+  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
 }

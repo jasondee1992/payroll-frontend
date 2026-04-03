@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import { getActiveNavigationItem } from "@/config/navigation";
+import { getActiveNavigationItem, type NavigationRole } from "@/config/navigation";
 import type { AppRole } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +13,13 @@ const SIDEBAR_STORAGE_KEY = "payroll.sidebar.collapsed";
 export function AppShell({
   children,
   currentRole = null,
+  currentUsername = null,
+  currentDisplayRole = null,
 }: Readonly<{
   children: React.ReactNode;
   currentRole?: AppRole | null;
+  currentUsername?: string | null;
+  currentDisplayRole?: string | null;
 }>) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -37,9 +41,15 @@ export function AppShell({
     setMobileOpen(false);
   }, [pathname]);
 
+  const navigationRole = useMemo<NavigationRole | null>(() => {
+    return currentDisplayRole === "system-admin"
+      ? "system-admin"
+      : currentRole;
+  }, [currentDisplayRole, currentRole]);
+
   const currentItem = useMemo(
-    () => getActiveNavigationItem(pathname, currentRole),
-    [currentRole, pathname],
+    () => getActiveNavigationItem(pathname, navigationRole),
+    [navigationRole, pathname],
   );
 
   return (
@@ -56,7 +66,7 @@ export function AppShell({
         <AppSidebar
           collapsed={collapsed}
           mobileOpen={mobileOpen}
-          currentRole={currentRole}
+          currentRole={navigationRole}
           onClose={() => setMobileOpen(false)}
         />
 
@@ -71,6 +81,8 @@ export function AppShell({
             currentTitle={currentItem.title}
             currentDescription={currentItem.description}
             currentRole={currentRole}
+            currentUsername={currentUsername}
+            currentDisplayRole={currentDisplayRole}
             onToggleCollapsed={() => setCollapsed((current) => !current)}
             onOpenMobileNav={() => setMobileOpen(true)}
           />

@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   getActiveNavigationItem,
   getNavigationItemsForRole,
+  type NavigationRole,
 } from "@/config/navigation";
 import { APP_NAME, APP_SUBTITLE } from "@/config/branding";
-import type { AppRole } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import { NavigationLink } from "./navigation-link";
 
@@ -15,7 +15,7 @@ type AppSidebarProps = {
   collapsed: boolean;
   mobileOpen: boolean;
   onClose: () => void;
-  currentRole: AppRole | null;
+  currentRole: NavigationRole | null;
 };
 
 export function AppSidebar({

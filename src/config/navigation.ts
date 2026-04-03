@@ -10,12 +10,14 @@ import {
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth/session";
 
+export type NavigationRole = AppRole | "system-admin";
+
 export type NavigationItem = {
   title: string;
   href: string;
   description: string;
   icon: LucideIcon;
-  roles?: AppRole[];
+  roles?: NavigationRole[];
 };
 
 export const navigationItems: NavigationItem[] = [
@@ -31,7 +33,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/employees",
     description: "Workforce records, onboarding, and directory views.",
     icon: Users,
-    roles: ["admin", "hr"],
+    roles: ["admin", "hr", "system-admin"],
   },
   {
     title: "Attendance",
@@ -66,11 +68,11 @@ export const navigationItems: NavigationItem[] = [
     href: "/settings",
     description: "Organization settings and payroll configuration.",
     icon: Settings,
-    roles: ["admin", "admin-finance", "hr"],
+    roles: ["admin", "admin-finance", "hr", "system-admin"],
   },
 ];
 
-export function getNavigationItemsForRole(role: AppRole | null) {
+export function getNavigationItemsForRole(role: NavigationRole | null) {
   if (!role) {
     return navigationItems;
   }
@@ -80,7 +82,10 @@ export function getNavigationItemsForRole(role: AppRole | null) {
   );
 }
 
-export function getActiveNavigationItem(pathname: string, role: AppRole | null = null) {
+export function getActiveNavigationItem(
+  pathname: string,
+  role: NavigationRole | null = null,
+) {
   const availableItems = getNavigationItemsForRole(role);
 
   return (
