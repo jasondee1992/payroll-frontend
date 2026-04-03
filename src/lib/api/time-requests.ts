@@ -6,11 +6,12 @@ import {
 import { handleUnauthorizedClientResponse } from "@/lib/auth/client-auth";
 
 export type TimeRequestScope = "mine" | "approvals" | "reviewer-all" | "all";
-export type TimeRequestAction = "approve" | "return";
+export type TimeRequestAction = "approve" | "decline";
 export type TimeRequestStatus =
   | "pending_manager_approval"
   | "pending_hr_review"
   | "approved"
+  | "declined"
   | "returned";
 
 export type TimeRequestRecord = {
@@ -19,6 +20,7 @@ export type TimeRequestRecord = {
   submitted_by_user_id: number;
   reporting_manager_id: number | null;
   last_action_by_user_id: number | null;
+  last_action_by_name: string | null;
   employee_code_snapshot: string;
   employee_name_snapshot: string;
   reporting_manager_name_snapshot: string | null;
@@ -94,6 +96,10 @@ export function parseTimeRequestRecord(value: unknown): TimeRequestRecord {
             record.last_action_by_user_id,
             "timeRequest.last_action_by_user_id",
           ),
+    last_action_by_name: parseOptionalString(
+      record.last_action_by_name,
+      "timeRequest.last_action_by_name",
+    ),
     employee_code_snapshot: parseString(
       record.employee_code_snapshot,
       "timeRequest.employee_code_snapshot",

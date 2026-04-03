@@ -1,8 +1,10 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import type { CurrentEmployeeRequestContext } from "@/lib/api/current-employee";
 import type { TimeRequestRecord } from "@/lib/api/time-requests";
 import type { AppRole } from "@/lib/auth/session";
+import { formatPhilippineDateTime } from "@/lib/format/philippine-time";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { SectionCard } from "@/components/ui/section-card";
 import {
@@ -34,6 +36,8 @@ type FilingFormState = {
 
 type TimeRequestTab = "file" | "mine" | "all";
 
+const REQUEST_REFRESH_INTERVAL_MS = 5000;
+
 const quickPickIds = [
   "vacation-leave",
   "sick-leave",
@@ -54,6 +58,7 @@ export function RequestFilingWorkspace({
   currentEmployeeContext?: CurrentEmployeeRequestContext | null;
   currentEmployeeContextErrorMessage?: string | null;
 }) {
+  const searchParams = useSearchParams();
   const reportingManagerName =
     currentEmployeeContext?.reportingManagerName ?? null;
   const isReportingManager =
@@ -70,9 +75,12 @@ export function RequestFilingWorkspace({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [recordsErrorMessage, setRecordsErrorMessage] = useState<string | null>(null);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [hasLoadedRecords, setHasLoadedRecords] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<TimeRequestTab>("file");
+  const highlightedRequestId = parseRequestId(searchParams.get("requestId"));
+  const requestedTab = parseTimeRequestTab(searchParams.get("tab"));
 
   const currentStep = useMemo(() => {
     if (!selectedType) {
@@ -100,10 +108,28 @@ export function RequestFilingWorkspace({
   }, [activeTab, currentRole, isReportingManager]);
 
   useEffect(() => {
+    if (!requestedTab) {
+      return;
+    }
+
+    if (requestedTab === "all" && !canAccessAllRequests(currentRole, isReportingManager)) {
+      setActiveTab("mine");
+      return;
+    }
+
+    setActiveTab(requestedTab);
+  }, [currentRole, isReportingManager, requestedTab]);
+
+  useEffect(() => {
     let isCancelled = false;
 
-    async function loadRequests() {
-      setIsLoadingRecords(true);
+    async function loadRequests(options?: { background?: boolean }) {
+      const shouldShowLoadingState =
+        !options?.background && !hasLoadedRecords;
+
+      if (shouldShowLoadingState) {
+        setIsLoadingRecords(true);
+      }
       setRecordsErrorMessage(null);
 
       try {
@@ -123,6 +149,7 @@ export function RequestFilingWorkspace({
 
         setMyRequests(mineResult);
         setAllRequests(allResult ?? []);
+        setHasLoadedRecords(true);
       } catch (error) {
         if (isCancelled) {
           return;
@@ -134,7 +161,7 @@ export function RequestFilingWorkspace({
             : "Unable to load the stored time requests.",
         );
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && shouldShowLoadingState) {
           setIsLoadingRecords(false);
         }
       }
@@ -142,13 +169,19 @@ export function RequestFilingWorkspace({
 
     void loadRequests();
 
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadRequests({ background: true });
+      }
+    }, REQUEST_REFRESH_INTERVAL_MS);
+
     return () => {
       isCancelled = true;
+      window.clearInterval(intervalId);
     };
-  }, [currentRole, isReportingManager]);
+  }, [currentRole, hasLoadedRecords, isReportingManager]);
 
   async function refreshRequests() {
-    setIsLoadingRecords(true);
     setRecordsErrorMessage(null);
 
     try {
@@ -164,14 +197,13 @@ export function RequestFilingWorkspace({
 
       setMyRequests(mineResult);
       setAllRequests(allResult ?? []);
+      setHasLoadedRecords(true);
     } catch (error) {
       setRecordsErrorMessage(
         error instanceof Error
           ? error.message
           : "Unable to load the stored time requests.",
       );
-    } finally {
-      setIsLoadingRecords(false);
     }
   }
 
@@ -240,7 +272,7 @@ export function RequestFilingWorkspace({
 
   async function handleReviewAction(
     requestId: number,
-    action: "approve" | "return",
+    action: "approve" | "decline",
   ) {
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -252,13 +284,13 @@ export function RequestFilingWorkspace({
         note:
           action === "approve"
             ? `Reviewed by ${currentUsername ?? "current reviewer"}`
-            : `Returned by ${currentUsername ?? "current reviewer"}`,
+            : `Declined by ${currentUsername ?? "current reviewer"}`,
       });
 
       setSuccessMessage(
         action === "approve"
           ? "Request review recorded successfully."
-          : "Request was returned successfully.",
+          : "Request was declined successfully.",
       );
       await refreshRequests();
     } catch (error) {
@@ -271,6 +303,34 @@ export function RequestFilingWorkspace({
       setReviewingRequestId(null);
     }
   }
+
+  useEffect(() => {
+    if (!highlightedRequestId || !hasLoadedRecords) {
+      return;
+    }
+
+    const targetItem =
+      activeTab === "all"
+        ? allRequests.find((item) => item.id === highlightedRequestId)
+        : myRequests.find((item) => item.id === highlightedRequestId);
+
+    if (!targetItem) {
+      return;
+    }
+
+    const targetElement = document.querySelector<HTMLElement>(
+      `[data-request-id="${highlightedRequestId}"]`,
+    );
+
+    if (!targetElement) {
+      return;
+    }
+
+    targetElement.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [activeTab, allRequests, hasLoadedRecords, highlightedRequestId, myRequests]);
 
   if (!selectedType) {
     return null;
@@ -312,7 +372,7 @@ export function RequestFilingWorkspace({
         <div className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
         <div className="space-y-4">
           <div className="rounded-[26px] border border-slate-200/80 bg-slate-50/70 px-5 py-4 text-sm leading-6 text-slate-700">
-            Requests filed here are stored as system records. Every request is routed to the employee&apos;s reporting manager first, then to HR for final review.
+            Requests filed here are stored as system records. Every request is routed to the employee&apos;s reporting manager and HR. Once either valid approver approves or declines, the request is finalized.
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -565,60 +625,78 @@ export function RequestFilingWorkspace({
                 Loading request records...
               </div>
             ) : recordItems.length > 0 ? (
-              <div className="mt-4 space-y-3">
-                {recordItems.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
-                          {item.request_type_title}
-                        </p>
-                        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          {buildRequestReference(item.id)}
-                        </p>
-                      </div>
-                      <StatusPill status={item.status} />
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-                      {activeTab === "all" ? <p>{item.employee_name_snapshot}</p> : null}
-                      <p>{buildStoredDateSummary(item)}</p>
-                      <p>
-                        Filed {formatTimestamp(item.created_at)}
-                        {item.reviewed_at
-                          ? ` | Last review ${formatTimestamp(item.reviewed_at)}`
-                          : ""}
-                      </p>
-                      <p>{item.approval_route}</p>
-                      <p>
-                        Approver:{" "}
-                        {item.reporting_manager_name_snapshot ?? "HR direct review"}
-                      </p>
-                      {activeTab === "all" && canReviewRequest(currentRole, item.status) ? (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => handleReviewAction(item.id, "return")}
-                            disabled={reviewingRequestId === item.id}
-                            className="inline-flex h-10 items-center justify-center rounded-2xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            Return
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleReviewAction(item.id, "approve")}
-                            disabled={reviewingRequestId === item.id}
-                            className="ui-button-primary h-10 px-4 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {reviewingRequestId === item.id ? "Saving..." : "Approve"}
-                          </button>
+              <div className="mt-4 space-y-2.5">
+                {recordItems.map((item) => {
+                  const extraDetails = buildRequestExtraDetails(item);
+
+                  return (
+                    <article
+                      key={item.id}
+                      data-request-id={item.id}
+                      className={
+                        item.id === highlightedRequestId
+                          ? "rounded-2xl border border-slate-900 bg-slate-50/70 px-4 py-3 ring-2 ring-slate-900/10"
+                          : "rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3"
+                      }
+                      aria-current={item.id === highlightedRequestId ? "true" : undefined}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-950">
+                            {item.request_type_title}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            {buildRequestReference(item.id)}
+                          </p>
                         </div>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
+                        <StatusPill status={item.status} />
+                      </div>
+                      <div className="mt-2.5 space-y-1.5 text-sm text-slate-600">
+                        {activeTab === "all" ? (
+                          <InfoRow
+                            label="Submitted by"
+                            value={formatRequestPersonName(item.employee_name_snapshot)}
+                          />
+                        ) : null}
+                        <InfoRow
+                          label={getScheduleLabel(item)}
+                          value={buildStoredDateSummary(item)}
+                        />
+                        <InfoRow label="Reason" value={item.reason.trim()} />
+                        {extraDetails.length > 0 ? (
+                          <InfoRow
+                            label="Other details"
+                            value={extraDetails.join(" • ")}
+                            tone="muted"
+                          />
+                        ) : null}
+                        <p className="text-xs leading-5 text-slate-500">
+                          {buildRequestActivityLine(item)}
+                        </p>
+                        {activeTab === "all" && canReviewRequest(currentRole, item.status) ? (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleReviewAction(item.id, "decline")}
+                              disabled={reviewingRequestId === item.id}
+                              className="inline-flex h-9 items-center justify-center rounded-2xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Decline
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReviewAction(item.id, "approve")}
+                              disabled={reviewingRequestId === item.id}
+                              className="ui-button-primary h-9 px-4 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {reviewingRequestId === item.id ? "Saving..." : "Approve"}
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
@@ -648,7 +726,7 @@ function canReviewRequest(
   status: TimeRequestRecord["status"],
 ) {
   if (role === "hr") {
-    return status === "pending_hr_review";
+    return status === "pending_manager_approval" || status === "pending_hr_review";
   }
 
   return status === "pending_manager_approval";
@@ -656,10 +734,10 @@ function canReviewRequest(
 
 function getAllRequestsDescription(role: AppRole | null | undefined) {
   if (canViewAllRequests(role)) {
-    return "HR can monitor every request filed in the system and finalize requests that already passed manager approval.";
+    return "HR can monitor every request filed in the system and can approve or decline any pending request.";
   }
 
-  return "Requests routed to this account as reporting manager appear here for review.";
+  return "Requests routed to this account as reporting manager appear here for review. HR can also act on the same pending request.";
 }
 
 function buildTabs(role: AppRole | null | undefined, isReportingManager: boolean) {
@@ -673,6 +751,24 @@ function buildTabs(role: AppRole | null | undefined, isReportingManager: boolean
   }
 
   return tabs;
+}
+
+function parseTimeRequestTab(value: string | null): TimeRequestTab | null {
+  if (value === "file" || value === "mine" || value === "all") {
+    return value;
+  }
+
+  return null;
+}
+
+function parseRequestId(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
 function buildRequestReference(requestId: number) {
@@ -997,7 +1093,7 @@ function buildDraftDateSummary(
 function buildStoredDateSummary(item: TimeRequestRecord) {
   if (item.form_kind === "leave") {
     if (item.date_from && item.date_to) {
-      return `${formatDate(item.date_from)} to ${formatDate(item.date_to)}`;
+      return `Start date: ${formatDate(item.date_from)} | End date: ${formatDate(item.date_to)}`;
     }
 
     return "Leave schedule pending";
@@ -1052,32 +1148,127 @@ function formatClock(value: string | null) {
 }
 
 function formatTimestamp(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return formatPhilippineDateTime(value);
 }
 
 function formatStatusLabel(status: TimeRequestRecord["status"]) {
   switch (status) {
     case "pending_manager_approval":
-      return "Pending manager approval";
+      return "Pending approval";
     case "pending_hr_review":
-      return "Pending HR review";
+      return "Pending HR approval";
     case "approved":
       return "Approved";
+    case "declined":
+      return "Declined";
     case "returned":
-      return "Returned";
+      return "Declined";
   }
+}
+
+function buildReviewerLine(item: TimeRequestRecord) {
+  if (item.status === "approved") {
+    return `Approved by ${item.last_action_by_name ?? "HR"}`;
+  }
+
+  if (item.status === "declined" || item.status === "returned") {
+    return `Declined by ${item.last_action_by_name ?? "Reviewer"}`;
+  }
+
+  if (item.status === "pending_hr_review") {
+    return "Current approver: HR";
+  }
+
+  return item.reporting_manager_name_snapshot
+    ? `Current approver: ${item.reporting_manager_name_snapshot} or HR`
+    : "Current approver: HR";
+}
+
+function formatRequestPersonName(value: string) {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return "Unknown requester";
+  }
+
+  const parts = normalizedValue.split(/\s+/);
+
+  if (parts.length < 2) {
+    return normalizedValue;
+  }
+
+  const surname = parts[parts.length - 1];
+  const givenNames = parts.slice(0, -1).join(" ");
+
+  return `${surname}, ${givenNames}`;
+}
+
+function getScheduleLabel(item: TimeRequestRecord) {
+  if (item.form_kind === "leave") {
+    return "From";
+  }
+
+  if (item.form_kind === "attendance") {
+    return "For date";
+  }
+
+  return "Schedule";
+}
+
+function buildRequestExtraDetails(item: TimeRequestRecord) {
+  const details: string[] = [];
+
+  if (isMeaningfulRequestDetail(item.coverage_plan)) {
+    details.push(`Coverage: ${item.coverage_plan}`);
+  }
+
+  if (isMeaningfulRequestDetail(item.location)) {
+    details.push(`Location: ${item.location}`);
+  }
+
+  if (isMeaningfulRequestDetail(item.contact_person)) {
+    details.push(`Contact person: ${item.contact_person}`);
+  }
+
+  if (isMeaningfulRequestDetail(item.attachment_label)) {
+    details.push(`Document: ${item.attachment_label}`);
+  }
+
+  return details;
+}
+
+function isMeaningfulRequestDetail(value: string | null) {
+  if (!value) {
+    return false;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+
+  return !["n/a", "na", "none", "null", "-", "--", "not applicable"].includes(
+    normalizedValue,
+  );
+}
+
+function buildRequestActivityLine(item: TimeRequestRecord) {
+  const details = [
+    buildReviewerLine(item),
+    item.approval_route,
+    `Submitted ${formatTimestamp(item.created_at)}`,
+  ];
+
+  if (item.reviewed_at) {
+    details.push(
+      `${
+        item.status === "approved"
+          ? "Approved"
+          : item.status === "declined" || item.status === "returned"
+            ? "Declined"
+            : "Updated"
+      } ${formatTimestamp(item.reviewed_at)}`,
+    );
+  }
+
+  return details.join(" | ");
 }
 
 function shortLabel(value: string) {
@@ -1188,11 +1379,32 @@ function ReviewItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function InfoRow({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "muted";
+}) {
+  return (
+    <div className="text-sm leading-5 text-slate-700">
+      <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        {label}:
+      </span>
+      <span className={tone === "muted" ? "text-slate-600" : "text-slate-700"}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function StatusPill({ status }: { status: TimeRequestRecord["status"] }) {
   return (
     <span
       className={
-        status === "returned"
+        status === "returned" || status === "declined"
           ? "inline-flex h-10 items-center justify-center rounded-2xl bg-rose-100 px-4 text-sm font-semibold text-rose-700"
           : status === "approved"
             ? "inline-flex h-10 items-center justify-center rounded-2xl bg-emerald-100 px-4 text-sm font-semibold text-emerald-700"

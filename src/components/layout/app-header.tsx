@@ -70,7 +70,10 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <NotificationBell currentUsername={currentUsername} />
+          <NotificationBell
+            currentRole={currentRole}
+            currentUsername={currentUsername}
+          />
 
           <LogoutButton />
 

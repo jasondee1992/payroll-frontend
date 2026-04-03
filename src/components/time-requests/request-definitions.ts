@@ -20,7 +20,7 @@ export type RequestGroup = {
   items: RequestCatalogItem[];
 };
 
-const STANDARD_APPROVAL_PATH = "Reporting manager -> HR";
+const STANDARD_APPROVAL_PATH = "Reporting manager or HR";
 
 const baseRequestGroups: RequestGroup[] = [
   {
