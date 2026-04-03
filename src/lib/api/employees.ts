@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
+import { handleUnauthorizedClientResponse } from "@/lib/auth/client-auth";
 import {
   createCollectionParser,
   createResourceParser,
@@ -626,6 +627,10 @@ export async function onboardEmployee(
     ? await response.json()
     : await response.text();
 
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
+
   if (!response.ok) {
     throw new Error(getEmployeeOnboardingErrorMessage(responseBody));
   }
@@ -650,6 +655,10 @@ export async function updateEmployeeProfile(
   const responseBody = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
+
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
 
   if (!response.ok) {
     throw new Error(getEmployeeOnboardingErrorMessage(responseBody));

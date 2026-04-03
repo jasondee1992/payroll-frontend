@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { createCollectionParser, loadApiResource } from "@/lib/api/resources";
 import { getApiErrorMessage } from "@/lib/api/client";
+import { handleUnauthorizedClientResponse } from "@/lib/auth/client-auth";
 import {
   parseNumericString,
   parseNumber,
@@ -181,6 +182,10 @@ export async function createPayrollPeriod(payload: CreatePayrollPeriodPayload) {
     ? await response.json()
     : await response.text();
 
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
+
   if (!response.ok) {
     throw new Error(getPayrollActionErrorMessage(responseBody));
   }
@@ -202,6 +207,10 @@ export async function runPayrollBatch(payload: RunPayrollBatchPayload) {
   const responseBody = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
+
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
 
   if (!response.ok) {
     throw new Error(getPayrollActionErrorMessage(responseBody));

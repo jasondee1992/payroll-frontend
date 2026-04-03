@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth/session";
+import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
 
 function getBackendErrorMessage(responseBody: unknown) {
   if (
@@ -85,6 +86,12 @@ export async function PUT(
       : await response.text();
 
     if (!response.ok) {
+      if (response.status === 401) {
+        return createUnauthorizedAuthResponse(
+          getBackendErrorMessage(responseBody),
+        );
+      }
+
       return NextResponse.json(
         { error: getBackendErrorMessage(responseBody) },
         { status: response.status },

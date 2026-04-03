@@ -6,6 +6,7 @@ export type CurrentEmployeeRequestContext = {
   employeeCode: string | null;
   employeeName: string | null;
   reportingManagerName: string | null;
+  isReportingManager: boolean;
 };
 
 export async function getCurrentEmployeeRequestContextResource(
@@ -18,6 +19,7 @@ export async function getCurrentEmployeeRequestContextResource(
         employeeCode: null,
         employeeName: null,
         reportingManagerName: null,
+        isReportingManager: false,
       } satisfies CurrentEmployeeRequestContext,
       errorMessage: null,
     };
@@ -35,6 +37,7 @@ export async function getCurrentEmployeeRequestContextResource(
         employeeCode: null,
         employeeName: null,
         reportingManagerName: null,
+        isReportingManager: false,
       } satisfies CurrentEmployeeRequestContext,
       errorMessage: usersResult.errorMessage,
     };
@@ -47,6 +50,7 @@ export async function getCurrentEmployeeRequestContextResource(
         employeeCode: null,
         employeeName: null,
         reportingManagerName: null,
+        isReportingManager: false,
       } satisfies CurrentEmployeeRequestContext,
       errorMessage: employeesResult.errorMessage,
     };
@@ -61,6 +65,7 @@ export async function getCurrentEmployeeRequestContextResource(
         employeeCode: null,
         employeeName: null,
         reportingManagerName: null,
+        isReportingManager: false,
       } satisfies CurrentEmployeeRequestContext,
       errorMessage: null,
     };
@@ -77,6 +82,7 @@ export async function getCurrentEmployeeRequestContextResource(
         employeeCode: null,
         employeeName: null,
         reportingManagerName: null,
+        isReportingManager: false,
       } satisfies CurrentEmployeeRequestContext,
       errorMessage: null,
     };
@@ -90,6 +96,9 @@ export async function getCurrentEmployeeRequestContextResource(
         .filter(Boolean)
         .join(" "),
       reportingManagerName: employee.reporting_manager_name ?? null,
+      isReportingManager: employeesResult.data.some(
+        (record) => record.reporting_manager_id === employee.id,
+      ),
     } satisfies CurrentEmployeeRequestContext,
     errorMessage: null,
   };

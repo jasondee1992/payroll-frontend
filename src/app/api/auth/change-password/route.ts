@@ -6,6 +6,7 @@ import {
   DEFAULT_AUTH_REDIRECT,
   PASSWORD_CHANGE_REQUIRED_COOKIE,
 } from "@/lib/auth/session";
+import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
 
 type ChangePasswordRequestBody = {
   currentPassword?: unknown;
@@ -79,9 +80,8 @@ export async function POST(request: NextRequest) {
   const authToken = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
 
   if (!authToken) {
-    return NextResponse.json(
-      { error: "You must be signed in to change the password." },
-      { status: 401 },
+    return createUnauthorizedAuthResponse(
+      "You must be signed in to change the password.",
     );
   }
 
@@ -109,6 +109,12 @@ export async function POST(request: NextRequest) {
       : await backendResponse.text();
 
     if (!backendResponse.ok) {
+      if (backendResponse.status === 401) {
+        return createUnauthorizedAuthResponse(
+          getBackendErrorMessage(responseBody),
+        );
+      }
+
       return NextResponse.json(
         { error: getBackendErrorMessage(responseBody) },
         { status: backendResponse.status },

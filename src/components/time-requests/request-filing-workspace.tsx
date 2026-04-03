@@ -32,7 +32,7 @@ type FilingFormState = {
   managerName: string;
 };
 
-type TimeRequestTab = "file" | "mine" | "approvals" | "all";
+type TimeRequestTab = "file" | "mine" | "all";
 
 const quickPickIds = [
   "vacation-leave",
@@ -56,6 +56,8 @@ export function RequestFilingWorkspace({
 }) {
   const reportingManagerName =
     currentEmployeeContext?.reportingManagerName ?? null;
+  const isReportingManager =
+    currentEmployeeContext?.isReportingManager ?? false;
   const [selectedTypeId, setSelectedTypeId] = useState(allRequestTypes[0]?.id ?? "");
   const selectedType =
     allRequestTypes.find((item) => item.id === selectedTypeId) ?? allRequestTypes[0];
@@ -64,7 +66,6 @@ export function RequestFilingWorkspace({
   );
   const [myRequests, setMyRequests] = useState<TimeRequestRecord[]>([]);
   const [allRequests, setAllRequests] = useState<TimeRequestRecord[]>([]);
-  const [approvalInbox, setApprovalInbox] = useState<TimeRequestRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [recordsErrorMessage, setRecordsErrorMessage] = useState<string | null>(null);
@@ -93,6 +94,12 @@ export function RequestFilingWorkspace({
   }, [reportingManagerName]);
 
   useEffect(() => {
+    if (activeTab === "all" && !canAccessAllRequests(currentRole, isReportingManager)) {
+      setActiveTab("mine");
+    }
+  }, [activeTab, currentRole, isReportingManager]);
+
+  useEffect(() => {
     let isCancelled = false;
 
     async function loadRequests() {
@@ -100,25 +107,21 @@ export function RequestFilingWorkspace({
       setRecordsErrorMessage(null);
 
       try {
-        const pendingLoads: Array<Promise<TimeRequestRecord[]>> = [
-          getTimeRequests("mine"),
-          getTimeRequests("approvals"),
-        ];
+        const pendingLoads: Array<Promise<TimeRequestRecord[]>> = [getTimeRequests("mine")];
 
-        if (canViewAllRequests(currentRole)) {
-          pendingLoads.push(getTimeRequests("all"));
+        if (canAccessAllRequests(currentRole, isReportingManager)) {
+          pendingLoads.push(
+            getTimeRequests(canViewAllRequests(currentRole) ? "all" : "reviewer-all"),
+          );
         }
 
-        const [mineResult, approvalsResult, allResult] = await Promise.all(
-          pendingLoads,
-        );
+        const [mineResult, allResult] = await Promise.all(pendingLoads);
 
         if (isCancelled) {
           return;
         }
 
         setMyRequests(mineResult);
-        setApprovalInbox(approvalsResult);
         setAllRequests(allResult ?? []);
       } catch (error) {
         if (isCancelled) {
@@ -142,28 +145,24 @@ export function RequestFilingWorkspace({
     return () => {
       isCancelled = true;
     };
-  }, [currentRole]);
+  }, [currentRole, isReportingManager]);
 
   async function refreshRequests() {
     setIsLoadingRecords(true);
     setRecordsErrorMessage(null);
 
     try {
-      const pendingLoads: Array<Promise<TimeRequestRecord[]>> = [
-        getTimeRequests("mine"),
-        getTimeRequests("approvals"),
-      ];
+      const pendingLoads: Array<Promise<TimeRequestRecord[]>> = [getTimeRequests("mine")];
 
-      if (canViewAllRequests(currentRole)) {
-        pendingLoads.push(getTimeRequests("all"));
+      if (canAccessAllRequests(currentRole, isReportingManager)) {
+        pendingLoads.push(
+          getTimeRequests(canViewAllRequests(currentRole) ? "all" : "reviewer-all"),
+        );
       }
 
-      const [mineResult, approvalsResult, allResult] = await Promise.all(
-        pendingLoads,
-      );
+      const [mineResult, allResult] = await Promise.all(pendingLoads);
 
       setMyRequests(mineResult);
-      setApprovalInbox(approvalsResult);
       setAllRequests(allResult ?? []);
     } catch (error) {
       setRecordsErrorMessage(
@@ -279,7 +278,7 @@ export function RequestFilingWorkspace({
 
   const quickPicks = allRequestTypes.filter((item) => quickPickIds.includes(item.id));
   const recordItems = activeTab === "all" ? allRequests : myRequests;
-  const tabs = buildTabs(currentRole, approvalInbox.length);
+  const tabs = buildTabs(currentRole, isReportingManager);
 
   return (
     <SectionCard
@@ -536,87 +535,6 @@ export function RequestFilingWorkspace({
       </div>
       ) : null}
 
-      {activeTab === "approvals" ? (
-        <div className="space-y-4">
-          <div className="rounded-[26px] border border-slate-200/80 bg-slate-50/70 px-5 py-4 text-sm leading-6 text-slate-700">
-            Reporting managers can approve the requests routed to them. HR can review all pending requests here and apply final approval.
-          </div>
-          <div className="rounded-[26px] border border-slate-200/80 bg-white px-5 py-5">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-950">
-                  Approval inbox
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {getApprovalInboxDescription(currentRole)}
-                </p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                {approvalInbox.length} pending
-              </span>
-            </div>
-
-            {isLoadingRecords ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
-                Loading request records...
-              </div>
-            ) : approvalInbox.length > 0 ? (
-              <div className="mt-4 space-y-3">
-                {approvalInbox.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4"
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
-                          {item.request_type_title}
-                        </p>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
-                          {item.employee_name_snapshot} filed for{" "}
-                          {buildStoredDateSummary(item)}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          <span>{buildRequestReference(item.id)}</span>
-                          <span>{formatStatusLabel(item.status)}</span>
-                          <span>{formatTimestamp(item.created_at)}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <StatusPill status={item.status} />
-                        <button
-                          type="button"
-                          onClick={() => handleReviewAction(item.id, "return")}
-                          disabled={reviewingRequestId === item.id}
-                          className="inline-flex h-10 items-center justify-center rounded-2xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Return
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReviewAction(item.id, "approve")}
-                          disabled={reviewingRequestId === item.id}
-                          className="ui-button-primary h-10 px-4 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {reviewingRequestId === item.id ? "Saving..." : "Approve"}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
-                {currentUsername
-                  ? `No pending approval items for ${currentUsername}.`
-                  : "No pending approval items for this account yet."}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
-
       {activeTab === "mine" || activeTab === "all" ? (
         <div className="space-y-4">
           <div className="rounded-[26px] border border-slate-200/80 bg-white px-5 py-5">
@@ -627,12 +545,12 @@ export function RequestFilingWorkspace({
                 </p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
                   {activeTab === "all"
-                    ? "HR can monitor every request filed in the system."
+                    ? getAllRequestsDescription(currentRole)
                     : "Requests filed by this account are stored here with their timestamps and review status."}
                 </p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                {recordItems.length} items
+                {activeTab === "all" ? recordItems.length : recordItems.length} items
               </span>
             </div>
 
@@ -678,6 +596,26 @@ export function RequestFilingWorkspace({
                         Approver:{" "}
                         {item.reporting_manager_name_snapshot ?? "HR direct review"}
                       </p>
+                      {activeTab === "all" && canReviewRequest(currentRole, item.status) ? (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleReviewAction(item.id, "return")}
+                            disabled={reviewingRequestId === item.id}
+                            className="inline-flex h-10 items-center justify-center rounded-2xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Return
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReviewAction(item.id, "approve")}
+                            disabled={reviewingRequestId === item.id}
+                            className="ui-button-primary h-10 px-4 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {reviewingRequestId === item.id ? "Saving..." : "Approve"}
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   </article>
                 ))}
@@ -698,33 +636,41 @@ function canViewAllRequests(role: AppRole | null | undefined) {
   return role === "hr";
 }
 
-function getApprovalInboxDescription(role: AppRole | null | undefined) {
-  if (canViewAllRequests(role)) {
-    return "Pending requests across the system that can be reviewed by HR.";
-  }
-
-  return "Requests routed to this account as reporting manager.";
+function canAccessAllRequests(
+  role: AppRole | null | undefined,
+  isReportingManager: boolean,
+) {
+  return canViewAllRequests(role) || isReportingManager;
 }
 
-function buildTabs(role: AppRole | null | undefined, approvalCount: number) {
+function canReviewRequest(
+  role: AppRole | null | undefined,
+  status: TimeRequestRecord["status"],
+) {
+  if (role === "hr") {
+    return status === "pending_hr_review";
+  }
+
+  return status === "pending_manager_approval";
+}
+
+function getAllRequestsDescription(role: AppRole | null | undefined) {
+  if (canViewAllRequests(role)) {
+    return "HR can monitor every request filed in the system and finalize requests that already passed manager approval.";
+  }
+
+  return "Requests routed to this account as reporting manager appear here for review.";
+}
+
+function buildTabs(role: AppRole | null | undefined, isReportingManager: boolean) {
   const tabs: Array<{ id: TimeRequestTab; label: string }> = [
     { id: "file", label: "File Request" },
     { id: "mine", label: "My Requests" },
   ];
 
-  if (canViewAllRequests(role)) {
-    tabs.push({
-      id: "approvals",
-      label: `HR Review${approvalCount > 0 ? ` (${approvalCount})` : ""}`,
-    });
+  if (canAccessAllRequests(role, isReportingManager)) {
     tabs.push({ id: "all", label: "All Requests" });
-    return tabs;
   }
-
-  tabs.push({
-    id: "approvals",
-    label: `For Approval${approvalCount > 0 ? ` (${approvalCount})` : ""}`,
-  });
 
   return tabs;
 }

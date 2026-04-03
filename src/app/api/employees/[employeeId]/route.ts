@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth/session";
+import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
 
 type EmployeeUpdatePayload = {
   employee: Record<string, unknown>;
@@ -108,6 +109,12 @@ export async function PUT(
     );
 
     if (!employeeResponse.ok) {
+      if (employeeResponse.status === 401) {
+        return createUnauthorizedAuthResponse(
+          getBackendErrorMessage(employeeResponse.body),
+        );
+      }
+
       return NextResponse.json(
         { error: getBackendErrorMessage(employeeResponse.body) },
         { status: employeeResponse.status },
@@ -131,6 +138,12 @@ export async function PUT(
     }
 
     if (!governmentInfoResponse.ok) {
+      if (governmentInfoResponse.status === 401) {
+        return createUnauthorizedAuthResponse(
+          getBackendErrorMessage(governmentInfoResponse.body),
+        );
+      }
+
       return NextResponse.json(
         { error: getBackendErrorMessage(governmentInfoResponse.body) },
         { status: governmentInfoResponse.status },
@@ -154,6 +167,12 @@ export async function PUT(
     }
 
     if (!salaryProfileResponse.ok) {
+      if (salaryProfileResponse.status === 401) {
+        return createUnauthorizedAuthResponse(
+          getBackendErrorMessage(salaryProfileResponse.body),
+        );
+      }
+
       return NextResponse.json(
         { error: getBackendErrorMessage(salaryProfileResponse.body) },
         { status: salaryProfileResponse.status },

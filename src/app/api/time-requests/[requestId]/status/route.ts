@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth/session";
+import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
 
 export async function PATCH(
   request: NextRequest,
@@ -55,6 +56,19 @@ export async function PATCH(
       : await backendResponse.text();
 
     if (!backendResponse.ok) {
+      if (backendResponse.status === 401) {
+        return createUnauthorizedAuthResponse(
+          typeof responseBody === "string"
+            ? responseBody || "Your session is no longer valid."
+            : responseBody &&
+                typeof responseBody === "object" &&
+                "detail" in responseBody &&
+                typeof responseBody.detail === "string"
+              ? responseBody.detail
+              : "Your session is no longer valid.",
+        );
+      }
+
       return NextResponse.json(
         typeof responseBody === "string" ? { error: responseBody } : responseBody,
         { status: backendResponse.status },

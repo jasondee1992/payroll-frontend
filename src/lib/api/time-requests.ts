@@ -3,8 +3,9 @@ import {
   parseRecord,
   parseString,
 } from "@/lib/api/parsers";
+import { handleUnauthorizedClientResponse } from "@/lib/auth/client-auth";
 
-export type TimeRequestScope = "mine" | "approvals" | "all";
+export type TimeRequestScope = "mine" | "approvals" | "reviewer-all" | "all";
 export type TimeRequestAction = "approve" | "return";
 export type TimeRequestStatus =
   | "pending_manager_approval"
@@ -206,6 +207,10 @@ export async function getTimeRequests(scope: TimeRequestScope) {
     ? await response.json()
     : await response.text();
 
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
+
   if (!response.ok) {
     throw new Error(getTimeRequestErrorMessage(responseBody));
   }
@@ -232,6 +237,10 @@ export async function createTimeRequest(payload: CreateTimeRequestPayload) {
     ? await response.json()
     : await response.text();
 
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
+
   if (!response.ok) {
     throw new Error(getTimeRequestErrorMessage(responseBody));
   }
@@ -256,6 +265,10 @@ export async function updateTimeRequestStatus(
   const responseBody = contentType.includes("application/json")
     ? await response.json()
     : await response.text();
+
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
 
   if (!response.ok) {
     throw new Error(getTimeRequestErrorMessage(responseBody));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth/session";
+import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
 
 type PayrollBatchRequestBody = {
   payrollPeriodId?: unknown;
@@ -108,6 +109,12 @@ export async function POST(request: NextRequest) {
       const responseBody = contentType.includes("application/json")
         ? await backendResponse.json()
         : await backendResponse.text();
+
+      if (backendResponse.status === 401) {
+        return createUnauthorizedAuthResponse(
+          getErrorMessage(responseBody, "Your session is no longer valid."),
+        );
+      }
 
       if (backendResponse.ok) {
         results.push({
