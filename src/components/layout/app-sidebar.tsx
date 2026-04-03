@@ -31,7 +31,7 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-[82vw] max-w-72 shrink-0 -translate-x-full flex-col border-r border-white/8 bg-[var(--sidebar)] text-slate-100 transition-all duration-300 lg:sticky lg:top-0 lg:w-72 lg:max-w-none lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 flex h-screen w-[82vw] max-w-72 shrink-0 -translate-x-full flex-col border-r border-white/8 bg-[var(--sidebar)] text-slate-100 transition-all duration-300 lg:w-72 lg:max-w-none lg:translate-x-0",
         mobileOpen && "translate-x-0 shadow-2xl shadow-slate-950/30",
         collapsed && "lg:w-24",
       )}

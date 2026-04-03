@@ -11,6 +11,8 @@ import {
   normalizeAppRole,
 } from "@/lib/auth/session";
 
+const EMPLOYEE_ALLOWED_PATHS = new Set<string>(["/dashboard", "/attendance"]);
+
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
@@ -73,7 +75,7 @@ export function middleware(request: NextRequest) {
     hasAuthToken &&
     userRole === "employee" &&
     isProtectedPath(pathname) &&
-    pathname !== "/dashboard"
+    !isEmployeeAllowedPath(pathname)
   ) {
     return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
   }
@@ -84,3 +86,13 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/:path*"],
 };
+
+function isEmployeeAllowedPath(pathname: string) {
+  for (const allowedPath of EMPLOYEE_ALLOWED_PATHS) {
+    if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}

@@ -1,5 +1,6 @@
 import { Clock3, FileWarning, TimerReset, UserRoundX } from "lucide-react";
 import { AttendanceTable } from "@/components/attendance/attendance-table";
+import { EmployeeAttendanceDashboard } from "@/components/attendance/employee-attendance-dashboard";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
@@ -12,12 +13,20 @@ import {
   buildEmployeeFullName,
   getEmployeeRecordsResource,
 } from "@/lib/api/employees";
+import { getServerAuthSession } from "@/lib/auth/server-session";
+import { employeeAttendanceHistory } from "@/lib/mock/employee-attendance";
 import { getPayrollPeriodRecordsResource } from "@/lib/api/payroll";
 import { formatDate, formatTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AttendancePage() {
+  const session = await getServerAuthSession();
+
+  if (session.role === "employee") {
+    return <EmployeeAttendanceDashboard months={employeeAttendanceHistory} />;
+  }
+
   const [attendanceResult, employeesResult, periodsResult] = await Promise.all([
     getAttendanceRecordsResource(),
     getEmployeeRecordsResource(),

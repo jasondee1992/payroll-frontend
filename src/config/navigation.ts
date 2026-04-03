@@ -38,7 +38,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/attendance",
     description: "Time tracking, shifts, and attendance exceptions.",
     icon: Clock3,
-    roles: ["admin", "admin-finance", "finance", "hr"],
+    roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {
     title: "Payroll",

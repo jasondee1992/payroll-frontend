@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
-import { PageIntro } from "@/components/shared/page-intro";
 import {
   formatCurrency,
   formatDate,
@@ -30,11 +29,6 @@ export function EmployeePayslipDashboard({
   if (!selectedPayslip) {
     return (
       <>
-        <PageIntro
-          title="Dashboard"
-          description="Review your released payslips and salary history from one self-service dashboard."
-          eyebrow="Employee portal"
-        />
         <section className="panel p-6 sm:p-7">
           <p className="text-sm text-slate-600">
             No payslips are available yet for this employee account.
@@ -53,8 +47,8 @@ export function EmployeePayslipDashboard({
     <>
       {latestTrendMonth ? (
         <DashboardSection
-          title="Net pay trend"
-          description="Monthly salary trend for the last 12 months ending on the latest available payslip month."
+          title=""
+          description="Your monthly salary trend for the last 12 months, ending on the latest available payslip month."
           action={
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
               Latest month: {latestTrendMonth.monthLabel}
@@ -64,12 +58,6 @@ export function EmployeePayslipDashboard({
           <MonthlyPayTrendChart trend={monthlyTrend} />
         </DashboardSection>
       ) : null}
-
-      <PageIntro
-        title="Dashboard"
-        description="Review your released payslips and salary history from one self-service dashboard."
-        eyebrow="Employee portal"
-      />
 
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard

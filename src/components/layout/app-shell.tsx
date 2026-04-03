@@ -60,7 +60,12 @@ export function AppShell({
           onClose={() => setMobileOpen(false)}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col transition-[padding-left] duration-300",
+            collapsed ? "lg:pl-24" : "lg:pl-72",
+          )}
+        >
           <AppHeader
             collapsed={collapsed}
             currentTitle={currentItem.title}
