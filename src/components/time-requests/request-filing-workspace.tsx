@@ -1,7 +1,15 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import type { CurrentEmployeeRequestContext } from "@/lib/api/current-employee";
+import type { TimeRequestRecord } from "@/lib/api/time-requests";
+import type { AppRole } from "@/lib/auth/session";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { SectionCard } from "@/components/ui/section-card";
+import {
+  createTimeRequest,
+  getTimeRequests,
+  updateTimeRequestStatus,
+} from "@/lib/api/time-requests";
 import {
   allRequestTypes,
   requestGroups,
@@ -24,15 +32,7 @@ type FilingFormState = {
   managerName: string;
 };
 
-type SubmittedRequest = {
-  reference: string;
-  typeTitle: string;
-  status: string;
-  dateSummary: string;
-  submittedAt: string;
-  approvalPath: string;
-  managerName: string;
-};
+type TimeRequestTab = "file" | "mine" | "approvals" | "all";
 
 const quickPickIds = [
   "vacation-leave",
@@ -43,36 +43,35 @@ const quickPickIds = [
   "official-business",
 ];
 
-const initialQueue: SubmittedRequest[] = [
-  {
-    reference: "TR-2026-041",
-    typeTitle: "Vacation Leave / Service Incentive Leave",
-    status: "Pending HR review",
-    dateSummary: "Apr 18, 2026 to Apr 19, 2026",
-    submittedAt: "Today, 9:10 AM",
-    approvalPath: "Immediate lead -> HR",
-    managerName: "Maria Santos",
-  },
-  {
-    reference: "TR-2026-038",
-    typeTitle: "Overtime",
-    status: "For supervisor approval",
-    dateSummary: "Apr 3, 2026, 6:00 PM to 8:30 PM",
-    submittedAt: "Today, 6:12 PM",
-    approvalPath: "Immediate lead -> Attendance/HR -> Payroll",
-    managerName: "Carlo Reyes",
-  },
-];
-
-export function RequestFilingWorkspace() {
+export function RequestFilingWorkspace({
+  currentRole,
+  currentUsername,
+  currentEmployeeContext,
+  currentEmployeeContextErrorMessage,
+}: {
+  currentRole?: AppRole | null;
+  currentUsername?: string | null;
+  currentEmployeeContext?: CurrentEmployeeRequestContext | null;
+  currentEmployeeContextErrorMessage?: string | null;
+}) {
+  const reportingManagerName =
+    currentEmployeeContext?.reportingManagerName ?? null;
   const [selectedTypeId, setSelectedTypeId] = useState(allRequestTypes[0]?.id ?? "");
   const selectedType =
     allRequestTypes.find((item) => item.id === selectedTypeId) ?? allRequestTypes[0];
-  const [formState, setFormState] = useState<FilingFormState>(createEmptyFormState());
-  const [submittedRequests, setSubmittedRequests] =
-    useState<SubmittedRequest[]>(initialQueue);
+  const [formState, setFormState] = useState<FilingFormState>(() =>
+    createEmptyFormState(reportingManagerName),
+  );
+  const [myRequests, setMyRequests] = useState<TimeRequestRecord[]>([]);
+  const [allRequests, setAllRequests] = useState<TimeRequestRecord[]>([]);
+  const [approvalInbox, setApprovalInbox] = useState<TimeRequestRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [recordsErrorMessage, setRecordsErrorMessage] = useState<string | null>(null);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<TimeRequestTab>("file");
 
   const currentStep = useMemo(() => {
     if (!selectedType) {
@@ -86,13 +85,100 @@ export function RequestFilingWorkspace() {
     return formState.reason.trim() ? 2 : 1;
   }, [formState, selectedType]);
 
-  if (!selectedType) {
-    return null;
+  useEffect(() => {
+    setFormState((current) => ({
+      ...current,
+      managerName: reportingManagerName ?? "",
+    }));
+  }, [reportingManagerName]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadRequests() {
+      setIsLoadingRecords(true);
+      setRecordsErrorMessage(null);
+
+      try {
+        const pendingLoads: Array<Promise<TimeRequestRecord[]>> = [
+          getTimeRequests("mine"),
+          getTimeRequests("approvals"),
+        ];
+
+        if (canViewAllRequests(currentRole)) {
+          pendingLoads.push(getTimeRequests("all"));
+        }
+
+        const [mineResult, approvalsResult, allResult] = await Promise.all(
+          pendingLoads,
+        );
+
+        if (isCancelled) {
+          return;
+        }
+
+        setMyRequests(mineResult);
+        setApprovalInbox(approvalsResult);
+        setAllRequests(allResult ?? []);
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setRecordsErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load the stored time requests.",
+        );
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingRecords(false);
+        }
+      }
+    }
+
+    void loadRequests();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentRole]);
+
+  async function refreshRequests() {
+    setIsLoadingRecords(true);
+    setRecordsErrorMessage(null);
+
+    try {
+      const pendingLoads: Array<Promise<TimeRequestRecord[]>> = [
+        getTimeRequests("mine"),
+        getTimeRequests("approvals"),
+      ];
+
+      if (canViewAllRequests(currentRole)) {
+        pendingLoads.push(getTimeRequests("all"));
+      }
+
+      const [mineResult, approvalsResult, allResult] = await Promise.all(
+        pendingLoads,
+      );
+
+      setMyRequests(mineResult);
+      setApprovalInbox(approvalsResult);
+      setAllRequests(allResult ?? []);
+    } catch (error) {
+      setRecordsErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to load the stored time requests.",
+      );
+    } finally {
+      setIsLoadingRecords(false);
+    }
   }
 
   function handleRequestTypeChange(nextTypeId: string) {
     setSelectedTypeId(nextTypeId);
-    setFormState(createEmptyFormState());
+    setFormState(createEmptyFormState(reportingManagerName));
     setErrorMessage(null);
     setSuccessMessage(null);
   }
@@ -106,7 +192,7 @@ export function RequestFilingWorkspace() {
     setSuccessMessage(null);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -118,34 +204,116 @@ export function RequestFilingWorkspace() {
       return;
     }
 
-    const entry: SubmittedRequest = {
-      reference: `TR-${new Date().getFullYear()}-${String(submittedRequests.length + 42).padStart(3, "0")}`,
-      typeTitle: selectedType.title,
-      status: "For approval",
-      dateSummary: buildDateSummary(selectedType, formState),
-      submittedAt: formatTimestamp(new Date()),
-      approvalPath: selectedType.approvalPath,
-      managerName: formState.managerName.trim() || "Waiting for manager assignment",
-    };
+    setIsSubmitting(true);
 
-    setSubmittedRequests((current) => [entry, ...current]);
-    setFormState(createEmptyFormState());
-    setSuccessMessage(
-      `Sample ${selectedType.title} request created and added to the local queue.`,
-    );
+    try {
+      await createTimeRequest({
+        request_type_id: selectedType.id,
+        date_from: formState.dateFrom || null,
+        date_to: formState.dateTo || null,
+        request_date: formState.requestDate || null,
+        start_time: normalizeTimeValue(formState.startTime),
+        end_time: normalizeTimeValue(formState.endTime),
+        actual_time: normalizeTimeValue(formState.actualTime),
+        expected_time: normalizeTimeValue(formState.expectedTime),
+        location: normalizeTextValue(formState.location),
+        coverage_plan: normalizeTextValue(formState.coveragePlan),
+        reason: formState.reason.trim(),
+        attachment_label: normalizeTextValue(formState.attachmentLabel),
+        contact_person: normalizeTextValue(formState.contactPerson),
+      });
+
+      setFormState(createEmptyFormState(reportingManagerName));
+      setSuccessMessage(
+        `${selectedType.title} request submitted and stored in the database.`,
+      );
+      await refreshRequests();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit the time request.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleReviewAction(
+    requestId: number,
+    action: "approve" | "return",
+  ) {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setReviewingRequestId(requestId);
+
+    try {
+      await updateTimeRequestStatus(requestId, {
+        action,
+        note:
+          action === "approve"
+            ? `Reviewed by ${currentUsername ?? "current reviewer"}`
+            : `Returned by ${currentUsername ?? "current reviewer"}`,
+      });
+
+      setSuccessMessage(
+        action === "approve"
+          ? "Request review recorded successfully."
+          : "Request was returned successfully.",
+      );
+      await refreshRequests();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to update the request status.",
+      );
+    } finally {
+      setReviewingRequestId(null);
+    }
+  }
+
+  if (!selectedType) {
+    return null;
   }
 
   const quickPicks = allRequestTypes.filter((item) => quickPickIds.includes(item.id));
+  const recordItems = activeTab === "all" ? allRequests : myRequests;
+  const tabs = buildTabs(currentRole, approvalInbox.length);
 
   return (
     <SectionCard
       title="Request filing process"
-      description="Use this sample workflow to file leave, overtime, attendance corrections, and work arrangement requests from one screen."
+      description="File leave, overtime, attendance corrections, and work arrangement requests from one place. Submitted records are stored in the database with timestamps."
     >
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
+      <div className="mb-4 overflow-x-auto">
+        <div className="inline-flex min-w-full gap-2 rounded-2xl border border-slate-200/80 bg-white p-2">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={
+                  active
+                    ? "inline-flex min-w-max items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition"
+                    : "inline-flex min-w-max items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                }
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {activeTab === "file" ? (
+        <div className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
         <div className="space-y-4">
-          <div className="rounded-[26px] border border-amber-200/80 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
-            Demo flow only. Submissions below stay in frontend state until a dedicated backend request module is wired.
+          <div className="rounded-[26px] border border-slate-200/80 bg-slate-50/70 px-5 py-4 text-sm leading-6 text-slate-700">
+            Requests filed here are stored as system records. Every request is routed to the employee&apos;s reporting manager first, then to HR for final review.
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -163,9 +331,9 @@ export function RequestFilingWorkspace() {
             />
             <StepCard
               step="3"
-              title="Submit sample"
+              title="Submit request"
               active={currentStep === 3}
-              description="Review the approval route and add the request to the demo queue."
+              description="Review the approval route and save the request to the system."
             />
           </div>
 
@@ -271,15 +439,18 @@ export function RequestFilingWorkspace() {
 
                 <label className="flex flex-col gap-2">
                   <span className="ui-label">Immediate manager</span>
-                  <input
-                    type="text"
-                    value={formState.managerName}
-                    onChange={(event) =>
-                      handleFieldChange("managerName", event.target.value)
-                    }
-                    className="ui-input"
-                    placeholder="Example: Maria Santos"
-                  />
+                  <div className="flex min-h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900">
+                    {formState.managerName || "No reporting manager assigned"}
+                  </div>
+                  {currentEmployeeContextErrorMessage ? (
+                    <span className="text-xs leading-5 text-amber-700">
+                      {currentEmployeeContextErrorMessage}
+                    </span>
+                  ) : (
+                    <span className="text-xs leading-5 text-slate-500">
+                      Auto-filled from the employee reporting manager assignment.
+                    </span>
+                  )}
                 </label>
 
                 <label className="flex flex-col gap-2">
@@ -303,11 +474,11 @@ export function RequestFilingWorkspace() {
                 <ReviewItem label="Request type" value={selectedType.title} />
                 <ReviewItem
                   label="Review approver"
-                  value={formState.managerName.trim() || "Waiting for manager assignment"}
+                  value={formState.managerName.trim() || "No reporting manager assigned"}
                 />
                 <ReviewItem
                   label="Schedule summary"
-                  value={buildDateSummary(selectedType, formState)}
+                  value={buildDraftDateSummary(selectedType, formState)}
                 />
               </div>
 
@@ -327,16 +498,21 @@ export function RequestFilingWorkspace() {
                 <button
                   type="button"
                   onClick={() => {
-                    setFormState(createEmptyFormState());
+                    setFormState(createEmptyFormState(reportingManagerName));
                     setErrorMessage(null);
                     setSuccessMessage(null);
                   }}
                   className="ui-button-secondary"
+                  disabled={isSubmitting}
                 >
                   Reset form
                 </button>
-                <button type="submit" className="ui-button-primary">
-                  Submit sample request
+                <button
+                  type="submit"
+                  className="ui-button-primary"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit request"}
                 </button>
               </div>
             </div>
@@ -356,58 +532,219 @@ export function RequestFilingWorkspace() {
               />
             </div>
           </div>
+        </div>
+      </div>
+      ) : null}
 
+      {activeTab === "approvals" ? (
+        <div className="space-y-4">
+          <div className="rounded-[26px] border border-slate-200/80 bg-slate-50/70 px-5 py-4 text-sm leading-6 text-slate-700">
+            Reporting managers can approve the requests routed to them. HR can review all pending requests here and apply final approval.
+          </div>
           <div className="rounded-[26px] border border-slate-200/80 bg-white px-5 py-5">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4">
               <div>
                 <p className="text-sm font-semibold text-slate-950">
-                  Demo submission queue
+                  Approval inbox
                 </p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Recently filed sample requests inside this page session.
+                  {getApprovalInboxDescription(currentRole)}
                 </p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                {submittedRequests.length} items
+                {approvalInbox.length} pending
               </span>
             </div>
 
-            <div className="mt-4 space-y-3">
-              {submittedRequests.map((item) => (
-                <article
-                  key={item.reference}
-                  className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">
-                        {item.typeTitle}
-                      </p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {item.reference}
-                      </p>
+            {isLoadingRecords ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
+                Loading request records...
+              </div>
+            ) : approvalInbox.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {approvalInbox.map((item) => (
+                  <article
+                    key={item.id}
+                    className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {item.request_type_title}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          {item.employee_name_snapshot} filed for{" "}
+                          {buildStoredDateSummary(item)}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          <span>{buildRequestReference(item.id)}</span>
+                          <span>{formatStatusLabel(item.status)}</span>
+                          <span>{formatTimestamp(item.created_at)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <StatusPill status={item.status} />
+                        <button
+                          type="button"
+                          onClick={() => handleReviewAction(item.id, "return")}
+                          disabled={reviewingRequestId === item.id}
+                          className="inline-flex h-10 items-center justify-center rounded-2xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Return
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReviewAction(item.id, "approve")}
+                          disabled={reviewingRequestId === item.id}
+                          className="ui-button-primary h-10 px-4 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {reviewingRequestId === item.id ? "Saving..." : "Approve"}
+                        </button>
+                      </div>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                      {item.status}
-                    </span>
-                  </div>
-                  <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-                    <p>{item.dateSummary}</p>
-                    <p>Manager: {item.managerName}</p>
-                    <p>{item.approvalPath}</p>
-                    <p>{item.submittedAt}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
+                {currentUsername
+                  ? `No pending approval items for ${currentUsername}.`
+                  : "No pending approval items for this account yet."}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      ) : null}
+
+      {activeTab === "mine" || activeTab === "all" ? (
+        <div className="space-y-4">
+          <div className="rounded-[26px] border border-slate-200/80 bg-white px-5 py-5">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">
+                  {activeTab === "all" ? "All recorded requests" : "My recorded requests"}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {activeTab === "all"
+                    ? "HR can monitor every request filed in the system."
+                    : "Requests filed by this account are stored here with their timestamps and review status."}
+                </p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                {recordItems.length} items
+              </span>
+            </div>
+
+            {recordsErrorMessage ? (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-700">
+                {recordsErrorMessage}
+              </div>
+            ) : null}
+
+            {isLoadingRecords ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
+                Loading request records...
+              </div>
+            ) : recordItems.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {recordItems.map((item) => (
+                  <article
+                    key={item.id}
+                    className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {item.request_type_title}
+                        </p>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          {buildRequestReference(item.id)}
+                        </p>
+                      </div>
+                      <StatusPill status={item.status} />
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                      {activeTab === "all" ? <p>{item.employee_name_snapshot}</p> : null}
+                      <p>{buildStoredDateSummary(item)}</p>
+                      <p>
+                        Filed {formatTimestamp(item.created_at)}
+                        {item.reviewed_at
+                          ? ` | Last review ${formatTimestamp(item.reviewed_at)}`
+                          : ""}
+                      </p>
+                      <p>{item.approval_route}</p>
+                      <p>
+                        Approver:{" "}
+                        {item.reporting_manager_name_snapshot ?? "HR direct review"}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm leading-6 text-slate-500">
+                No stored requests yet.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </SectionCard>
   );
 }
 
-function createEmptyFormState(): FilingFormState {
+function canViewAllRequests(role: AppRole | null | undefined) {
+  return role === "hr";
+}
+
+function getApprovalInboxDescription(role: AppRole | null | undefined) {
+  if (canViewAllRequests(role)) {
+    return "Pending requests across the system that can be reviewed by HR.";
+  }
+
+  return "Requests routed to this account as reporting manager.";
+}
+
+function buildTabs(role: AppRole | null | undefined, approvalCount: number) {
+  const tabs: Array<{ id: TimeRequestTab; label: string }> = [
+    { id: "file", label: "File Request" },
+    { id: "mine", label: "My Requests" },
+  ];
+
+  if (canViewAllRequests(role)) {
+    tabs.push({
+      id: "approvals",
+      label: `HR Review${approvalCount > 0 ? ` (${approvalCount})` : ""}`,
+    });
+    tabs.push({ id: "all", label: "All Requests" });
+    return tabs;
+  }
+
+  tabs.push({
+    id: "approvals",
+    label: `For Approval${approvalCount > 0 ? ` (${approvalCount})` : ""}`,
+  });
+
+  return tabs;
+}
+
+function buildRequestReference(requestId: number) {
+  return `TR-${String(requestId).padStart(5, "0")}`;
+}
+
+function normalizeTextValue(value: string) {
+  const normalizedValue = value.trim();
+  return normalizedValue.length > 0 ? normalizedValue : null;
+}
+
+function normalizeTimeValue(value: string) {
+  return value ? `${value}:00` : null;
+}
+
+function createEmptyFormState(
+  reportingManagerName: string | null,
+): FilingFormState {
   return {
     dateFrom: "",
     dateTo: "",
@@ -421,7 +758,7 @@ function createEmptyFormState(): FilingFormState {
     reason: "",
     attachmentLabel: "",
     contactPerson: "",
-    managerName: "Maria Santos",
+    managerName: reportingManagerName ?? "",
   };
 }
 
@@ -639,7 +976,7 @@ function validateForm(
   formState: FilingFormState,
 ) {
   if (!formState.reason.trim()) {
-    return "Add the request reason before submitting the sample entry.";
+    return "Add the request reason before submitting.";
   }
 
   switch (selectedType.formKind) {
@@ -680,7 +1017,7 @@ function validateForm(
   return null;
 }
 
-function buildDateSummary(
+function buildDraftDateSummary(
   selectedType: RequestCatalogItem,
   formState: FilingFormState,
 ) {
@@ -711,6 +1048,30 @@ function buildDateSummary(
   }
 }
 
+function buildStoredDateSummary(item: TimeRequestRecord) {
+  if (item.form_kind === "leave") {
+    if (item.date_from && item.date_to) {
+      return `${formatDate(item.date_from)} to ${formatDate(item.date_to)}`;
+    }
+
+    return "Leave schedule pending";
+  }
+
+  if (item.form_kind === "overtime" || item.form_kind === "arrangement") {
+    if (!item.request_date) {
+      return "Schedule pending";
+    }
+
+    return `${formatDate(item.request_date)}, ${formatClock(item.start_time)} to ${formatClock(item.end_time)}`;
+  }
+
+  if (!item.request_date) {
+    return "Attendance date pending";
+  }
+
+  return `${formatDate(item.request_date)}, ${formatClock(item.actual_time)} vs expected ${formatClock(item.expected_time)}`;
+}
+
 function formatDate(value: string) {
   const date = new Date(`${value}T00:00:00`);
 
@@ -725,14 +1086,52 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function formatTimestamp(value: Date) {
+function formatClock(value: string | null) {
+  if (!value) {
+    return "--:--";
+  }
+
+  const [hours, minutes] = value.split(":");
+  if (!hours || !minutes) {
+    return value;
+  }
+
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatTimestamp(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(value);
+  }).format(date);
+}
+
+function formatStatusLabel(status: TimeRequestRecord["status"]) {
+  switch (status) {
+    case "pending_manager_approval":
+      return "Pending manager approval";
+    case "pending_hr_review":
+      return "Pending HR review";
+    case "approved":
+      return "Approved";
+    case "returned":
+      return "Returned";
+  }
 }
 
 function shortLabel(value: string) {
@@ -840,5 +1239,21 @@ function ReviewItem({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-2 text-sm font-semibold text-slate-950">{value}</p>
     </div>
+  );
+}
+
+function StatusPill({ status }: { status: TimeRequestRecord["status"] }) {
+  return (
+    <span
+      className={
+        status === "returned"
+          ? "inline-flex h-10 items-center justify-center rounded-2xl bg-rose-100 px-4 text-sm font-semibold text-rose-700"
+          : status === "approved"
+            ? "inline-flex h-10 items-center justify-center rounded-2xl bg-emerald-100 px-4 text-sm font-semibold text-emerald-700"
+            : "inline-flex h-10 items-center justify-center rounded-2xl bg-amber-100 px-4 text-sm font-semibold text-amber-700"
+      }
+    >
+      {formatStatusLabel(status)}
+    </span>
   );
 }

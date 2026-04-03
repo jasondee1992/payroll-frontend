@@ -25,6 +25,10 @@ export const apiEndpoints = {
     runDetail: (runId: string) => `${API_V1_PREFIX}/payroll-runs/${runId}`,
     process: `${API_V1_PREFIX}/payroll-runs/process`,
   },
+  timeRequests: {
+    list: `${API_V1_PREFIX}/time-requests`,
+    status: (requestId: string) => `${API_V1_PREFIX}/time-requests/${requestId}/status`,
+  },
   users: {
     list: `${API_V1_PREFIX}/users`,
     detail: (userId: string) => `${API_V1_PREFIX}/users/${userId}`,

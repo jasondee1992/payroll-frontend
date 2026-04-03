@@ -20,7 +20,9 @@ export type RequestGroup = {
   items: RequestCatalogItem[];
 };
 
-export const requestGroups: RequestGroup[] = [
+const STANDARD_APPROVAL_PATH = "Reporting manager -> HR";
+
+const baseRequestGroups: RequestGroup[] = [
   {
     title: "Statutory and law-aligned leaves",
     description:
@@ -262,5 +264,13 @@ export const requestGroups: RequestGroup[] = [
     ],
   },
 ];
+
+export const requestGroups: RequestGroup[] = baseRequestGroups.map((group) => ({
+  ...group,
+  items: group.items.map((item) => ({
+    ...item,
+    approvalPath: STANDARD_APPROVAL_PATH,
+  })),
+}));
 
 export const allRequestTypes = requestGroups.flatMap((group) => group.items);

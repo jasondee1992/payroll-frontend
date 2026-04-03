@@ -2,6 +2,7 @@
 
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { NotificationBell } from "@/components/time-requests/notification-bell";
 import type { AppRole } from "@/lib/auth/session";
 
 type AppHeaderProps = {
@@ -69,6 +70,8 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell currentUsername={currentUsername} />
+
           <LogoutButton />
 
           <div className="hidden rounded-2xl border border-emerald-200/80 bg-emerald-50 px-4 py-2.5 text-right sm:block">
