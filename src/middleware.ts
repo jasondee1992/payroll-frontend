@@ -12,6 +12,12 @@ import {
 } from "@/lib/auth/session";
 
 const EMPLOYEE_ALLOWED_PATHS = new Set<string>(["/dashboard", "/attendance"]);
+const HR_ALLOWED_PATHS = new Set<string>([
+  "/dashboard",
+  "/employees",
+  "/attendance",
+  "/settings",
+]);
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -80,6 +86,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
   }
 
+  if (
+    hasAuthToken &&
+    userRole === "hr" &&
+    isProtectedPath(pathname) &&
+    !isHrAllowedPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
+  }
+
   return NextResponse.next();
 }
 
@@ -89,6 +104,16 @@ export const config = {
 
 function isEmployeeAllowedPath(pathname: string) {
   for (const allowedPath of EMPLOYEE_ALLOWED_PATHS) {
+    if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isHrAllowedPath(pathname: string) {
+  for (const allowedPath of HR_ALLOWED_PATHS) {
     if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
       return true;
     }

@@ -9,10 +9,12 @@ import { cn } from "@/lib/utils";
 
 type EmployeeAttendanceDashboardProps = {
   months: EmployeeAttendanceMonthRecord[];
+  showHeader?: boolean;
 };
 
 export function EmployeeAttendanceDashboard({
   months,
+  showHeader = true,
 }: EmployeeAttendanceDashboardProps) {
   const [selectedMonthKey, setSelectedMonthKey] = useState(months[0]?.monthKey ?? "");
   const selectedMonth =
@@ -21,10 +23,12 @@ export function EmployeeAttendanceDashboard({
   if (!selectedMonth) {
     return (
       <>
-        <PageHeader
-          title="Attendance"
-          description="Review your monthly attendance records and daily time entries from one self-service page."
-        />
+        {showHeader ? (
+          <PageHeader
+            title="Attendance"
+            description="Review your monthly attendance records and daily time entries from one self-service page."
+          />
+        ) : null}
 
         <section className="panel p-6 sm:p-7">
           <p className="text-sm text-slate-600">
@@ -37,10 +41,12 @@ export function EmployeeAttendanceDashboard({
 
   return (
     <>
-      <PageHeader
-        title="Attendance"
-        description="Review your monthly attendance records and daily time entries from one self-service page."
-      />
+      {showHeader ? (
+        <PageHeader
+          title="Attendance"
+          description="Review your monthly attendance records and daily time entries from one self-service page."
+        />
+      ) : null}
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
         Employee attendance data is currently using frontend dummy records while

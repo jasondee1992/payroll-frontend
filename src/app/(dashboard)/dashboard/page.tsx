@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await getServerAuthSession();
 
-  if (session.role === "employee") {
+  if (session.role === "employee" || session.role === "hr") {
     return (
       <EmployeePayslipDashboard
         payslips={employeePayslipHistory}

@@ -1,4 +1,5 @@
 import { Clock3, FileWarning, TimerReset, UserRoundX } from "lucide-react";
+import { AttendanceDashboardTabs } from "@/components/attendance/attendance-dashboard-tabs";
 import { AttendanceTable } from "@/components/attendance/attendance-table";
 import { EmployeeAttendanceDashboard } from "@/components/attendance/employee-attendance-dashboard";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
@@ -22,6 +23,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AttendancePage() {
   const session = await getServerAuthSession();
+  const pageDescription =
+    "Review attendance records, payroll exceptions, and import activity for the selected payroll period.";
 
   if (session.role === "employee") {
     return <EmployeeAttendanceDashboard months={employeeAttendanceHistory} />;
@@ -87,21 +90,8 @@ export default async function AttendancePage() {
     return record.absence_flag || !record.time_in || !record.time_out;
   }).length;
 
-  return (
+  const teamAttendanceContent = (
     <>
-      <PageHeader
-        title="Attendance"
-        description="Review attendance records, payroll exceptions, and import activity for the selected payroll period."
-        actions={
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
-          >
-            Upload Attendance
-          </button>
-        }
-      />
-
       <section className="panel p-5 sm:p-6">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4">
@@ -189,6 +179,55 @@ export default async function AttendancePage() {
           />
         </DashboardSection>
       </section>
+    </>
+  );
+
+  if (session.role === "hr") {
+    return (
+      <>
+        <PageHeader
+          title="Attendance"
+          description={pageDescription}
+        />
+
+        <AttendanceDashboardTabs
+          tabs={[
+            {
+              id: "team-attendance",
+              label: "Team Attendance",
+              content: teamAttendanceContent,
+            },
+            {
+              id: "my-attendance",
+              label: "My Attendance",
+              content: (
+                <EmployeeAttendanceDashboard
+                  months={employeeAttendanceHistory}
+                  showHeader={false}
+                />
+              ),
+            },
+          ]}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Attendance"
+        description={pageDescription}
+        actions={
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
+          >
+            Upload Attendance
+          </button>
+        }
+      />
+      {teamAttendanceContent}
     </>
   );
 }

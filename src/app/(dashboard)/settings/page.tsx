@@ -1,7 +1,20 @@
+import { PlannedModulePlaceholder } from "@/components/shared/planned-module-placeholder";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceEmptyState } from "@/components/shared/resource-state";
+import { getServerAuthSession } from "@/lib/auth/server-session";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await getServerAuthSession();
+
+  if (session.role === "hr") {
+    return (
+      <PlannedModulePlaceholder
+        title="Settings"
+        description="HR settings space reserved for the controls and setup screens we still need to define."
+      />
+    );
+  }
+
   return (
     <>
       <PageHeader
