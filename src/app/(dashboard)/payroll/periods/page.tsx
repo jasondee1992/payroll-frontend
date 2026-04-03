@@ -1,3 +1,4 @@
+import { CreatePayrollPeriodButton } from "@/components/payroll/create-payroll-period-button";
 import { PayrollPeriodsTable } from "@/components/payroll/payroll-periods-table";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -16,14 +17,7 @@ export default async function PayrollPeriodsPage() {
       <PageHeader
         title="Payroll Periods"
         description="Maintain payroll cycle windows, payout dates, and operational status across each period."
-        actions={
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
-          >
-            Create Period
-          </button>
-        }
+        actions={<CreatePayrollPeriodButton />}
       />
 
       <section className="panel p-5 sm:p-6">

@@ -48,6 +48,7 @@ export default async function PayrollRunPage() {
     periods.find((period) => period.status.trim().toLowerCase() === "open") ??
     periods[0];
   const activeEmployees = employeesResult.data.filter((employee) => employee.is_active);
+  const activeEmployeeIds = activeEmployees.map((employee) => employee.id);
 
   const processingItems = [
     {
@@ -88,8 +89,12 @@ export default async function PayrollRunPage() {
         >
           {periods.length > 0 ? (
             <PayrollRunForm
-              periodOptions={periods.map((period) => period.period_name)}
-              defaultPeriod={activePeriod?.period_name}
+              periodOptions={periods.map((period) => ({
+                id: period.id,
+                label: period.period_name,
+              }))}
+              defaultPeriodId={activePeriod?.id}
+              employeeIds={activeEmployeeIds}
             />
           ) : (
             <ResourceEmptyState
@@ -126,9 +131,9 @@ export default async function PayrollRunPage() {
             description="Current backend capability for payroll execution."
           >
             <p className="text-sm leading-6 text-slate-600">
-              The old mock confirmation copy was removed. This screen now uses
-              live payroll-period, employee, and attendance data, but batch run
-              execution still needs a dedicated backend workflow.
+              This screen now uses live payroll-period, employee, and attendance
+              data. Batch execution is handled in the frontend by calling the
+              backend payroll-process endpoint once per included employee.
             </p>
           </DashboardSection>
         </div>

@@ -127,7 +127,9 @@ export async function getEmployeeProfileResource(
         { label: "Rate Type", value: salaryProfile.rateType },
         {
           label: "Effective Date",
-          value: formatDate(salaryProfileRecord.effective_date),
+          value: salaryProfileRecord
+            ? formatDate(salaryProfileRecord.effective_date)
+            : "Not available",
         },
       ]
     : [

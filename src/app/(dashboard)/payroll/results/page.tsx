@@ -1,3 +1,4 @@
+import { ExportPayrollResultsButton } from "@/components/payroll/export-payroll-results-button";
 import { BadgeCheck, CircleDollarSign, Landmark, WalletCards } from "lucide-react";
 import { PayrollResultsTable } from "@/components/payroll/payroll-results-table";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -103,12 +104,18 @@ export default async function PayrollResultsPage() {
         title="Payroll Results"
         description="Review payroll outputs, validate deduction and tax totals, and prepare payroll results for downstream release."
         actions={
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/10"
-          >
-            Export Results
-          </button>
+          <ExportPayrollResultsButton
+            rows={results.map((result) => ({
+              employeeId: result.employeeId,
+              name: result.name,
+              grossPay: result.grossPay,
+              deductions: result.deductions,
+              tax: result.tax,
+              netPay: result.netPay,
+              status: result.status,
+            }))}
+            fileName={`payroll-results-${selectedPeriod?.period_name ?? "all-periods"}.csv`}
+          />
         }
       />
 

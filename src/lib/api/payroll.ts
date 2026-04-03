@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { createCollectionParser, loadApiResource } from "@/lib/api/resources";
+import { getApiErrorMessage } from "@/lib/api/client";
 import {
   parseNumericString,
   parseNumber,
@@ -106,6 +107,32 @@ export function mapPayrollPeriod(record: PayrollPeriodApiRecord): PayrollPeriod 
   };
 }
 
+export type CreatePayrollPeriodPayload = {
+  periodName: string;
+  periodStart: string;
+  periodEnd: string;
+  payoutDate: string;
+  status: "draft" | "open" | "processed" | "closed";
+};
+
+export type RunPayrollBatchPayload = {
+  payrollPeriodId: number;
+  employeeIds: number[];
+};
+
+export type RunPayrollBatchResult = {
+  ok: boolean;
+  createdCount: number;
+  skippedCount: number;
+  failedCount: number;
+  results: Array<{
+    employeeId: number;
+    status: "created" | "skipped" | "failed";
+    message: string;
+    payrollRunId?: number;
+  }>;
+};
+
 export async function getPayrollPeriodRecords() {
   return apiClient.get<PayrollPeriodApiRecord[], PayrollPeriodApiRecord[]>(
     apiEndpoints.payroll.periods,
@@ -127,6 +154,94 @@ export async function getPayrollRunRecords() {
       parser: parsePayrollRunsResponse,
     },
   );
+}
+
+function getPayrollActionErrorMessage(responseBody: unknown) {
+  return getApiErrorMessage(responseBody, "Unable to complete the payroll action.");
+}
+
+export async function createPayrollPeriod(payload: CreatePayrollPeriodPayload) {
+  const response = await fetch("/api/payroll/periods", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      period_name: payload.periodName,
+      period_start: payload.periodStart,
+      period_end: payload.periodEnd,
+      payout_date: payload.payoutDate,
+      status: payload.status,
+    }),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    throw new Error(getPayrollActionErrorMessage(responseBody));
+  }
+
+  return parsePayrollPeriodRecord(responseBody);
+}
+
+export async function runPayrollBatch(payload: RunPayrollBatchPayload) {
+  const response = await fetch("/api/payroll/runs/process", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    throw new Error(getPayrollActionErrorMessage(responseBody));
+  }
+
+  const record = parseRecord(responseBody, "payroll batch run response");
+
+  return {
+    ok: Boolean(record.ok),
+    createdCount: parseNumber(record.createdCount, "payrollBatch.createdCount"),
+    skippedCount: parseNumber(record.skippedCount, "payrollBatch.skippedCount"),
+    failedCount: parseNumber(record.failedCount, "payrollBatch.failedCount"),
+    results: Array.isArray(record.results)
+      ? record.results.map((item, index) => {
+          const resultRecord = parseRecord(item, `payrollBatch.results[${index}]`);
+
+          return {
+            employeeId: parseNumber(
+              resultRecord.employeeId,
+              `payrollBatch.results[${index}].employeeId`,
+            ),
+            status: parseString(
+              resultRecord.status,
+              `payrollBatch.results[${index}].status`,
+            ) as "created" | "skipped" | "failed",
+            message: parseString(
+              resultRecord.message,
+              `payrollBatch.results[${index}].message`,
+            ),
+            payrollRunId:
+              resultRecord.payrollRunId == null
+                ? undefined
+                : parseNumber(
+                    resultRecord.payrollRunId,
+                    `payrollBatch.results[${index}].payrollRunId`,
+                  ),
+          };
+        })
+      : [],
+  } satisfies RunPayrollBatchResult;
 }
 
 export async function getPayrollPeriodsResource() {
