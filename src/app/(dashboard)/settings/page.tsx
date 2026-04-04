@@ -1,3 +1,4 @@
+import { AttendanceCutoffManager } from "@/components/settings/attendance-cutoff-manager";
 import { PlannedModulePlaceholder } from "@/components/shared/planned-module-placeholder";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceEmptyState } from "@/components/shared/resource-state";
@@ -5,6 +6,19 @@ import { getServerAuthSession } from "@/lib/auth/server-session";
 
 export default async function SettingsPage() {
   const session = await getServerAuthSession();
+
+  if (session.role === "admin-finance") {
+    return (
+      <>
+        <PageHeader
+          title="Settings"
+          description="Manage saved attendance cutoff uploads here so incorrect periods can be deleted and replaced with the right file."
+        />
+
+        <AttendanceCutoffManager />
+      </>
+    );
+  }
 
   if (session.role === "hr") {
     return (
@@ -24,8 +38,8 @@ export default async function SettingsPage() {
 
       <section className="panel p-6 sm:p-7">
         <ResourceEmptyState
-          title="Settings API not available"
-          description="Static settings placeholder content was removed. Add backend-backed settings routes before reintroducing this screen."
+          title="No settings module for this role"
+          description="The attendance cutoff cleanup screen is currently assigned to the Admin-Finance role."
         />
       </section>
     </>

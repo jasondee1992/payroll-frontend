@@ -12,7 +12,11 @@ export type AppRole =
   | "hr"
   | "employee";
 
-const ATTENDANCE_UPLOAD_ROLES = new Set<AppRole>(["finance", "hr"]);
+const ATTENDANCE_UPLOAD_ROLES = new Set<AppRole>([
+  "admin-finance",
+  "finance",
+  "hr",
+]);
 
 const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
@@ -80,4 +84,8 @@ export function canManageTeamAttendance(role: AppRole | null | undefined) {
 
 export function canManageAttendanceUploads(role: AppRole | null | undefined) {
   return role != null && ATTENDANCE_UPLOAD_ROLES.has(role);
+}
+
+export function canDeleteAttendanceCutoffs(role: AppRole | null | undefined) {
+  return role === "admin-finance";
 }

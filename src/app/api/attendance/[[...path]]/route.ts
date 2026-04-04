@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/api/config";
 import {
   AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
+  canDeleteAttendanceCutoffs,
   canManageAttendanceUploads,
   normalizeAppRole,
 } from "@/lib/auth/session";
@@ -44,7 +45,23 @@ async function proxyAttendanceRequest(
     !canManageAttendanceUploads(userRole)
   ) {
     return NextResponse.json(
-      { error: "Only Finance and HR users can manage attendance uploads and cutoffs." },
+      {
+        error:
+          "Only Admin-Finance, Finance, and HR users can manage attendance uploads and cutoffs.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (
+    accessToken &&
+    isRestrictedAttendanceDeleteRequest(request.method, path) &&
+    !canDeleteAttendanceCutoffs(userRole)
+  ) {
+    return NextResponse.json(
+      {
+        error: "Only Admin-Finance users can delete attendance cutoffs.",
+      },
       { status: 403 },
     );
   }
@@ -148,6 +165,13 @@ export async function PATCH(
   return proxyAttendanceRequest(request, context);
 }
 
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyAttendanceRequest(request, context);
+}
+
 function isRestrictedAttendanceWriteRequest(
   method: string,
   pathSegments: string[] | undefined,
@@ -173,5 +197,17 @@ function isRestrictedAttendanceWriteRequest(
     pathSegments[2] === "import" ||
     pathSegments[2] === "process" ||
     pathSegments[2] === "lock"
+  );
+}
+
+function isRestrictedAttendanceDeleteRequest(
+  method: string,
+  pathSegments: string[] | undefined,
+) {
+  return (
+    method === "DELETE" &&
+    Array.isArray(pathSegments) &&
+    pathSegments.length === 2 &&
+    pathSegments[0] === "cutoffs"
   );
 }

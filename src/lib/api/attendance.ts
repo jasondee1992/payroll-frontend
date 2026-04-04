@@ -543,6 +543,202 @@ async function handleApiResponse<T>(response: Response, parse: (value: unknown) 
   return parse(responseBody);
 }
 
+function normalizeAttendanceCsvHeaderKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function splitCsvLine(line: string) {
+  const cells: string[] = [];
+  let currentCell = "";
+  let insideQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+
+    if (character === '"') {
+      if (insideQuotes && line[index + 1] === '"') {
+        currentCell += '"';
+        index += 1;
+        continue;
+      }
+
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    if (character === "," && !insideQuotes) {
+      cells.push(currentCell);
+      currentCell = "";
+      continue;
+    }
+
+    currentCell += character;
+  }
+
+  cells.push(currentCell);
+  return cells;
+}
+
+function getFirstNonEmptyCsvDataLine(csvText: string) {
+  const lines = csvText.split(/\r?\n/);
+
+  for (let index = 1; index < lines.length; index += 1) {
+    if (lines[index].trim().length > 0) {
+      return lines[index];
+    }
+  }
+
+  return null;
+}
+
+function escapeCsvCell(value: string) {
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+
+  return value;
+}
+
+function looksLikeEmployeeCode(value: string | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return /[a-z-]/i.test(value.trim());
+}
+
+function toCanonicalAttendanceHeader(header: string, sampleValue?: string) {
+  const normalizedHeader = normalizeAttendanceCsvHeaderKey(header);
+
+  switch (normalizedHeader) {
+    case "employee code":
+      return "employee_code";
+    case "employee id":
+    case "employee":
+      return looksLikeEmployeeCode(sampleValue) ? "employee_code" : "employee_id";
+    case "attendance date":
+    case "date":
+    case "work date":
+      return "attendance_date";
+    case "time in":
+    case "in":
+      return "time_in";
+    case "time out":
+    case "out":
+      return "time_out";
+    case "remarks":
+      return "remarks";
+    case "attendance status":
+    case "status":
+      return "status";
+    default:
+      return header.trim();
+  }
+}
+
+function inferAttendanceDateFormat(rows: string[][], attendanceDateColumnIndex: number) {
+  let hasDayFirstEvidence = false;
+  let hasMonthFirstEvidence = false;
+
+  for (const row of rows) {
+    const value = row[attendanceDateColumnIndex]?.trim();
+    if (!value) {
+      continue;
+    }
+
+    const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (!match) {
+      continue;
+    }
+
+    const firstPart = Number(match[1]);
+    const secondPart = Number(match[2]);
+
+    if (firstPart > 12 && secondPart <= 12) {
+      hasDayFirstEvidence = true;
+    }
+
+    if (secondPart > 12 && firstPart <= 12) {
+      hasMonthFirstEvidence = true;
+    }
+  }
+
+  if (hasDayFirstEvidence && !hasMonthFirstEvidence) {
+    return "dd/mm/yyyy";
+  }
+
+  if (hasMonthFirstEvidence && !hasDayFirstEvidence) {
+    return "mm/dd/yyyy";
+  }
+
+  return null;
+}
+
+function normalizeAttendanceDateValue(value: string, dateFormat: "dd/mm/yyyy" | "mm/dd/yyyy") {
+  const trimmedValue = value.trim();
+  const match = trimmedValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+
+  if (!match) {
+    return trimmedValue;
+  }
+
+  const firstPart = Number(match[1]);
+  const secondPart = Number(match[2]);
+  const yearPart = match[3].length === 2 ? `20${match[3]}` : match[3];
+  const monthPart = dateFormat === "dd/mm/yyyy" ? secondPart : firstPart;
+  const dayPart = dateFormat === "dd/mm/yyyy" ? firstPart : secondPart;
+
+  return `${yearPart}-${String(monthPart).padStart(2, "0")}-${String(dayPart).padStart(2, "0")}`;
+}
+
+async function normalizeAttendanceCsvUploadFile(file: File) {
+  const csvText = await file.text();
+  const lines = csvText.split(/\r?\n/);
+  const headerLine = lines[0];
+
+  if (!headerLine) {
+    return file;
+  }
+  const headerCells = splitCsvLine(headerLine);
+  const firstDataLine = getFirstNonEmptyCsvDataLine(csvText);
+  const firstDataCells = firstDataLine ? splitCsvLine(firstDataLine) : [];
+  const normalizedHeaderCells = headerCells.map((headerCell, index) =>
+    toCanonicalAttendanceHeader(headerCell, firstDataCells[index]),
+  );
+  const parsedRows = lines.slice(1).map((line) => splitCsvLine(line));
+  const attendanceDateColumnIndex = normalizedHeaderCells.findIndex(
+    (headerCell) => headerCell === "attendance_date",
+  );
+  const inferredDateFormat =
+    attendanceDateColumnIndex >= 0
+      ? inferAttendanceDateFormat(parsedRows, attendanceDateColumnIndex)
+      : null;
+
+  if (
+    inferredDateFormat == null &&
+    normalizedHeaderCells.every(
+      (headerCell, index) => headerCell === headerCells[index].trim(),
+    )
+  ) {
+    return file;
+  }
+
+  const normalizedRows = parsedRows.map((row) =>
+    row.map((cell, index) =>
+      inferredDateFormat != null && index === attendanceDateColumnIndex
+        ? normalizeAttendanceDateValue(cell ?? "", inferredDateFormat)
+        : cell ?? "",
+    ),
+  );
+  const normalizedCsvText = [normalizedHeaderCells, ...normalizedRows]
+    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
+    .join(csvText.includes("\r\n") ? "\r\n" : "\n");
+
+  return new File([normalizedCsvText], file.name, {
+    type: file.type || "text/csv",
+  });
+}
+
 export async function getAttendanceCutoffs() {
   const response = await fetch("/api/attendance/cutoffs", {
     method: "GET",
@@ -574,9 +770,21 @@ export async function createAttendanceCutoff(payload: CreateAttendanceCutoffPayl
   return handleApiResponse(response, parseAttendanceCutoffRecord);
 }
 
+export async function deleteAttendanceCutoff(cutoffId: number) {
+  const response = await fetch(`/api/attendance/cutoffs/${cutoffId}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  return handleApiResponse(response, parseAttendanceCutoffRecord);
+}
+
 export async function uploadAttendanceCsv(cutoffId: number, file: File) {
+  const normalizedFile = await normalizeAttendanceCsvUploadFile(file);
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", normalizedFile);
 
   const response = await fetch(`/api/attendance/cutoffs/${cutoffId}/upload`, {
     method: "POST",

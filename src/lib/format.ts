@@ -11,6 +11,13 @@ export function formatDate(value: string, options?: Intl.DateTimeFormatOptions) 
   }).format(getDateValue(value));
 }
 
+export function formatWeekday(value: string, options?: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    ...options,
+  }).format(getDateValue(value));
+}
+
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",

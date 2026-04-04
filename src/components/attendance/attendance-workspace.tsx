@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -24,9 +25,10 @@ import {
   uploadAttendanceCsv,
   type CreateAttendanceReviewRequestPayload,
 } from "@/lib/api/attendance";
-import { formatDate, formatTime } from "@/lib/format";
+import { formatDate, formatTime, formatWeekday } from "@/lib/format";
 import { formatPhilippineDateTime } from "@/lib/format/philippine-time";
 import {
+  canDeleteAttendanceCutoffs,
   canManageAttendanceUploads,
   canManageTeamAttendance,
   type AppRole,
@@ -97,7 +99,6 @@ export function AttendanceWorkspace({
   const [loadingTeamSummary, setLoadingTeamSummary] = useState(false);
   const [loadingMyReview, setLoadingMyReview] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
-  const [creatingCutoff, setCreatingCutoff] = useState(false);
   const [uploadingAttendance, setUploadingAttendance] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [lockingCutoff, setLockingCutoff] = useState(false);
@@ -117,6 +118,11 @@ export function AttendanceWorkspace({
   const hasHighlightedRequest = Number.isFinite(highlightedRequestId) && highlightedRequestId > 0;
   const canReviewTeamAttendance = canManageTeamAttendance(currentRole);
   const canManageAttendanceImports = canManageAttendanceUploads(currentRole);
+  const canManageUploadedCutoffDeletes = canDeleteAttendanceCutoffs(currentRole);
+  const matchingCutoff = cutoffs.find(
+    (cutoff) =>
+      cutoff.cutoff_start === createCutoffStart && cutoff.cutoff_end === createCutoffEnd,
+  );
 
   useEffect(() => {
     let isCancelled = false;
@@ -257,51 +263,24 @@ export function AttendanceWorkspace({
     updateSearchParams(initialTabId, nextCutoffId);
   }
 
-  async function handleCreateCutoff() {
+  async function handleUploadAttendance() {
     if (!canManageAttendanceImports) {
-      setInlineError("Only Finance and HR users can create attendance cutoffs.");
+      setInlineError(
+        "Only Admin-Finance, Finance, and HR users can upload attendance CSV files.",
+      );
       return;
     }
 
     if (!createCutoffStart || !createCutoffEnd) {
-      setInlineError("Select both cutoff start and cutoff end dates.");
+      setInlineError("Select both cutoff start and cutoff end dates before uploading.");
       return;
     }
 
-    setCreatingCutoff(true);
-    setInlineError(null);
-    setSuccessMessage(null);
-
-    try {
-      const cutoff = await createAttendanceCutoff({
-        cutoff_start: createCutoffStart,
-        cutoff_end: createCutoffEnd,
-      });
-      setCutoffs((current) => [cutoff, ...current]);
-      setSelectedCutoffId(cutoff.id);
-      setCreateCutoffStart("");
-      setCreateCutoffEnd("");
-      setSuccessMessage("Attendance cutoff created.");
-      updateSearchParams("team-attendance", cutoff.id);
-    } catch (error) {
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to create attendance cutoff.",
-      );
-    } finally {
-      setCreatingCutoff(false);
-    }
-  }
-
-  async function handleUploadAttendance() {
-    if (!canManageAttendanceImports) {
-      setInlineError("Only Finance and HR users can upload attendance CSV files.");
+    if (createCutoffEnd < createCutoffStart) {
+      setInlineError("Cutoff end date must be on or after the cutoff start date.");
       return;
     }
 
-    if (selectedCutoffId == null) {
-      setInlineError("Select a cutoff before uploading attendance.");
-      return;
-    }
     if (!selectedUploadFile) {
       setInlineError("Choose a CSV file before uploading.");
       return;
@@ -310,13 +289,36 @@ export function AttendanceWorkspace({
     setUploadingAttendance(true);
     setInlineError(null);
     setSuccessMessage(null);
-    const activeCutoffId = selectedCutoffId;
+    let activeCutoffId: number | null = null;
 
     try {
+      const existingCutoff = cutoffs.find(
+        (cutoff) =>
+          cutoff.cutoff_start === createCutoffStart && cutoff.cutoff_end === createCutoffEnd,
+      );
+      const cutoff =
+        existingCutoff ??
+        (await createAttendanceCutoff({
+          cutoff_start: createCutoffStart,
+          cutoff_end: createCutoffEnd,
+        }));
+
+      activeCutoffId = cutoff.id;
       const summary = await uploadAttendanceCsv(activeCutoffId, selectedUploadFile);
       setImportSummary(summary);
+      setSelectedCutoffId(activeCutoffId);
       setSelectedUploadFile(null);
-      setSuccessMessage("Attendance CSV uploaded and processed.");
+      setCreateCutoffStart("");
+      setCreateCutoffEnd("");
+      setCutoffs((current) =>
+        current.some((item) => item.id === cutoff.id) ? current : [cutoff, ...current],
+      );
+      updateSearchParams("team-attendance", activeCutoffId);
+      setSuccessMessage(
+        existingCutoff
+          ? "Attendance replaced for the selected cutoff and processed."
+          : "Attendance CSV uploaded and processed.",
+      );
       const [nextSummary, nextMyReview, nextRequests, nextCutoffs] = await Promise.all([
         getAttendanceCutoffSummary(activeCutoffId),
         getMyAttendanceReview(activeCutoffId).catch(() => null),
@@ -332,6 +334,10 @@ export function AttendanceWorkspace({
       setMyReview(nextMyReview);
       setCutoffs(nextCutoffs);
     } catch (error) {
+      if (activeCutoffId != null) {
+        setSelectedCutoffId(activeCutoffId);
+        void getAttendanceCutoffs().then(setCutoffs).catch(() => undefined);
+      }
       setInlineError(
         error instanceof Error ? error.message : "Unable to upload attendance CSV.",
       );
@@ -465,7 +471,9 @@ export function AttendanceWorkspace({
 
   async function handleLockCutoff() {
     if (!canManageAttendanceImports) {
-      setInlineError("Only Finance and HR users can lock attendance cutoffs.");
+      setInlineError(
+        "Only Admin-Finance, Finance, and HR users can lock attendance cutoffs.",
+      );
       return;
     }
 
@@ -511,16 +519,14 @@ export function AttendanceWorkspace({
     );
   }
 
-  if (cutoffs.length === 0) {
+  if (cutoffs.length === 0 && !canManageAttendanceImports) {
     return (
       <ResourceEmptyState
         title="No attendance cutoffs yet"
         description={
-          canManageAttendanceImports
-            ? "Create a cutoff period first, then upload the attendance CSV for payroll review."
-            : canReviewTeamAttendance
-              ? "Attendance cutoffs will appear here once Finance or HR creates one for review."
-              : "Attendance cutoffs will appear here once Finance or HR uploads attendance for your payroll period."
+          canReviewTeamAttendance
+            ? "Attendance cutoffs will appear here once Admin-Finance, Finance, or HR creates one for review."
+            : "Attendance cutoffs will appear here once Admin-Finance, Finance, or HR uploads attendance for your payroll period."
         }
       />
     );
@@ -553,6 +559,23 @@ export function AttendanceWorkspace({
 
   return (
     <div className="space-y-4">
+      {canManageUploadedCutoffDeletes ? (
+        <div className="rounded-[24px] border border-sky-200 bg-sky-50/80 px-5 py-4 text-sm text-sky-900">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold">Wrong cutoff upload?</p>
+              <p className="mt-1 text-sky-800">
+                Delete saved attendance cutoff uploads from the Admin-Finance settings screen, then re-upload the corrected file.
+              </p>
+            </div>
+
+            <Link href="/settings" className="ui-button-secondary">
+              Open cutoff manager
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {inlineError ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
           {inlineError}
@@ -580,9 +603,8 @@ export function AttendanceWorkspace({
                 createCutoffEnd={createCutoffEnd}
                 onCreateCutoffStartChange={setCreateCutoffStart}
                 onCreateCutoffEndChange={setCreateCutoffEnd}
-                onCreateCutoff={handleCreateCutoff}
                 canManageAttendanceImports={canManageAttendanceImports}
-                creatingCutoff={creatingCutoff}
+                isReplacingAttendance={matchingCutoff != null}
                 selectedUploadFile={selectedUploadFile}
                 onUploadFileChange={setSelectedUploadFile}
                 onUploadAttendance={handleUploadAttendance}
@@ -624,9 +646,8 @@ function TeamAttendancePanel(props: {
   createCutoffEnd: string;
   onCreateCutoffStartChange: (value: string) => void;
   onCreateCutoffEndChange: (value: string) => void;
-  onCreateCutoff: () => void;
   canManageAttendanceImports: boolean;
-  creatingCutoff: boolean;
+  isReplacingAttendance: boolean;
   selectedUploadFile: File | null;
   onUploadFileChange: (file: File | null) => void;
   onUploadAttendance: () => void;
@@ -654,84 +675,63 @@ function TeamAttendancePanel(props: {
     <div className="space-y-4">
       {props.canManageAttendanceImports ? (
         <DashboardSection
-          title="Cutoff setup and upload"
-          description="Create a cutoff first, then upload the attendance CSV that belongs to that payroll range."
+          title="Upload attendance"
+          description="Pick the cutoff dates, attach the CSV file, then save the attendance import to the API."
         >
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Create cutoff
-              </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <Field label="Cutoff Start">
-                  <input
-                    type="date"
-                    value={props.createCutoffStart}
-                    onChange={(event) => props.onCreateCutoffStartChange(event.target.value)}
-                    className="ui-select"
-                  />
-                </Field>
-                <Field label="Cutoff End">
-                  <input
-                    type="date"
-                    value={props.createCutoffEnd}
-                    onChange={(event) => props.onCreateCutoffEndChange(event.target.value)}
-                    className="ui-select"
-                  />
-                </Field>
-              </div>
-              <button
-                type="button"
-                onClick={props.onCreateCutoff}
-                disabled={props.creatingCutoff}
-                className="mt-4 ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {props.creatingCutoff ? "Creating cutoff..." : "Create cutoff"}
-              </button>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="Cutoff Start">
+                <input
+                  type="date"
+                  value={props.createCutoffStart}
+                  onChange={(event) => props.onCreateCutoffStartChange(event.target.value)}
+                  className="ui-select"
+                />
+              </Field>
+              <Field label="Cutoff End">
+                <input
+                  type="date"
+                  value={props.createCutoffEnd}
+                  onChange={(event) => props.onCreateCutoffEndChange(event.target.value)}
+                  className="ui-select"
+                />
+              </Field>
             </div>
 
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Upload attendance CSV
+            <div className="mt-4 space-y-3">
+              <Field label="CSV File">
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(event) =>
+                    props.onUploadFileChange(event.target.files?.[0] ?? null)
+                  }
+                  className="block w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
+                />
+              </Field>
+              <p className="text-xs leading-5 text-slate-500">
+                Supported headers include `employee_code` or `employee_id`, `attendance_date`,
+                `time_in`, `time_out`, `remarks`, plus common export labels like `Employee ID`,
+                `Date`, `Day`, `Time In`, and `Time Out`.
               </p>
-              <div className="mt-4 space-y-3">
-                <Field label="Selected Cutoff">
-                  <select
-                    value={selectedCutoff?.id ?? ""}
-                    onChange={(event) => props.onSelectCutoff(Number(event.target.value))}
-                    className="ui-select"
-                  >
-                    {props.cutoffs.map((cutoff) => (
-                      <option key={cutoff.id} value={cutoff.id}>
-                        {formatDate(cutoff.cutoff_start)} to {formatDate(cutoff.cutoff_end)} •{" "}
-                        {formatStatusLabel(cutoff.status)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="CSV File">
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    onChange={(event) =>
-                      props.onUploadFileChange(event.target.files?.[0] ?? null)
-                    }
-                    className="block w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-                  />
-                </Field>
-                <p className="text-xs leading-5 text-slate-500">
-                  Supported headers: `employee_code` or `employee_id`, `attendance_date`,
-                  `time_in`, `time_out`, `remarks`.
+              {props.isReplacingAttendance ? (
+                <p className="text-xs leading-5 text-amber-700">
+                  A cutoff already exists for this date range. Uploading again will replace the
+                  current attendance rows for that cutoff period.
                 </p>
-                <button
-                  type="button"
-                  onClick={props.onUploadAttendance}
-                  disabled={props.uploadingAttendance}
-                  className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {props.uploadingAttendance ? "Uploading..." : "Upload attendance"}
-                </button>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={props.onUploadAttendance}
+                disabled={props.uploadingAttendance}
+                className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {props.uploadingAttendance
+                  ? "Saving upload..."
+                  : props.isReplacingAttendance
+                    ? "Replace attendance"
+                    : "Upload attendance"}
+              </button>
             </div>
           </div>
         </DashboardSection>
@@ -766,11 +766,12 @@ function TeamAttendancePanel(props: {
               rows={props.importSummary.preview_rows.map((row) => [
                 row.employee_code,
                 formatDate(row.attendance_date),
+                formatWeekday(row.attendance_date),
                 formatTime(row.time_in ?? undefined),
                 formatTime(row.time_out ?? undefined),
                 row.status,
               ])}
-              headers={["Employee", "Date", "Time In", "Time Out", "Status"]}
+              headers={["Employee", "Date", "Day", "Time In", "Time Out", "Status"]}
             />
             <SimpleTable
               title="Invalid rows"
@@ -791,6 +792,28 @@ function TeamAttendancePanel(props: {
         description="Track employee review progress, missing logs, and pending attendance requests before payroll locking."
         action={selectedCutoff ? <StatusPill status={selectedCutoff.status} /> : null}
       >
+        {props.cutoffs.length > 0 ? (
+          <div className="mb-5 grid gap-3 md:grid-cols-[280px_minmax(0,1fr)]">
+            <Field label="Review Cutoff">
+              <select
+                value={selectedCutoff?.id ?? ""}
+                onChange={(event) => props.onSelectCutoff(Number(event.target.value))}
+                className="ui-select"
+              >
+                {props.cutoffs.map((cutoff) => (
+                  <option key={cutoff.id} value={cutoff.id}>
+                    {formatDate(cutoff.cutoff_start)} to {formatDate(cutoff.cutoff_end)} •{" "}
+                    {formatStatusLabel(cutoff.status)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
+              Select a cutoff to review uploaded attendance, employee summaries, and request approvals.
+            </div>
+          </div>
+        ) : null}
+
         {props.loadingSummary ? (
           <ResourceTableSkeleton rowCount={4} />
         ) : props.summary ? (
@@ -868,7 +891,7 @@ function TeamAttendancePanel(props: {
             description={
               props.canManageAttendanceImports
                 ? "Upload a CSV for the selected cutoff to generate employee summaries and review queues."
-                : "Attendance summaries will appear here once Finance or HR uploads the cutoff data."
+                : "Attendance summaries will appear here once Admin-Finance, Finance, or HR uploads the cutoff data."
             }
           />
         )}
@@ -1101,6 +1124,7 @@ function AttendanceReviewPanel(props: {
                 <thead className="bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Day</th>
                     <th className="px-4 py-3">Time In</th>
                     <th className="px-4 py-3">Time Out</th>
                     <th className="px-4 py-3">Late</th>
@@ -1113,6 +1137,7 @@ function AttendanceReviewPanel(props: {
                   {props.review.records.map((record) => (
                     <tr key={record.id} className="border-t border-slate-200/80 text-sm text-slate-700">
                       <td className="px-4 py-4">{formatDate(record.attendance_date)}</td>
+                      <td className="px-4 py-4">{formatWeekday(record.attendance_date)}</td>
                       <td className="px-4 py-4">{formatTime(record.time_in ?? undefined)}</td>
                       <td className="px-4 py-4">{formatTime(record.time_out ?? undefined)}</td>
                       <td className="px-4 py-4">{record.late_minutes}</td>
@@ -1153,7 +1178,7 @@ function AttendanceReviewPanel(props: {
                 >
                   {props.review.records.map((record) => (
                     <option key={record.id} value={record.id}>
-                      {formatDate(record.attendance_date)} • {record.status}
+                      {formatDate(record.attendance_date)} • {formatWeekday(record.attendance_date, { weekday: "short" })} • {record.status}
                     </option>
                   ))}
                 </select>

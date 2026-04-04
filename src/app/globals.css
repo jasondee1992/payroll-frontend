@@ -110,4 +110,42 @@ button {
   .text-muted {
     color: var(--text-muted);
   }
+
+  .attendance-cutoff-grid {
+    --ag-font-family: var(--font-public-sans), sans-serif;
+    --ag-background-color: #ffffff;
+    --ag-foreground-color: #0f172a;
+    --ag-header-background-color: #f8fafc;
+    --ag-header-foreground-color: #475569;
+    --ag-odd-row-background-color: #fbfdff;
+    --ag-row-hover-color: rgba(226, 232, 240, 0.5);
+    --ag-border-color: rgba(226, 232, 240, 0.9);
+    --ag-secondary-border-color: rgba(226, 232, 240, 0.65);
+    --ag-selected-row-background-color: rgba(15, 118, 110, 0.08);
+    --ag-accent-color: #0f766e;
+    --ag-header-column-separator-display: block;
+    --ag-header-column-resize-handle-display: block;
+    --ag-wrapper-border-radius: 20px;
+  }
+
+  .attendance-cutoff-grid .ag-root-wrapper {
+    border: none;
+    border-radius: 20px;
+  }
+
+  .attendance-cutoff-grid .ag-header {
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  }
+
+  .attendance-cutoff-grid .ag-header-cell-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .attendance-cutoff-grid .ag-cell {
+    display: flex;
+    align-items: center;
+  }
 }
