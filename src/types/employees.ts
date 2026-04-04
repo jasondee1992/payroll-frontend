@@ -68,6 +68,7 @@ export interface EmployeeApiRecord {
   end_date?: string | null;
   employment_status: string;
   employment_type: string;
+  contact_number?: string | null;
   department: string;
   position: string;
   payroll_schedule: string;

@@ -28,6 +28,7 @@ export type EditableEmployeeData = {
   employmentType: string;
   employmentStatus: string;
   payrollSchedule: string;
+  contactNumber: string;
   tin: string;
   sssNumber: string;
   philHealthNumber: string;
@@ -129,6 +130,7 @@ export async function getEditableEmployeeResource(
         employee.is_active,
       ),
       payrollSchedule: normalizePayrollSchedule(employee.payroll_schedule),
+      contactNumber: employee.contact_number ?? "",
       tin: governmentInfo?.tin ?? "",
       sssNumber: governmentInfo?.sssNumber ?? "",
       philHealthNumber: governmentInfo?.philHealthNumber ?? "",

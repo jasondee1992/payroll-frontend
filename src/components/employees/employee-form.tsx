@@ -172,6 +172,7 @@ const defaultEmployeeData: EditableEmployeeData = {
   employmentType: "Select employment type",
   employmentStatus: "Select status",
   payrollSchedule: "Select payroll schedule",
+  contactNumber: "",
   tin: "",
   sssNumber: "",
   philHealthNumber: "",
@@ -217,6 +218,9 @@ export function EmployeeForm({
     formDataDefaults.employmentStatus,
   );
   const [endDate, setEndDate] = useState(formDataDefaults.endDate);
+  const [contactNumber, setContactNumber] = useState(
+    formatContactNumberValue(formDataDefaults.contactNumber),
+  );
   const [tin, setTin] = useState(formatTinValue(formDataDefaults.tin));
   const [sssNumber, setSssNumber] = useState(
     formatSssNumberValue(formDataDefaults.sssNumber),
@@ -390,6 +394,7 @@ export function EmployeeForm({
         end_date: isInactiveStatus ? getOptionalFormValue(formData, "end-date") : null,
         employment_status: employmentStatus,
         employment_type: employmentType,
+        contact_number: getOptionalFormValue(formData, "contact-number"),
         department,
         position: getRequiredFormValue(formData, "position"),
         payroll_schedule: payrollSchedule,
@@ -465,13 +470,14 @@ export function EmployeeForm({
       form.reset();
       setCreateAccount(true);
       setSelectedAllowances([]);
-      setDraftAllowances([]);
-      setEmploymentStatus("Select status");
-      setEndDate("");
-      setTin("");
-      setSssNumber("");
-      setPhilHealthNumber("");
-      setPagIbigNumber("");
+        setDraftAllowances([]);
+        setEmploymentStatus("Select status");
+        setEndDate("");
+        setContactNumber("");
+        setTin("");
+        setSssNumber("");
+        setPhilHealthNumber("");
+        setPagIbigNumber("");
       setBasicSalary("");
       setAllowanceValues({});
       setReportingManagerId("");
@@ -602,6 +608,18 @@ export function EmployeeForm({
                 placeholder="Last name"
                 defaultValue={formDataDefaults.lastName}
                 required
+              />
+              <EmployeeInputField
+                id="contact-number"
+                label="Contact Number"
+                placeholder="0912-345-6789"
+                value={contactNumber}
+                onChange={(event) =>
+                  setContactNumber(formatContactNumberValue(event.target.value))
+                }
+                inputMode="tel"
+                maxLength={13}
+                helperText="Enter digits only. Hyphens are added automatically."
               />
               <EmployeeSelectField
                 id="suffix"
@@ -1474,6 +1492,12 @@ function buildEditChangeSummary(
   pushFieldChange(changes, "Birth Date", initialData.birthDate, payload.employee.birth_date);
   pushFieldChange(changes, "Hire Date", initialData.hireDate, payload.employee.hire_date);
   pushFieldChange(changes, "End Date / Resign Date", initialData.endDate, payload.employee.end_date);
+  pushFieldChange(
+    changes,
+    "Contact Number",
+    initialData.contactNumber,
+    payload.employee.contact_number,
+  );
   pushFieldChange(changes, "Department", initialData.department, payload.employee.department);
   pushFieldChange(changes, "Position", initialData.position, payload.employee.position);
   pushFieldChange(
@@ -1670,6 +1694,10 @@ function generateTemporaryPassword(length = 12) {
 
 function formatTinValue(value: string) {
   return formatDigitGroups(value, [3, 3, 3, 3]);
+}
+
+function formatContactNumberValue(value: string) {
+  return formatDigitGroups(value, [4, 3, 4]);
 }
 
 function formatSssNumberValue(value: string) {

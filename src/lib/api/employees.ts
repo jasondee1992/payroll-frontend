@@ -112,6 +112,9 @@ export function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
       record.employment_type,
       "employee.employment_type",
     ),
+    contact_number: parseString(record.contact_number, "employee.contact_number", {
+      optional: true,
+    }),
     department: parseString(record.department, "employee.department"),
     position: parseString(record.position, "employee.position"),
     payroll_schedule: parseString(
@@ -450,6 +453,7 @@ export type EmployeeOnboardingPayload = {
     end_date?: string | null;
     employment_status: string;
     employment_type: string;
+    contact_number?: string | null;
     department: string;
     position: string;
     payroll_schedule: string;
@@ -502,6 +506,7 @@ export type EmployeeUpdatePayload = {
     end_date?: string | null;
     employment_status: string;
     employment_type: string;
+    contact_number?: string | null;
     department: string;
     position: string;
     payroll_schedule: string;
