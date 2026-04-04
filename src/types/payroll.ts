@@ -87,6 +87,20 @@ export interface PayrollAdjustmentRecord {
   updated_at: string;
 }
 
+export interface PayrollDeductionBreakdownRecord {
+  id: number;
+  payroll_record_id: number;
+  deduction_code: string;
+  deduction_name: string;
+  basis_amount: string;
+  employee_share: string;
+  employer_share: string;
+  bracket_id_used?: number | null;
+  config_snapshot_json?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PayrollRecordRecord {
   id: number;
   payroll_batch_id: number;
@@ -103,6 +117,17 @@ export interface PayrollRecordRecord {
   absence_deduction: string;
   other_deductions: string;
   gross_pay: string;
+  taxable_income: string;
+  rule_set_id_used?: number | null;
+  sss_employee: string;
+  sss_employer: string;
+  philhealth_employee: string;
+  philhealth_employer: string;
+  pagibig_employee: string;
+  pagibig_employer: string;
+  withholding_tax: string;
+  government_deductions_total: string;
+  total_employer_contributions: string;
   total_deductions: string;
   net_pay: string;
   total_work_days: number;
@@ -123,7 +148,9 @@ export interface PayrollRecordRecord {
   approved_request_count: number;
   no_employee_response: boolean;
   review_remarks?: string | null;
+  deduction_snapshot_json?: string | null;
   adjustments: PayrollAdjustmentRecord[];
+  deduction_breakdowns: PayrollDeductionBreakdownRecord[];
   created_at: string;
   updated_at: string;
 }
@@ -169,5 +196,106 @@ export interface PayslipRecord {
   payroll_record: PayrollRecordRecord;
   created_at: string;
   updated_at: string;
+}
+
+export interface GovernmentDeductionTypeRecord {
+  id: number;
+  code: string;
+  name: string;
+  calculation_method: string;
+  employee_share_enabled: boolean;
+  employer_share_enabled: boolean;
+  is_mandatory: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernmentDeductionTypeConfigRecord {
+  id: number;
+  rule_set_id: number;
+  deduction_type_id: number;
+  deduction_type_code: string;
+  deduction_type_name: string;
+  based_on: string;
+  frequency: string;
+  rounding_method: string;
+  income_floor?: string | null;
+  income_ceiling?: string | null;
+  employee_share_ratio?: string | null;
+  employer_share_ratio?: string | null;
+  cap_amount?: string | null;
+  threshold_amount?: string | null;
+  rate?: string | null;
+  rate_employee?: string | null;
+  rate_employer?: string | null;
+  fixed_employee_amount?: string | null;
+  fixed_employer_amount?: string | null;
+  formula_expression?: string | null;
+  priority_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernmentDeductionBracketRecord {
+  id: number;
+  rule_set_id: number;
+  deduction_type_id: number;
+  deduction_type_code: string;
+  deduction_type_name: string;
+  min_salary: string;
+  max_salary?: string | null;
+  base_amount_employee?: string | null;
+  base_amount_employer?: string | null;
+  fixed_employee_amount?: string | null;
+  fixed_employer_amount?: string | null;
+  rate_employee?: string | null;
+  rate_employer?: string | null;
+  min_contribution?: string | null;
+  max_contribution?: string | null;
+  base_tax?: string | null;
+  excess_over?: string | null;
+  percent_over_excess?: string | null;
+  reference_value?: string | null;
+  sequence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernmentDeductionRuleSetSummaryRecord {
+  id: number;
+  name: string;
+  effective_from: string;
+  effective_to?: string | null;
+  status: string;
+  notes?: string | null;
+  created_by_user_id?: number | null;
+  approved_by_user_id?: number | null;
+  created_at: string;
+  updated_at: string;
+  config_count: number;
+  bracket_count: number;
+}
+
+export interface GovernmentDeductionRuleSetDetailRecord
+  extends GovernmentDeductionRuleSetSummaryRecord {
+  configs: GovernmentDeductionTypeConfigRecord[];
+  brackets: GovernmentDeductionBracketRecord[];
+}
+
+export interface GovernmentDeductionTestResultItemRecord {
+  deduction_code: string;
+  deduction_name: string;
+  basis_amount: string;
+  employee_share: string;
+  employer_share: string;
+  bracket_id_used?: number | null;
+}
+
+export interface GovernmentDeductionTestCalculationRecord {
+  rule_set_id: number;
+  taxable_income: string;
+  total_employee_deductions: string;
+  total_employer_contributions: string;
+  items: GovernmentDeductionTestResultItemRecord[];
 }
 

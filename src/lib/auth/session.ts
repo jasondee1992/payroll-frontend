@@ -113,6 +113,10 @@ export function canManagePayroll(role: AppRole | null | undefined) {
   return role != null && PAYROLL_MANAGE_ROLES.has(role);
 }
 
+export function canManagePayrollSettings(role: AppRole | null | undefined) {
+  return canManagePayroll(role);
+}
+
 export function canViewPayslips(role: AppRole | null | undefined) {
   return role != null && PAYSLIP_VIEW_ROLES.has(role);
 }

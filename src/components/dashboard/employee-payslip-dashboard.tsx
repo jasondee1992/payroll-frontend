@@ -14,6 +14,9 @@ type DisplayPayslipRecord = {
   payoutDate: string;
   status: string;
   basicPay: number;
+  taxableIncome: number;
+  governmentDeductions: number;
+  employerContributions: number;
   additions: Array<{ label: string; amount: number }>;
   deductions: Array<{ label: string; amount: number }>;
   grossPay: number;
@@ -82,7 +85,7 @@ export function EmployeePayslipDashboard() {
   if (isLoading) {
     return (
       <section className="panel p-6 sm:p-7">
-        <p className="text-sm text-slate-600">Loading posted payslips...</p>
+        <p className="text-sm text-slate-600">Loading payroll payslips...</p>
       </section>
     );
   }
@@ -100,7 +103,7 @@ export function EmployeePayslipDashboard() {
     return (
       <ResourceEmptyState
         title="No payslips available yet"
-        description="Posted payroll will appear here after Admin-Finance posts the selected cutoff."
+        description="Your payslip will appear here after payroll for the selected cutoff is calculated."
       />
     );
   }
@@ -132,8 +135,8 @@ export function EmployeePayslipDashboard() {
           value={formatCurrency(latestPayslip?.netPay ?? 0)}
           detail={
             latestPayslip
-              ? `Released ${formatDate(latestPayslip.payoutDate)}`
-              : "No posted payslip yet"
+              ? `${latestPayslip.status} ${formatDate(latestPayslip.payoutDate)}`
+              : "No payroll payslip yet"
           }
         />
         <SummaryCard
@@ -151,7 +154,7 @@ export function EmployeePayslipDashboard() {
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
         <DashboardSection
           title="Payslip history"
-          description="Select a released payslip to review the salary computation and released amount."
+          description="Select a payslip to review the salary computation, current payroll status, and net amount."
         >
           <div className="space-y-3">
             {payslips.map((payslip) => {
@@ -178,7 +181,7 @@ export function EmployeePayslipDashboard() {
                           active ? "text-slate-300" : "text-slate-500",
                         )}
                       >
-                        Payout date: {formatDate(payslip.payoutDate)}
+                        Updated: {formatDate(payslip.payoutDate)}
                       </p>
                     </div>
 
@@ -187,7 +190,7 @@ export function EmployeePayslipDashboard() {
                         "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
                         active
                           ? "bg-white/12 text-white"
-                          : "bg-emerald-100 text-emerald-700",
+                          : statusToneClassName(payslip.status),
                       )}
                     >
                       {payslip.status}
@@ -226,7 +229,7 @@ export function EmployeePayslipDashboard() {
 
         <DashboardSection
           title="Payslip computation"
-          description="Current breakdown of earnings, deductions, and final released amount for the selected payslip."
+          description="Current breakdown of earnings, deductions, and the latest computed take-home amount for the selected payslip."
           action={
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
               {selectedPayslip.periodLabel}
@@ -266,6 +269,7 @@ export function EmployeePayslipDashboard() {
                 <div className="mt-4 grid gap-3">
                   <MetricRow label="Basic pay" value={formatCurrency(selectedPayslip.basicPay)} />
                   <MetricRow label="Allowances and additions" value={formatCurrency(additionsTotal)} />
+                  <MetricRow label="Gov't deductions" value={formatCurrency(selectedPayslip.governmentDeductions)} />
                   <MetricRow
                     label="Total deductions"
                     value={formatCurrency(selectedPayslip.totalDeductions)}
@@ -275,13 +279,15 @@ export function EmployeePayslipDashboard() {
 
               <div className="rounded-[26px] border border-slate-200/80 bg-slate-50/80 px-5 py-5">
                 <p className="text-sm font-semibold text-slate-950">
-                  Released payslip details
+                  Payslip details
                 </p>
                 <div className="mt-4 grid gap-3">
                   <MetaRow label="Payslip Ref" value={selectedPayslip.reference} />
-                  <MetaRow label="Payout date" value={formatDate(selectedPayslip.payoutDate)} />
+                  <MetaRow label="Updated" value={formatDate(selectedPayslip.payoutDate)} />
                   <MetaRow label="Cutoff" value={selectedPayslip.periodLabel} />
                   <MetaRow label="Status" value={selectedPayslip.status} />
+                  <MetaRow label="Taxable income" value={formatCurrency(selectedPayslip.taxableIncome)} />
+                  <MetaRow label="Employer share" value={formatCurrency(selectedPayslip.employerContributions)} />
                 </div>
               </div>
             </div>
@@ -317,6 +323,9 @@ function mapPayslipToDisplay(record: PayslipRecord): DisplayPayslipRecord {
     payoutDate: record.posted_at ?? record.updated_at,
     status: prettyLabel(record.status),
     basicPay: Number(record.payroll_record.basic_pay),
+    taxableIncome: Number(record.payroll_record.taxable_income),
+    governmentDeductions: Number(record.payroll_record.government_deductions_total),
+    employerContributions: Number(record.payroll_record.total_employer_contributions),
     additions,
     deductions,
     grossPay: Number(record.payroll_record.gross_pay),
@@ -352,6 +361,16 @@ function prettyLabel(value: string) {
     .replaceAll("_", " ")
     .replaceAll("-", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function statusToneClassName(status: string) {
+  if (status === "Posted") {
+    return "bg-emerald-100 text-emerald-700";
+  }
+  if (status === "Approved") {
+    return "bg-sky-100 text-sky-700";
+  }
+  return "bg-amber-100 text-amber-700";
 }
 
 function MonthlyPayTrendChart({

@@ -56,8 +56,8 @@ export function PayslipWorkspace() {
   if (!selectedPayslip) {
     return (
       <ResourceEmptyState
-        title="No posted payslips found"
-        description="Payslips appear here after an approved payroll batch is posted."
+        title="No payslips found"
+        description="Payslips appear here after payroll is calculated for a cutoff."
       />
     );
   }
@@ -66,22 +66,22 @@ export function PayslipWorkspace() {
   const systemComputedCount = payslips.filter(
     (item) => item.payroll_record.used_system_computed_attendance,
   ).length;
-  const latestPostedAt = payslips[0]?.posted_at ?? null;
+  const latestUpdatedAt = payslips[0]?.posted_at ?? payslips[0]?.updated_at ?? null;
 
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Posted payslips" value={String(payslips.length)} detail="Posted payroll statements available to finance." />
-        <Metric label="Total net pay" value={formatCurrency(totalNet)} detail="Combined posted net pay across the loaded list." />
+        <Metric label="Generated payslips" value={String(payslips.length)} detail="Payroll statements currently stored for finance review and release." />
+        <Metric label="Total net pay" value={formatCurrency(totalNet)} detail="Combined net pay across the loaded payslip list." />
         <Metric label="System defaults" value={String(systemComputedCount)} detail="Payslips whose payroll used system-computed attendance." />
-        <Metric label="Latest posting" value={latestPostedAt ? formatDate(latestPostedAt) : "None"} detail="Most recent posted payroll release." />
+        <Metric label="Latest update" value={latestUpdatedAt ? formatDate(latestUpdatedAt) : "None"} detail="Most recent payslip calculation or posting update." />
       </section>
 
       <div className="panel p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Posted payslips</h2>
-            <p className="mt-1 text-sm text-slate-600">Review posted payroll output and employee-level payslip detail.</p>
+            <h2 className="text-lg font-semibold text-slate-950">Generated payslips</h2>
+            <p className="mt-1 text-sm text-slate-600">Review payroll output by employee, including calculated, approved, and posted payslips.</p>
           </div>
           <button type="button" onClick={() => void loadPayslips()} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
             <RefreshCw className="h-4 w-4" />
@@ -115,9 +115,14 @@ export function PayslipWorkspace() {
                         {item.generated_reference} • {formatDate(item.cutoff_start)} - {formatDate(item.cutoff_end)}
                       </p>
                     </div>
-                    <p className={cn("text-sm font-semibold", active ? "text-white" : "text-slate-900")}>
-                      {formatCurrency(item.payroll_record.net_pay)}
-                    </p>
+                    <div className="text-right">
+                      <p className={cn("text-sm font-semibold", active ? "text-white" : "text-slate-900")}>
+                        {formatCurrency(item.payroll_record.net_pay)}
+                      </p>
+                      <p className={cn("mt-1 text-[11px] font-semibold uppercase tracking-[0.16em]", active ? "text-slate-300" : payslipStatusToneClassName(item.status))}>
+                        {pretty(item.status)}
+                      </p>
+                    </div>
                   </div>
                 </button>
               );
@@ -141,10 +146,14 @@ export function PayslipWorkspace() {
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Detail label="Cutoff" value={`${formatDate(selectedPayslip.cutoff_start)} - ${formatDate(selectedPayslip.cutoff_end)}`} />
-              <Detail label="Posted at" value={selectedPayslip.posted_at ? formatDateTime(selectedPayslip.posted_at) : "Not posted"} />
+              <Detail label="Payroll status" value={pretty(selectedPayslip.status)} />
+              <Detail label="Posted at" value={selectedPayslip.posted_at ? formatDateTime(selectedPayslip.posted_at) : "Not posted yet"} />
               <Detail label="Gross pay" value={formatCurrency(selectedPayslip.payroll_record.gross_pay)} />
+              <Detail label="Taxable income" value={formatCurrency(selectedPayslip.payroll_record.taxable_income)} />
+              <Detail label="Gov't deductions" value={formatCurrency(selectedPayslip.payroll_record.government_deductions_total)} />
               <Detail label="Net pay" value={formatCurrency(selectedPayslip.payroll_record.net_pay)} />
               <Detail label="Total deductions" value={formatCurrency(selectedPayslip.payroll_record.total_deductions)} />
+              <Detail label="Employer share" value={formatCurrency(selectedPayslip.payroll_record.total_employer_contributions)} />
               <Detail label="Source" value={pretty(selectedPayslip.payroll_record.calculation_source_status)} />
             </div>
 
@@ -167,7 +176,7 @@ export function PayslipWorkspace() {
               ) : (
                 <ResourceEmptyState
                   title="No breakdown rows"
-                  description="No adjustment rows were stored for this posted payslip."
+                  description="No adjustment rows were stored for this payslip."
                 />
               )}
             </div>
@@ -188,4 +197,14 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 function pretty(value: string) {
   return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function payslipStatusToneClassName(status: string) {
+  if (status === "posted") {
+    return "text-emerald-700";
+  }
+  if (status === "approved") {
+    return "text-sky-700";
+  }
+  return "text-amber-700";
 }

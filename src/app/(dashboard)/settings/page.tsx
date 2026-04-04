@@ -1,4 +1,4 @@
-import { AttendanceCutoffManager } from "@/components/settings/attendance-cutoff-manager";
+import { AdminFinanceSettingsTabs } from "@/components/settings/admin-finance-settings-tabs";
 import { PlannedModulePlaceholder } from "@/components/shared/planned-module-placeholder";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceEmptyState } from "@/components/shared/resource-state";
@@ -12,10 +12,10 @@ export default async function SettingsPage() {
       <>
         <PageHeader
           title="Settings"
-          description="Manage saved attendance cutoff uploads here so incorrect periods can be deleted and replaced with the right file."
+          description="Manage payroll deduction settings and saved attendance cutoff uploads for the Admin-Finance workflow."
         />
 
-        <AttendanceCutoffManager />
+        <AdminFinanceSettingsTabs />
       </>
     );
   }

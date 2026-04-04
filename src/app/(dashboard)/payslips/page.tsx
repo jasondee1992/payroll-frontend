@@ -13,12 +13,12 @@ export default async function PayslipsPage() {
       <>
         <PageHeader
           title="Payslips"
-          description="Review posted payroll statements and payroll release records."
+          description="Review payroll statements and payroll release records."
         />
         <section className="panel p-6 sm:p-7">
           <ResourceErrorState
             title="Payslip access is unavailable"
-            description="Only employees, Finance, and Admin-Finance can access posted payslips."
+            description="Only employees, Finance, and Admin-Finance can access payroll payslips."
           />
         </section>
       </>
@@ -31,8 +31,8 @@ export default async function PayslipsPage() {
         title="Payslips"
         description={
           canViewPayroll(session.role)
-            ? "Review posted payslips and inspect the released payroll breakdown by employee."
-            : "Review your posted payslips and released salary breakdown."
+            ? "Review generated payslips and inspect the payroll breakdown by employee."
+            : "Review your generated payslips and salary breakdown."
         }
       />
 

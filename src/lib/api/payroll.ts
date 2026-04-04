@@ -15,11 +15,19 @@ import {
   parseString,
 } from "@/lib/api/parsers";
 import type {
+  GovernmentDeductionBracketRecord,
+  GovernmentDeductionRuleSetDetailRecord,
+  GovernmentDeductionRuleSetSummaryRecord,
+  GovernmentDeductionTestCalculationRecord,
+  GovernmentDeductionTestResultItemRecord,
+  GovernmentDeductionTypeConfigRecord,
+  GovernmentDeductionTypeRecord,
   PayslipRecord,
   PayrollAdjustmentRecord,
   PayrollBatchDetailRecord,
   PayrollBatchSummaryRecord,
   PayrollCutoffPreviewRecord,
+  PayrollDeductionBreakdownRecord,
   PayrollPeriod,
   PayrollPeriodApiRecord,
   PayrollRecordRecord,
@@ -57,6 +65,10 @@ function parseOptionalNumber(value: unknown, label: string) {
   }
 
   return parseNumber(value, label);
+}
+
+function parseOptionalNumericString(value: unknown, label: string) {
+  return parseNumericString(value, label, { optional: true }) ?? null;
 }
 
 export function normalizePayrollStatus(value: string): PayrollStatus {
@@ -133,6 +145,56 @@ export function parsePayrollAdjustmentRecord(value: unknown): PayrollAdjustmentR
   };
 }
 
+export function parsePayrollDeductionBreakdownRecord(
+  value: unknown,
+): PayrollDeductionBreakdownRecord {
+  const record = parseRecord(value, "payroll deduction breakdown");
+
+  return {
+    id: parseNumber(record.id, "payrollDeductionBreakdown.id"),
+    payroll_record_id: parseNumber(
+      record.payroll_record_id,
+      "payrollDeductionBreakdown.payroll_record_id",
+    ),
+    deduction_code: parseString(
+      record.deduction_code,
+      "payrollDeductionBreakdown.deduction_code",
+    ),
+    deduction_name: parseString(
+      record.deduction_name,
+      "payrollDeductionBreakdown.deduction_name",
+    ),
+    basis_amount: parseNumericString(
+      record.basis_amount,
+      "payrollDeductionBreakdown.basis_amount",
+    ),
+    employee_share: parseNumericString(
+      record.employee_share,
+      "payrollDeductionBreakdown.employee_share",
+    ),
+    employer_share: parseNumericString(
+      record.employer_share,
+      "payrollDeductionBreakdown.employer_share",
+    ),
+    bracket_id_used: parseOptionalNumber(
+      record.bracket_id_used,
+      "payrollDeductionBreakdown.bracket_id_used",
+    ),
+    config_snapshot_json: parseOptionalString(
+      record.config_snapshot_json,
+      "payrollDeductionBreakdown.config_snapshot_json",
+    ),
+    created_at: parseString(
+      record.created_at,
+      "payrollDeductionBreakdown.created_at",
+    ),
+    updated_at: parseString(
+      record.updated_at,
+      "payrollDeductionBreakdown.updated_at",
+    ),
+  };
+}
+
 export function parsePayrollRecordRecord(value: unknown): PayrollRecordRecord {
   const record = parseRecord(value, "payroll record");
 
@@ -179,6 +241,44 @@ export function parsePayrollRecordRecord(value: unknown): PayrollRecordRecord {
       "payrollRecord.other_deductions",
     ),
     gross_pay: parseNumericString(record.gross_pay, "payrollRecord.gross_pay"),
+    taxable_income: parseNumericString(
+      record.taxable_income,
+      "payrollRecord.taxable_income",
+    ),
+    rule_set_id_used: parseOptionalNumber(
+      record.rule_set_id_used,
+      "payrollRecord.rule_set_id_used",
+    ),
+    sss_employee: parseNumericString(record.sss_employee, "payrollRecord.sss_employee"),
+    sss_employer: parseNumericString(record.sss_employer, "payrollRecord.sss_employer"),
+    philhealth_employee: parseNumericString(
+      record.philhealth_employee,
+      "payrollRecord.philhealth_employee",
+    ),
+    philhealth_employer: parseNumericString(
+      record.philhealth_employer,
+      "payrollRecord.philhealth_employer",
+    ),
+    pagibig_employee: parseNumericString(
+      record.pagibig_employee,
+      "payrollRecord.pagibig_employee",
+    ),
+    pagibig_employer: parseNumericString(
+      record.pagibig_employer,
+      "payrollRecord.pagibig_employer",
+    ),
+    withholding_tax: parseNumericString(
+      record.withholding_tax,
+      "payrollRecord.withholding_tax",
+    ),
+    government_deductions_total: parseNumericString(
+      record.government_deductions_total,
+      "payrollRecord.government_deductions_total",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "payrollRecord.total_employer_contributions",
+    ),
     total_deductions: parseNumericString(
       record.total_deductions,
       "payrollRecord.total_deductions",
@@ -250,10 +350,19 @@ export function parsePayrollRecordRecord(value: unknown): PayrollRecordRecord {
       record.review_remarks,
       "payrollRecord.review_remarks",
     ),
+    deduction_snapshot_json: parseOptionalString(
+      record.deduction_snapshot_json,
+      "payrollRecord.deduction_snapshot_json",
+    ),
     adjustments: parseCollection(
       record.adjustments ?? [],
       (item) => parsePayrollAdjustmentRecord(item),
       "payroll record adjustments",
+    ),
+    deduction_breakdowns: parseCollection(
+      record.deduction_breakdowns ?? [],
+      (item) => parsePayrollDeductionBreakdownRecord(item),
+      "payroll deduction breakdowns",
     ),
     created_at: parseString(record.created_at, "payrollRecord.created_at"),
     updated_at: parseString(record.updated_at, "payrollRecord.updated_at"),
@@ -389,6 +498,303 @@ export function parsePayslipRecord(value: unknown): PayslipRecord {
   };
 }
 
+export function parseGovernmentDeductionTypeRecord(
+  value: unknown,
+): GovernmentDeductionTypeRecord {
+  const record = parseRecord(value, "government deduction type");
+
+  return {
+    id: parseNumber(record.id, "governmentDeductionType.id"),
+    code: parseString(record.code, "governmentDeductionType.code"),
+    name: parseString(record.name, "governmentDeductionType.name"),
+    calculation_method: parseString(
+      record.calculation_method,
+      "governmentDeductionType.calculation_method",
+    ),
+    employee_share_enabled: parseBoolean(
+      record.employee_share_enabled,
+      "governmentDeductionType.employee_share_enabled",
+    ),
+    employer_share_enabled: parseBoolean(
+      record.employer_share_enabled,
+      "governmentDeductionType.employer_share_enabled",
+    ),
+    is_mandatory: parseBoolean(
+      record.is_mandatory,
+      "governmentDeductionType.is_mandatory",
+    ),
+    created_at: parseString(record.created_at, "governmentDeductionType.created_at"),
+    updated_at: parseString(record.updated_at, "governmentDeductionType.updated_at"),
+  };
+}
+
+export function parseGovernmentDeductionTypeConfigRecord(
+  value: unknown,
+): GovernmentDeductionTypeConfigRecord {
+  const record = parseRecord(value, "government deduction config");
+
+  return {
+    id: parseNumber(record.id, "governmentDeductionConfig.id"),
+    rule_set_id: parseNumber(record.rule_set_id, "governmentDeductionConfig.rule_set_id"),
+    deduction_type_id: parseNumber(
+      record.deduction_type_id,
+      "governmentDeductionConfig.deduction_type_id",
+    ),
+    deduction_type_code: parseString(
+      record.deduction_type_code,
+      "governmentDeductionConfig.deduction_type_code",
+    ),
+    deduction_type_name: parseString(
+      record.deduction_type_name,
+      "governmentDeductionConfig.deduction_type_name",
+    ),
+    based_on: parseString(record.based_on, "governmentDeductionConfig.based_on"),
+    frequency: parseString(record.frequency, "governmentDeductionConfig.frequency"),
+    rounding_method: parseString(
+      record.rounding_method,
+      "governmentDeductionConfig.rounding_method",
+    ),
+    income_floor: parseOptionalNumericString(
+      record.income_floor,
+      "governmentDeductionConfig.income_floor",
+    ),
+    income_ceiling: parseOptionalNumericString(
+      record.income_ceiling,
+      "governmentDeductionConfig.income_ceiling",
+    ),
+    employee_share_ratio: parseOptionalNumericString(
+      record.employee_share_ratio,
+      "governmentDeductionConfig.employee_share_ratio",
+    ),
+    employer_share_ratio: parseOptionalNumericString(
+      record.employer_share_ratio,
+      "governmentDeductionConfig.employer_share_ratio",
+    ),
+    cap_amount: parseOptionalNumericString(
+      record.cap_amount,
+      "governmentDeductionConfig.cap_amount",
+    ),
+    threshold_amount: parseOptionalNumericString(
+      record.threshold_amount,
+      "governmentDeductionConfig.threshold_amount",
+    ),
+    rate: parseOptionalNumericString(record.rate, "governmentDeductionConfig.rate"),
+    rate_employee: parseOptionalNumericString(
+      record.rate_employee,
+      "governmentDeductionConfig.rate_employee",
+    ),
+    rate_employer: parseOptionalNumericString(
+      record.rate_employer,
+      "governmentDeductionConfig.rate_employer",
+    ),
+    fixed_employee_amount: parseOptionalNumericString(
+      record.fixed_employee_amount,
+      "governmentDeductionConfig.fixed_employee_amount",
+    ),
+    fixed_employer_amount: parseOptionalNumericString(
+      record.fixed_employer_amount,
+      "governmentDeductionConfig.fixed_employer_amount",
+    ),
+    formula_expression: parseOptionalString(
+      record.formula_expression,
+      "governmentDeductionConfig.formula_expression",
+    ),
+    priority_order: parseNumber(
+      record.priority_order,
+      "governmentDeductionConfig.priority_order",
+    ),
+    created_at: parseString(record.created_at, "governmentDeductionConfig.created_at"),
+    updated_at: parseString(record.updated_at, "governmentDeductionConfig.updated_at"),
+  };
+}
+
+export function parseGovernmentDeductionBracketRecord(
+  value: unknown,
+): GovernmentDeductionBracketRecord {
+  const record = parseRecord(value, "government deduction bracket");
+
+  return {
+    id: parseNumber(record.id, "governmentDeductionBracket.id"),
+    rule_set_id: parseNumber(record.rule_set_id, "governmentDeductionBracket.rule_set_id"),
+    deduction_type_id: parseNumber(
+      record.deduction_type_id,
+      "governmentDeductionBracket.deduction_type_id",
+    ),
+    deduction_type_code: parseString(
+      record.deduction_type_code,
+      "governmentDeductionBracket.deduction_type_code",
+    ),
+    deduction_type_name: parseString(
+      record.deduction_type_name,
+      "governmentDeductionBracket.deduction_type_name",
+    ),
+    min_salary: parseNumericString(
+      record.min_salary,
+      "governmentDeductionBracket.min_salary",
+    ),
+    max_salary: parseOptionalNumericString(
+      record.max_salary,
+      "governmentDeductionBracket.max_salary",
+    ),
+    base_amount_employee: parseOptionalNumericString(
+      record.base_amount_employee,
+      "governmentDeductionBracket.base_amount_employee",
+    ),
+    base_amount_employer: parseOptionalNumericString(
+      record.base_amount_employer,
+      "governmentDeductionBracket.base_amount_employer",
+    ),
+    fixed_employee_amount: parseOptionalNumericString(
+      record.fixed_employee_amount,
+      "governmentDeductionBracket.fixed_employee_amount",
+    ),
+    fixed_employer_amount: parseOptionalNumericString(
+      record.fixed_employer_amount,
+      "governmentDeductionBracket.fixed_employer_amount",
+    ),
+    rate_employee: parseOptionalNumericString(
+      record.rate_employee,
+      "governmentDeductionBracket.rate_employee",
+    ),
+    rate_employer: parseOptionalNumericString(
+      record.rate_employer,
+      "governmentDeductionBracket.rate_employer",
+    ),
+    min_contribution: parseOptionalNumericString(
+      record.min_contribution,
+      "governmentDeductionBracket.min_contribution",
+    ),
+    max_contribution: parseOptionalNumericString(
+      record.max_contribution,
+      "governmentDeductionBracket.max_contribution",
+    ),
+    base_tax: parseOptionalNumericString(
+      record.base_tax,
+      "governmentDeductionBracket.base_tax",
+    ),
+    excess_over: parseOptionalNumericString(
+      record.excess_over,
+      "governmentDeductionBracket.excess_over",
+    ),
+    percent_over_excess: parseOptionalNumericString(
+      record.percent_over_excess,
+      "governmentDeductionBracket.percent_over_excess",
+    ),
+    reference_value: parseOptionalNumericString(
+      record.reference_value,
+      "governmentDeductionBracket.reference_value",
+    ),
+    sequence: parseNumber(record.sequence, "governmentDeductionBracket.sequence"),
+    created_at: parseString(record.created_at, "governmentDeductionBracket.created_at"),
+    updated_at: parseString(record.updated_at, "governmentDeductionBracket.updated_at"),
+  };
+}
+
+export function parseGovernmentDeductionRuleSetSummaryRecord(
+  value: unknown,
+): GovernmentDeductionRuleSetSummaryRecord {
+  const record = parseRecord(value, "government deduction rule set summary");
+
+  return {
+    id: parseNumber(record.id, "governmentDeductionRuleSetSummary.id"),
+    name: parseString(record.name, "governmentDeductionRuleSetSummary.name"),
+    effective_from: parseString(
+      record.effective_from,
+      "governmentDeductionRuleSetSummary.effective_from",
+    ),
+    effective_to: parseOptionalString(
+      record.effective_to,
+      "governmentDeductionRuleSetSummary.effective_to",
+    ),
+    status: parseString(record.status, "governmentDeductionRuleSetSummary.status"),
+    notes: parseOptionalString(record.notes, "governmentDeductionRuleSetSummary.notes"),
+    created_by_user_id: parseOptionalNumber(
+      record.created_by_user_id,
+      "governmentDeductionRuleSetSummary.created_by_user_id",
+    ),
+    approved_by_user_id: parseOptionalNumber(
+      record.approved_by_user_id,
+      "governmentDeductionRuleSetSummary.approved_by_user_id",
+    ),
+    created_at: parseString(
+      record.created_at,
+      "governmentDeductionRuleSetSummary.created_at",
+    ),
+    updated_at: parseString(
+      record.updated_at,
+      "governmentDeductionRuleSetSummary.updated_at",
+    ),
+    config_count: parseNumber(
+      record.config_count,
+      "governmentDeductionRuleSetSummary.config_count",
+    ),
+    bracket_count: parseNumber(
+      record.bracket_count,
+      "governmentDeductionRuleSetSummary.bracket_count",
+    ),
+  };
+}
+
+export function parseGovernmentDeductionRuleSetDetailRecord(
+  value: unknown,
+): GovernmentDeductionRuleSetDetailRecord {
+  const record = parseRecord(value, "government deduction rule set detail");
+  const summary = parseGovernmentDeductionRuleSetSummaryRecord(record);
+
+  return {
+    ...summary,
+    configs: parseCollection(
+      record.configs ?? [],
+      (item) => parseGovernmentDeductionTypeConfigRecord(item),
+      "government deduction rule set configs",
+    ),
+    brackets: parseCollection(
+      record.brackets ?? [],
+      (item) => parseGovernmentDeductionBracketRecord(item),
+      "government deduction rule set brackets",
+    ),
+  };
+}
+
+export function parseGovernmentDeductionTestResultItemRecord(
+  value: unknown,
+): GovernmentDeductionTestResultItemRecord {
+  const record = parseRecord(value, "government deduction test result item");
+
+  return {
+    deduction_code: parseString(record.deduction_code, "governmentDeductionTestItem.deduction_code"),
+    deduction_name: parseString(record.deduction_name, "governmentDeductionTestItem.deduction_name"),
+    basis_amount: parseNumericString(record.basis_amount, "governmentDeductionTestItem.basis_amount"),
+    employee_share: parseNumericString(record.employee_share, "governmentDeductionTestItem.employee_share"),
+    employer_share: parseNumericString(record.employer_share, "governmentDeductionTestItem.employer_share"),
+    bracket_id_used: parseOptionalNumber(record.bracket_id_used, "governmentDeductionTestItem.bracket_id_used"),
+  };
+}
+
+export function parseGovernmentDeductionTestCalculationRecord(
+  value: unknown,
+): GovernmentDeductionTestCalculationRecord {
+  const record = parseRecord(value, "government deduction test calculation");
+
+  return {
+    rule_set_id: parseNumber(record.rule_set_id, "governmentDeductionTest.rule_set_id"),
+    taxable_income: parseNumericString(record.taxable_income, "governmentDeductionTest.taxable_income"),
+    total_employee_deductions: parseNumericString(
+      record.total_employee_deductions,
+      "governmentDeductionTest.total_employee_deductions",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "governmentDeductionTest.total_employer_contributions",
+    ),
+    items: parseCollection(
+      record.items ?? [],
+      (item) => parseGovernmentDeductionTestResultItemRecord(item),
+      "government deduction test items",
+    ),
+  };
+}
+
 const parsePayrollPeriodsResponse = createCollectionParser({
   label: "payroll periods",
   parseItem: (record: unknown) => parsePayrollPeriodRecord(record),
@@ -440,6 +846,59 @@ export type PayrollBatchRemarksPayload = {
   remarks?: string;
 };
 
+export type PayrollRecordRecalculatePayload = PayrollBatchRemarksPayload & {
+  reviewRemarks?: string;
+};
+
+export type GovernmentDeductionTypeConfigInputPayload = {
+  deduction_type_code: string;
+  based_on: string;
+  frequency: string;
+  rounding_method: string;
+  income_floor?: number | null;
+  income_ceiling?: number | null;
+  employee_share_ratio?: number | null;
+  employer_share_ratio?: number | null;
+  cap_amount?: number | null;
+  threshold_amount?: number | null;
+  rate?: number | null;
+  rate_employee?: number | null;
+  rate_employer?: number | null;
+  fixed_employee_amount?: number | null;
+  fixed_employer_amount?: number | null;
+  formula_expression?: string | null;
+  priority_order: number;
+};
+
+export type GovernmentDeductionBracketInputPayload = {
+  deduction_type_code: string;
+  min_salary: number;
+  max_salary?: number | null;
+  base_amount_employee?: number | null;
+  base_amount_employer?: number | null;
+  fixed_employee_amount?: number | null;
+  fixed_employer_amount?: number | null;
+  rate_employee?: number | null;
+  rate_employer?: number | null;
+  min_contribution?: number | null;
+  max_contribution?: number | null;
+  base_tax?: number | null;
+  excess_over?: number | null;
+  percent_over_excess?: number | null;
+  reference_value?: number | null;
+  sequence: number;
+};
+
+export type GovernmentDeductionRuleSetPayload = {
+  name: string;
+  effective_from: string;
+  effective_to?: string | null;
+  notes?: string | null;
+  status?: string | null;
+  configs: GovernmentDeductionTypeConfigInputPayload[];
+  brackets: GovernmentDeductionBracketInputPayload[];
+};
+
 export async function getPayrollPeriodRecords() {
   return apiClient.get<PayrollPeriodApiRecord[], PayrollPeriodApiRecord[]>(
     apiEndpoints.payroll.periods,
@@ -473,7 +932,7 @@ function getPayrollActionErrorMessage(responseBody: unknown) {
 async function requestPayrollProxy<T>(
   path: string,
   options: {
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "PUT" | "DELETE";
     body?: unknown;
     parser: (value: unknown) => T;
   },
@@ -590,6 +1049,20 @@ export async function getPayrollRecordDetail(recordId: number) {
   });
 }
 
+export async function recalculatePayrollRecord(
+  recordId: number,
+  payload: PayrollRecordRecalculatePayload = {},
+) {
+  return requestPayrollProxy(`/records/${recordId}/recalculate`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+      review_remarks: payload.reviewRemarks?.trim() || undefined,
+    },
+    parser: parsePayrollBatchDetailRecord,
+  });
+}
+
 export async function getPayslips() {
   return requestPayrollCollection("/payslips", parsePayslipRecord);
 }
@@ -607,6 +1080,93 @@ export async function getMyPayslips() {
 export async function getMyPayslipDetail(payslipId: number) {
   return requestPayrollProxy(`/me/payslips/${payslipId}`, {
     parser: parsePayslipRecord,
+  });
+}
+
+export async function getGovernmentDeductionTypes() {
+  return requestPayrollCollection(
+    "/settings/deduction-types",
+    parseGovernmentDeductionTypeRecord,
+  );
+}
+
+export async function getGovernmentDeductionRuleSets() {
+  return requestPayrollCollection(
+    "/settings/deduction-rule-sets",
+    parseGovernmentDeductionRuleSetSummaryRecord,
+  );
+}
+
+export async function getGovernmentDeductionRuleSetDetail(ruleSetId: number) {
+  return requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}`, {
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
+export async function createGovernmentDeductionRuleSet(
+  payload: GovernmentDeductionRuleSetPayload,
+) {
+  return requestPayrollProxy("/settings/deduction-rule-sets", {
+    method: "POST",
+    body: payload,
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
+export async function updateGovernmentDeductionRuleSet(
+  ruleSetId: number,
+  payload: GovernmentDeductionRuleSetPayload,
+) {
+  return requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}`, {
+    method: "PUT",
+    body: payload,
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
+export async function activateGovernmentDeductionRuleSet(ruleSetId: number) {
+  return requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}/activate`, {
+    method: "POST",
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
+export async function cloneGovernmentDeductionRuleSet(
+  ruleSetId: number,
+  payload: { name?: string; effective_from?: string; effective_to?: string | null },
+) {
+  return requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}/clone`, {
+    method: "POST",
+    body: payload,
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
+export async function archiveGovernmentDeductionRuleSet(ruleSetId: number) {
+  return requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}/archive`, {
+    method: "POST",
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
+export async function deleteGovernmentDeductionRuleSet(ruleSetId: number) {
+  await requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}`, {
+    method: "DELETE",
+    parser: () => undefined,
+  });
+}
+
+export async function testGovernmentDeductionCalculation(payload: {
+  rule_set_id: number;
+  monthly_salary: number;
+  gross_pay: number;
+  pay_frequency: string;
+  taxable_income?: number;
+}) {
+  return requestPayrollProxy("/settings/test-calculate", {
+    method: "POST",
+    body: payload,
+    parser: parseGovernmentDeductionTestCalculationRecord,
   });
 }
 

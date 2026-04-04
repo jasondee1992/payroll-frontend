@@ -120,6 +120,10 @@ const allowanceOptions = [
   "Entertainment allowance",
 ];
 
+const allowanceOptionByNormalizedName = new Map(
+  allowanceOptions.map((allowance) => [normalizeAllowanceName(allowance), allowance]),
+);
+
 type EmployeeFormMode = "create" | "edit";
 
 type EmployeeFormProps = {
@@ -199,8 +203,11 @@ export function EmployeeForm({
   const router = useRouter();
   const isEditMode = mode === "edit";
   const formDataDefaults = initialData ?? defaultEmployeeData;
-  const allowanceFieldOptions = mergeAllowanceOptions(
+  const initialAllowanceNames = dedupeAllowanceNames(
     formDataDefaults.allowances.map((allowance) => allowance.allowanceName),
+  );
+  const allowanceFieldOptions = mergeAllowanceOptions(
+    initialAllowanceNames,
   );
   const linkedAccountRoleOptions = mergeSelectOptions(
     accountRoleOptions,
@@ -209,10 +216,10 @@ export function EmployeeForm({
   const [createAccount, setCreateAccount] = useState(!isEditMode);
   const [allowanceModalOpen, setAllowanceModalOpen] = useState(false);
   const [selectedAllowances, setSelectedAllowances] = useState<string[]>(
-    formDataDefaults.allowances.map((allowance) => allowance.allowanceName),
+    initialAllowanceNames,
   );
   const [draftAllowances, setDraftAllowances] = useState<string[]>(
-    formDataDefaults.allowances.map((allowance) => allowance.allowanceName),
+    initialAllowanceNames,
   );
   const [employmentStatus, setEmploymentStatus] = useState(
     formDataDefaults.employmentStatus,
@@ -239,12 +246,7 @@ export function EmployeeForm({
     formDataDefaults.reportingManagerId,
   );
   const [allowanceValues, setAllowanceValues] = useState<Record<string, string>>(
-    Object.fromEntries(
-      formDataDefaults.allowances.map((allowance) => [
-        allowance.allowanceName,
-        allowance.amount,
-      ]),
-    ),
+    buildAllowanceValueMap(formDataDefaults.allowances),
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<{
@@ -266,9 +268,7 @@ export function EmployeeForm({
     SelectValidationError[]
   >([]);
 
-  const selectedAllowanceOptions = allowanceFieldOptions.filter((allowance) =>
-    selectedAllowances.includes(allowance),
-  );
+  const selectedAllowanceOptions = dedupeAllowanceNames(selectedAllowances);
   const isInactiveStatus = employmentStatus === "Inactive";
   const hasLinkedAccount = formDataDefaults.accountAccess.linked;
   const isLinkedAccountRoleChanged =
@@ -282,7 +282,7 @@ export function EmployeeForm({
   const salarySubtotal = basicSalaryAmount + allowanceSubtotal;
 
   function openAllowanceModal() {
-    setDraftAllowances(selectedAllowances);
+    setDraftAllowances(dedupeAllowanceNames(selectedAllowances));
     setAllowanceModalOpen(true);
   }
 
@@ -291,22 +291,29 @@ export function EmployeeForm({
   }
 
   function toggleDraftAllowance(allowance: string) {
+    const resolvedAllowance = resolveAllowanceDisplayName(allowance);
     setDraftAllowances((current) =>
-      current.includes(allowance)
-        ? current.filter((item) => item !== allowance)
-        : [...current, allowance],
+      current.some(
+        (item) => normalizeAllowanceName(item) === normalizeAllowanceName(resolvedAllowance),
+      )
+        ? current.filter(
+            (item) =>
+              normalizeAllowanceName(item) !== normalizeAllowanceName(resolvedAllowance),
+          )
+        : dedupeAllowanceNames([...current, resolvedAllowance]),
     );
   }
 
   function applyAllowanceSelection() {
-    setSelectedAllowances(draftAllowances);
+    setSelectedAllowances(dedupeAllowanceNames(draftAllowances));
     setAllowanceModalOpen(false);
   }
 
   function updateAllowanceValue(allowance: string, value: string) {
+    const resolvedAllowance = resolveAllowanceDisplayName(allowance);
     setAllowanceValues((current) => ({
       ...current,
-      [allowance]: value,
+      [resolvedAllowance]: value,
     }));
   }
 
@@ -1633,16 +1640,72 @@ function normalizeDisplayValue(value: string | null | undefined) {
 
 function mergeAllowanceOptions(existingAllowances: string[]) {
   const mergedAllowances = [...allowanceOptions];
+  const seenAllowanceNames = new Set(
+    mergedAllowances.map((allowance) => normalizeAllowanceName(allowance)),
+  );
 
   for (const allowance of existingAllowances) {
-    if (!allowance || mergedAllowances.includes(allowance)) {
+    const resolvedAllowance = resolveAllowanceDisplayName(allowance);
+    const normalizedAllowance = normalizeAllowanceName(resolvedAllowance);
+    if (!normalizedAllowance || seenAllowanceNames.has(normalizedAllowance)) {
       continue;
     }
 
-    mergedAllowances.push(allowance);
+    mergedAllowances.push(resolvedAllowance);
+    seenAllowanceNames.add(normalizedAllowance);
   }
 
   return mergedAllowances;
+}
+
+function normalizeAllowanceName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function resolveAllowanceDisplayName(value: string) {
+  const normalizedValue = normalizeAllowanceName(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  return allowanceOptionByNormalizedName.get(normalizedValue) ?? value.trim().replace(/\s+/g, " ");
+}
+
+function dedupeAllowanceNames(values: string[]) {
+  const dedupedAllowances: string[] = [];
+  const seenAllowanceNames = new Set<string>();
+
+  for (const value of values) {
+    const resolvedAllowance = resolveAllowanceDisplayName(value);
+    const normalizedAllowance = normalizeAllowanceName(resolvedAllowance);
+
+    if (!normalizedAllowance || seenAllowanceNames.has(normalizedAllowance)) {
+      continue;
+    }
+
+    dedupedAllowances.push(resolvedAllowance);
+    seenAllowanceNames.add(normalizedAllowance);
+  }
+
+  return dedupedAllowances;
+}
+
+function buildAllowanceValueMap(
+  allowances: Array<{ allowanceName: string; amount: string }>,
+) {
+  const entries: Record<string, string> = {};
+
+  allowances.forEach((allowance) => {
+    const resolvedAllowance = resolveAllowanceDisplayName(allowance.allowanceName);
+    if (!resolvedAllowance) {
+      return;
+    }
+
+    entries[resolvedAllowance] = allowance.amount;
+  });
+
+  return entries;
 }
 
 function mergeSelectOptions(options: string[], selectedValue?: string) {

@@ -318,6 +318,7 @@ export function AttendanceCutoffManager() {
                   rowData={gridRows}
                   columnDefs={COLUMN_DEFS}
                   context={{ deletingCutoffId, onDeleteCutoff: handleDeleteCutoff }}
+                  theme="legacy"
                   domLayout="autoHeight"
                   pagination
                   paginationPageSize={10}

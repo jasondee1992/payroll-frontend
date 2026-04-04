@@ -38,10 +38,18 @@ function isEmployeePayslipRequest(pathSegments: string[] | undefined) {
   );
 }
 
+function isSettingsRequest(pathSegments: string[] | undefined) {
+  return Array.isArray(pathSegments) && pathSegments[0] === "settings";
+}
+
 function canReadPayrollPath(
   userRole: ReturnType<typeof normalizeAppRole>,
   pathSegments: string[] | undefined,
 ) {
+  if (isSettingsRequest(pathSegments)) {
+    return canManagePayroll(userRole);
+  }
+
   if (isEmployeePayslipRequest(pathSegments)) {
     return userRole === "employee";
   }
@@ -68,7 +76,9 @@ async function proxyPayrollRequest(
       return NextResponse.json(
         {
           error:
-            isEmployeePayslipRequest(path) || (userRole === "employee" && canViewPayslips(userRole))
+            isSettingsRequest(path)
+              ? "Only Admin-Finance users can access payroll deduction settings."
+              : isEmployeePayslipRequest(path) || (userRole === "employee" && canViewPayslips(userRole))
               ? "You can only view your own posted payslips."
               : "Only Finance and Admin-Finance users can access payroll workflow data.",
         },
@@ -152,6 +162,12 @@ async function proxyPayrollRequest(
       );
     }
 
+    if (backendResponse.status === 204) {
+      return new NextResponse(null, {
+        status: backendResponse.status,
+      });
+    }
+
     return NextResponse.json(responseBody, {
       status: backendResponse.status,
     });
@@ -171,6 +187,20 @@ export async function GET(
 }
 
 export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyPayrollRequest(request, context);
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyPayrollRequest(request, context);
+}
+
+export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
