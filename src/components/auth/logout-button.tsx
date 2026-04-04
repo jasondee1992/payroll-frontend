@@ -2,6 +2,7 @@
 
 import { LogOut } from "lucide-react";
 import { useState } from "react";
+import { performClientLogout } from "@/lib/auth/client-auth";
 
 export function LogoutButton() {
   const [isPending, setIsPending] = useState(false);
@@ -10,15 +11,7 @@ export function LogoutButton() {
     setIsPending(true);
 
     try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-
-      const responseBody = (await response.json()) as {
-        redirectTo?: string;
-      };
-
-      window.location.assign(responseBody.redirectTo ?? "/login");
+      await performClientLogout("/login");
     } finally {
       setIsPending(false);
     }

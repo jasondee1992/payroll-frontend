@@ -4,6 +4,7 @@ export const apiEndpoints = {
   auth: {
     login: `${API_V1_PREFIX}/auth/login`,
     me: `${API_V1_PREFIX}/auth/me`,
+    profileImage: `${API_V1_PREFIX}/auth/me/profile-image`,
     changePassword: `${API_V1_PREFIX}/auth/change-password`,
   },
   employees: {
