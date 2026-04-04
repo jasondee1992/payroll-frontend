@@ -11,6 +11,11 @@ const statusStyles: Record<PayrollStatus, string> = {
   Closed: "bg-slate-200 text-slate-700",
   Paid: "bg-emerald-50 text-emerald-700",
   "Needs review": "bg-amber-50 text-amber-700",
+  Calculated: "bg-sky-50 text-sky-700",
+  "Under Finance Review": "bg-amber-50 text-amber-700",
+  Approved: "bg-emerald-50 text-emerald-700",
+  Posted: "bg-slate-900 text-white",
+  Locked: "bg-slate-200 text-slate-700",
 };
 
 type PayrollStatusBadgeProps = {

@@ -3,9 +3,9 @@ import { getApiBaseUrl } from "@/lib/api/config";
 import {
   AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
-  canDeleteAttendanceCutoffs,
-  canManageAttendanceUploads,
-  canUnlockAttendanceCutoffs,
+  canManagePayroll,
+  canViewPayroll,
+  canViewPayslips,
   normalizeAppRole,
 } from "@/lib/auth/session";
 import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
@@ -18,10 +18,9 @@ function buildBackendUrl(request: NextRequest, pathSegments: string[] | undefine
     return null;
   }
 
-  const normalizedPath = pathSegments && pathSegments.length > 0
-    ? `/${pathSegments.join("/")}`
-    : "";
-  const backendUrl = new URL(`${apiBaseUrl}/api/v1/attendance${normalizedPath}`);
+  const normalizedPath =
+    pathSegments && pathSegments.length > 0 ? `/${pathSegments.join("/")}` : "";
+  const backendUrl = new URL(`${apiBaseUrl}/api/v1/payroll${normalizedPath}`);
 
   request.nextUrl.searchParams.forEach((value, key) => {
     backendUrl.searchParams.set(key, value);
@@ -30,7 +29,31 @@ function buildBackendUrl(request: NextRequest, pathSegments: string[] | undefine
   return backendUrl;
 }
 
-async function proxyAttendanceRequest(
+function isEmployeePayslipRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length >= 2 &&
+    pathSegments[0] === "me" &&
+    pathSegments[1] === "payslips"
+  );
+}
+
+function canReadPayrollPath(
+  userRole: ReturnType<typeof normalizeAppRole>,
+  pathSegments: string[] | undefined,
+) {
+  if (isEmployeePayslipRequest(pathSegments)) {
+    return userRole === "employee";
+  }
+
+  if (Array.isArray(pathSegments) && pathSegments[0] === "payslips") {
+    return canViewPayroll(userRole);
+  }
+
+  return canViewPayroll(userRole);
+}
+
+async function proxyPayrollRequest(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
@@ -40,41 +63,25 @@ async function proxyAttendanceRequest(
     normalizeAppRole(request.cookies.get(AUTH_ROLE_COOKIE)?.value) ??
     (accessToken ? getRoleFromAccessToken(accessToken) : null);
 
-  if (
-    accessToken &&
-    isRestrictedAttendanceWriteRequest(request.method, path) &&
-    !canManageAttendanceUploads(userRole)
-  ) {
+  if (request.method === "GET") {
+    if (!canReadPayrollPath(userRole, path)) {
+      return NextResponse.json(
+        {
+          error:
+            isEmployeePayslipRequest(path) || (userRole === "employee" && canViewPayslips(userRole))
+              ? "You can only view your own posted payslips."
+              : "Only Finance and Admin-Finance users can access payroll workflow data.",
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (request.method === "POST" && !canManagePayroll(userRole)) {
     return NextResponse.json(
       {
         error:
-          "Only Admin-Finance, Finance, and HR users can manage attendance uploads and cutoffs.",
-      },
-      { status: 403 },
-    );
-  }
-
-  if (
-    accessToken &&
-    isRestrictedAttendanceDeleteRequest(request.method, path) &&
-    !canDeleteAttendanceCutoffs(userRole)
-  ) {
-    return NextResponse.json(
-      {
-        error: "Only Admin-Finance users can delete attendance cutoffs.",
-      },
-      { status: 403 },
-    );
-  }
-
-  if (
-    accessToken &&
-    isRestrictedAttendanceUnlockRequest(request.method, path) &&
-    !canUnlockAttendanceCutoffs(userRole)
-  ) {
-    return NextResponse.json(
-      {
-        error: "Only Admin-Finance and Finance users can unlock attendance cutoffs.",
+          "Only Admin-Finance users can calculate, recalculate, approve, or post payroll batches.",
       },
       { status: 403 },
     );
@@ -97,19 +104,17 @@ async function proxyAttendanceRequest(
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const contentType = request.headers.get("content-type") ?? "";
   let body: BodyInit | undefined;
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    if (contentType.includes("multipart/form-data")) {
-      body = await request.formData();
-    } else {
-      const rawBody = await request.text();
-      if (rawBody.length > 0) {
-        body = rawBody;
-        if (contentType) {
-          headers.set("Content-Type", contentType);
-        }
+    const contentType = request.headers.get("content-type") ?? "";
+    const rawBody = await request.text();
+
+    if (rawBody.length > 0) {
+      body = rawBody;
+
+      if (contentType) {
+        headers.set("Content-Type", contentType);
       }
     }
   }
@@ -162,79 +167,12 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
-  return proxyAttendanceRequest(request, context);
+  return proxyPayrollRequest(request, context);
 }
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ) {
-  return proxyAttendanceRequest(request, context);
-}
-
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ path?: string[] }> },
-) {
-  return proxyAttendanceRequest(request, context);
-}
-
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ path?: string[] }> },
-) {
-  return proxyAttendanceRequest(request, context);
-}
-
-function isRestrictedAttendanceWriteRequest(
-  method: string,
-  pathSegments: string[] | undefined,
-) {
-  if (method !== "POST") {
-    return false;
-  }
-
-  if (!pathSegments || pathSegments.length === 0) {
-    return false;
-  }
-
-  if (pathSegments.length === 1 && pathSegments[0] === "cutoffs") {
-    return true;
-  }
-
-  if (pathSegments[0] !== "cutoffs" || pathSegments.length < 3) {
-    return false;
-  }
-
-  return (
-    pathSegments[2] === "upload" ||
-    pathSegments[2] === "import" ||
-    pathSegments[2] === "process" ||
-    pathSegments[2] === "lock"
-  );
-}
-
-function isRestrictedAttendanceUnlockRequest(
-  method: string,
-  pathSegments: string[] | undefined,
-) {
-  return (
-    method === "POST" &&
-    Array.isArray(pathSegments) &&
-    pathSegments.length === 3 &&
-    pathSegments[0] === "cutoffs" &&
-    pathSegments[2] === "unlock"
-  );
-}
-
-function isRestrictedAttendanceDeleteRequest(
-  method: string,
-  pathSegments: string[] | undefined,
-) {
-  return (
-    method === "DELETE" &&
-    Array.isArray(pathSegments) &&
-    pathSegments.length === 2 &&
-    pathSegments[0] === "cutoffs"
-  );
+  return proxyPayrollRequest(request, context);
 }

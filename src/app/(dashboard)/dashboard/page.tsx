@@ -7,7 +7,6 @@ import {
 import { ActivityTable } from "@/components/dashboard/activity-table";
 import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
-import { DashboardViewTabs } from "@/components/dashboard/dashboard-view-tabs";
 import { DateList } from "@/components/dashboard/date-list";
 import { EmployeePayslipDashboard } from "@/components/dashboard/employee-payslip-dashboard";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
@@ -26,25 +25,14 @@ import {
   normalizePayrollStatus,
 } from "@/lib/api/payroll";
 import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/format";
-import { employeePayslipHistory } from "@/lib/mock/employee-payslips";
-import { employeeMonthlyPayTrend } from "@/lib/mock/employee-payslips";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await getServerAuthSession();
 
-  if (
-    session.role === "employee" ||
-    session.role === "hr" ||
-    session.role === "finance"
-  ) {
-    return (
-      <EmployeePayslipDashboard
-        payslips={employeePayslipHistory}
-        monthlyTrend={employeeMonthlyPayTrend}
-      />
-    );
+  if (session.role === "employee") {
+    return <EmployeePayslipDashboard />;
   }
 
   const [employeesResult, periodsResult, runsResult, attendanceResult] =
@@ -323,29 +311,7 @@ export default async function DashboardPage() {
         title="Dashboard"
         description="Monitor payroll readiness, workforce administration, and key operational actions from a single internal workspace."
       />
-      {session.role === "admin-finance" ? (
-        <DashboardViewTabs
-          tabs={[
-            {
-              id: "operational-dashboard",
-              label: "Operational Dashboard",
-              content: operationalDashboardContent,
-            },
-            {
-              id: "my-dashboard",
-              label: "My Dashboard",
-              content: (
-                <EmployeePayslipDashboard
-                  payslips={employeePayslipHistory}
-                  monthlyTrend={employeeMonthlyPayTrend}
-                />
-              ),
-            },
-          ]}
-        />
-      ) : (
-        operationalDashboardContent
-      )}
+      {operationalDashboardContent}
     </>
   );
 }

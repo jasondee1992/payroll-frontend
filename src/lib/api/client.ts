@@ -63,6 +63,18 @@ export function getApiErrorMessage(
         return detail;
       }
     }
+
+    if (
+      error.details &&
+      typeof error.details === "object" &&
+      "error" in error.details
+    ) {
+      const detail = (error.details as Record<string, unknown>).error;
+
+      if (typeof detail === "string" && detail.trim().length > 0) {
+        return detail;
+      }
+    }
   }
 
   if (error instanceof Error && error.message.trim().length > 0) {

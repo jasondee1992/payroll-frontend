@@ -55,14 +55,14 @@ export const navigationItems: NavigationItem[] = [
     href: "/payroll",
     description: "Payroll runs, approvals, and pay cycle monitoring.",
     icon: WalletCards,
-    roles: ["admin", "admin-finance", "finance"],
+    roles: ["admin-finance", "finance"],
   },
   {
     title: "Payslips",
     href: "/payslips",
     description: "Published statements and employee pay documents.",
     icon: Receipt,
-    roles: ["admin", "admin-finance", "finance"],
+    roles: ["admin-finance", "finance", "employee"],
   },
   {
     title: "Reports",

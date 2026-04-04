@@ -17,6 +17,17 @@ const ATTENDANCE_UPLOAD_ROLES = new Set<AppRole>([
   "finance",
   "hr",
 ]);
+const ATTENDANCE_UNLOCK_ROLES = new Set<AppRole>([
+  "admin-finance",
+  "finance",
+]);
+const PAYROLL_VIEW_ROLES = new Set<AppRole>(["admin-finance", "finance"]);
+const PAYROLL_MANAGE_ROLES = new Set<AppRole>(["admin-finance"]);
+const PAYSLIP_VIEW_ROLES = new Set<AppRole>([
+  "admin-finance",
+  "finance",
+  "employee",
+]);
 
 const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
@@ -88,4 +99,20 @@ export function canManageAttendanceUploads(role: AppRole | null | undefined) {
 
 export function canDeleteAttendanceCutoffs(role: AppRole | null | undefined) {
   return role === "admin-finance";
+}
+
+export function canUnlockAttendanceCutoffs(role: AppRole | null | undefined) {
+  return role != null && ATTENDANCE_UNLOCK_ROLES.has(role);
+}
+
+export function canViewPayroll(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_VIEW_ROLES.has(role);
+}
+
+export function canManagePayroll(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_MANAGE_ROLES.has(role);
+}
+
+export function canViewPayslips(role: AppRole | null | undefined) {
+  return role != null && PAYSLIP_VIEW_ROLES.has(role);
 }

@@ -26,6 +26,11 @@ const statusStyles: Record<ActivityItem["status"], string> = {
   Paid: "bg-emerald-50 text-emerald-700",
   "Needs review": "bg-amber-50 text-amber-700",
   Scheduled: "bg-blue-50 text-blue-700",
+  Calculated: "bg-sky-50 text-sky-700",
+  "Under Finance Review": "bg-amber-50 text-amber-700",
+  Approved: "bg-emerald-50 text-emerald-700",
+  Posted: "bg-slate-900 text-white",
+  Locked: "bg-slate-200 text-slate-700",
 };
 
 const statusIcons = {
@@ -38,6 +43,11 @@ const statusIcons = {
   Paid: CheckCircle2,
   "Needs review": Clock3,
   Scheduled: PlayCircle,
+  Calculated: FileSpreadsheet,
+  "Under Finance Review": Clock3,
+  Approved: CheckCircle2,
+  Posted: CheckCircle2,
+  Locked: CheckCircle2,
 } satisfies Record<ActivityItem["status"], typeof CheckCircle2>;
 
 export function ActivityTable({ items }: ActivityTableProps) {

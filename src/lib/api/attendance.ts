@@ -22,6 +22,7 @@ import type {
   AttendanceRecord,
   AttendanceReviewRequestRecord,
   NotificationRecord,
+  AttendanceUnlockResult,
 } from "@/types/attendance";
 
 export type LegacyAttendanceLogRecord = {
@@ -479,6 +480,18 @@ export function parseAttendanceLockResult(value: unknown): AttendanceLockResult 
   };
 }
 
+export function parseAttendanceUnlockResult(value: unknown): AttendanceUnlockResult {
+  const record = parseRecord(value, "attendance unlock response");
+
+  return {
+    cutoff: parseAttendanceCutoffRecord(record.cutoff),
+    unlocked_summary_count: parseNumber(
+      record.unlocked_summary_count,
+      "attendanceUnlockResult.unlocked_summary_count",
+    ),
+  };
+}
+
 export function parseNotificationRecord(value: unknown): NotificationRecord {
   const record = parseRecord(value, "notification");
 
@@ -925,6 +938,17 @@ export async function lockAttendanceCutoff(cutoffId: number) {
   });
 
   return handleApiResponse(response, parseAttendanceLockResult);
+}
+
+export async function unlockAttendanceCutoff(cutoffId: number) {
+  const response = await fetch(`/api/attendance/cutoffs/${cutoffId}/unlock`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  return handleApiResponse(response, parseAttendanceUnlockResult);
 }
 
 export async function getNotifications() {

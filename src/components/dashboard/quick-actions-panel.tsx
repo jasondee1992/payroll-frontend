@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { CalendarPlus2, PlayCircle, Upload, UserPlus } from "lucide-react";
+import { Calculator, Upload, UserPlus } from "lucide-react";
 import {
   canManageAttendanceUploads,
+  canManagePayroll,
   type AppRole,
 } from "@/lib/auth/session";
 
@@ -29,16 +30,11 @@ const quickActions: QuickAction[] = [
     isVisible: canManageAttendanceUploads,
   },
   {
-    title: "Create Payroll Period",
-    description: "Define a new pay cycle and configure processing dates.",
-    href: "/payroll/periods",
-    icon: CalendarPlus2,
-  },
-  {
-    title: "Run Payroll",
-    description: "Open the payroll execution workspace for the current cycle.",
-    href: "/payroll/run",
-    icon: PlayCircle,
+    title: "Payroll Review",
+    description: "Calculate, review, approve, and post payroll by cutoff.",
+    href: "/payroll",
+    icon: Calculator,
+    isVisible: canManagePayroll,
   },
 ];
 

@@ -20,6 +20,16 @@ export const apiEndpoints = {
     list: `${API_V1_PREFIX}/attendance`,
   },
   payroll: {
+    workflowCutoffs: `${API_V1_PREFIX}/payroll/cutoffs`,
+    workflowBatches: `${API_V1_PREFIX}/payroll/batches`,
+    workflowBatchDetail: (batchId: string) => `${API_V1_PREFIX}/payroll/batches/${batchId}`,
+    workflowRecordDetail: (recordId: string) => `${API_V1_PREFIX}/payroll/records/${recordId}`,
+    workflowPayslips: `${API_V1_PREFIX}/payroll/payslips`,
+    workflowPayslipDetail: (payslipId: string) =>
+      `${API_V1_PREFIX}/payroll/payslips/${payslipId}`,
+    workflowMyPayslips: `${API_V1_PREFIX}/payroll/me/payslips`,
+    workflowMyPayslipDetail: (payslipId: string) =>
+      `${API_V1_PREFIX}/payroll/me/payslips/${payslipId}`,
     periods: `${API_V1_PREFIX}/payroll-periods`,
     periodDetail: (periodId: string) => `${API_V1_PREFIX}/payroll-periods/${periodId}`,
     runs: `${API_V1_PREFIX}/payroll-runs`,

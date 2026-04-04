@@ -22,6 +22,7 @@ import {
   getMyAttendanceReview,
   lockAttendanceCutoff,
   rejectAttendanceReviewRequest,
+  unlockAttendanceCutoff,
   uploadAttendanceCsv,
   type CreateAttendanceReviewRequestPayload,
 } from "@/lib/api/attendance";
@@ -31,6 +32,7 @@ import {
   canDeleteAttendanceCutoffs,
   canManageAttendanceUploads,
   canManageTeamAttendance,
+  canUnlockAttendanceCutoffs,
   type AppRole,
 } from "@/lib/auth/session";
 import type {
@@ -118,6 +120,7 @@ export function AttendanceWorkspace({
   const hasHighlightedRequest = Number.isFinite(highlightedRequestId) && highlightedRequestId > 0;
   const canReviewTeamAttendance = canManageTeamAttendance(currentRole);
   const canManageAttendanceImports = canManageAttendanceUploads(currentRole);
+  const canUnlockCutoffs = canUnlockAttendanceCutoffs(currentRole);
   const canManageUploadedCutoffDeletes = canDeleteAttendanceCutoffs(currentRole);
   const matchingCutoff = cutoffs.find(
     (cutoff) =>
@@ -506,6 +509,43 @@ export function AttendanceWorkspace({
     }
   }
 
+  async function handleUnlockCutoff() {
+    if (!canUnlockCutoffs) {
+      setInlineError(
+        "Only Admin-Finance and Finance users can unlock attendance cutoffs.",
+      );
+      return;
+    }
+
+    if (selectedCutoffId == null) {
+      return;
+    }
+
+    setLockingCutoff(true);
+    setInlineError(null);
+    setSuccessMessage(null);
+    const activeCutoffId = selectedCutoffId;
+
+    try {
+      await unlockAttendanceCutoff(activeCutoffId);
+      const [nextCutoffs, nextSummary, nextMyReview] = await Promise.all([
+        getAttendanceCutoffs(),
+        getAttendanceCutoffSummary(activeCutoffId),
+        getMyAttendanceReview(activeCutoffId).catch(() => null),
+      ]);
+      setCutoffs(nextCutoffs);
+      setTeamSummary(nextSummary);
+      setMyReview(nextMyReview);
+      setSuccessMessage("Attendance cutoff unlocked and reopened for attendance updates.");
+    } catch (error) {
+      setInlineError(
+        error instanceof Error ? error.message : "Unable to unlock the attendance cutoff.",
+      );
+    } finally {
+      setLockingCutoff(false);
+    }
+  }
+
   if (loadingCutoffs) {
     return <ResourceTableSkeleton rowCount={5} />;
   }
@@ -622,7 +662,9 @@ export function AttendanceWorkspace({
                 onReviewRemarksChange={setReviewRemarks}
                 onReviewRequest={handleReviewRequest}
                 onLockCutoff={handleLockCutoff}
+                onUnlockCutoff={handleUnlockCutoff}
                 lockingCutoff={lockingCutoff}
+                canUnlockCutoffs={canUnlockCutoffs}
                 highlightedRequestId={hasHighlightedRequest ? highlightedRequestId : null}
               />
             ),
@@ -665,7 +707,9 @@ function TeamAttendancePanel(props: {
   onReviewRemarksChange: Dispatch<SetStateAction<Record<number, string>>>;
   onReviewRequest: (requestId: number, action: "approve" | "reject") => void;
   onLockCutoff: () => void;
+  onUnlockCutoff: () => void;
   lockingCutoff: boolean;
+  canUnlockCutoffs: boolean;
   highlightedRequestId: number | null;
 }) {
   const selectedCutoff =
@@ -873,11 +917,22 @@ function TeamAttendancePanel(props: {
             </div>
 
             <div className="mt-5 flex justify-end">
-              {props.canManageAttendanceImports ? (
+              {props.summary.cutoff.status === "locked" ? (
+                props.canUnlockCutoffs ? (
+                  <button
+                    type="button"
+                    onClick={props.onUnlockCutoff}
+                    disabled={props.lockingCutoff}
+                    className="ui-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {props.lockingCutoff ? "Unlocking cutoff..." : "Unlock cutoff"}
+                  </button>
+                ) : null
+              ) : props.canManageAttendanceImports ? (
                 <button
                   type="button"
                   onClick={props.onLockCutoff}
-                  disabled={props.lockingCutoff || props.summary.cutoff.status === "locked"}
+                  disabled={props.lockingCutoff}
                   className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {props.lockingCutoff ? "Locking cutoff..." : "Lock cutoff"}

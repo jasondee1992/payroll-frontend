@@ -1,40 +1,107 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardSection } from "@/components/dashboard/dashboard-section";
-import {
-  formatCurrency,
-  formatDate,
-} from "@/lib/format";
-import type {
-  EmployeeMonthlyPayTrendRecord,
-  EmployeePayslipRecord,
-} from "@/lib/mock/employee-payslips";
+import { ResourceEmptyState, ResourceErrorState } from "@/components/shared/resource-state";
+import { getMyPayslips } from "@/lib/api/payroll";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { PayslipRecord } from "@/types/payroll";
 
-type EmployeePayslipDashboardProps = {
-  payslips: EmployeePayslipRecord[];
-  monthlyTrend: EmployeeMonthlyPayTrendRecord[];
+type DisplayPayslipRecord = {
+  id: string;
+  periodLabel: string;
+  payoutDate: string;
+  status: string;
+  basicPay: number;
+  additions: Array<{ label: string; amount: number }>;
+  deductions: Array<{ label: string; amount: number }>;
+  grossPay: number;
+  totalDeductions: number;
+  netPay: number;
+  reference: string;
 };
 
-export function EmployeePayslipDashboard({
-  payslips,
-  monthlyTrend,
-}: EmployeePayslipDashboardProps) {
-  const [selectedPayslipId, setSelectedPayslipId] = useState(payslips[0]?.id ?? "");
+type EmployeeMonthlyPayTrendRecord = {
+  monthLabel: string;
+  monthKey: string;
+  grossPay: number;
+  netPay: number;
+};
+
+export function EmployeePayslipDashboard() {
+  const [payslips, setPayslips] = useState<DisplayPayslipRecord[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<EmployeeMonthlyPayTrendRecord[]>([]);
+  const [selectedPayslipId, setSelectedPayslipId] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPayslips() {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const records = await getMyPayslips();
+
+        if (cancelled) {
+          return;
+        }
+
+        const nextPayslips = records.map(mapPayslipToDisplay);
+        setPayslips(nextPayslips);
+        setMonthlyTrend(buildMonthlyTrend(records));
+        setSelectedPayslipId(nextPayslips[0]?.id ?? "");
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(
+            error instanceof Error ? error.message : "Unable to load your payslips.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadPayslips();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const selectedPayslip =
     payslips.find((payslip) => payslip.id === selectedPayslipId) ?? payslips[0];
+  const latestPayslip = payslips[0];
   const latestTrendMonth = monthlyTrend[monthlyTrend.length - 1];
+
+  if (isLoading) {
+    return (
+      <section className="panel p-6 sm:p-7">
+        <p className="text-sm text-slate-600">Loading posted payslips...</p>
+      </section>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <ResourceErrorState
+        title="Unable to load payslips"
+        description={errorMessage}
+      />
+    );
+  }
 
   if (!selectedPayslip) {
     return (
-      <>
-        <section className="panel p-6 sm:p-7">
-          <p className="text-sm text-slate-600">
-            No payslips are available yet for this employee account.
-          </p>
-        </section>
-      </>
+      <ResourceEmptyState
+        title="No payslips available yet"
+        description="Posted payroll will appear here after Admin-Finance posts the selected cutoff."
+      />
     );
   }
 
@@ -62,13 +129,17 @@ export function EmployeePayslipDashboard({
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard
           label="Latest net pay"
-          value={formatCurrency(selectedPayslip.netPay)}
-          detail={`Released ${formatDate(selectedPayslip.payoutDate)}`}
+          value={formatCurrency(latestPayslip?.netPay ?? 0)}
+          detail={
+            latestPayslip
+              ? `Released ${formatDate(latestPayslip.payoutDate)}`
+              : "No posted payslip yet"
+          }
         />
         <SummaryCard
           label="Gross pay"
           value={formatCurrency(selectedPayslip.grossPay)}
-          detail={`${selectedPayslip.payrollSchedule} payroll cycle`}
+          detail={`Cutoff ${selectedPayslip.periodLabel}`}
         />
         <SummaryCard
           label="Total deductions"
@@ -76,11 +147,6 @@ export function EmployeePayslipDashboard({
           detail={`For ${selectedPayslip.periodLabel}`}
         />
       </section>
-
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
-        Employee payslip data is currently using frontend dummy records while the
-        backend payslips API is still unavailable.
-      </div>
 
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.35fr]">
         <DashboardSection
@@ -149,7 +215,7 @@ export function EmployeePayslipDashboard({
                         active ? "text-slate-300" : "text-slate-500",
                       )}
                     >
-                      {payslip.payrollSchedule}
+                      {payslip.reference}
                     </p>
                   </div>
                 </button>
@@ -212,9 +278,9 @@ export function EmployeePayslipDashboard({
                   Released payslip details
                 </p>
                 <div className="mt-4 grid gap-3">
-                  <MetaRow label="Payslip ID" value={selectedPayslip.id} />
+                  <MetaRow label="Payslip Ref" value={selectedPayslip.reference} />
                   <MetaRow label="Payout date" value={formatDate(selectedPayslip.payoutDate)} />
-                  <MetaRow label="Payroll schedule" value={selectedPayslip.payrollSchedule} />
+                  <MetaRow label="Cutoff" value={selectedPayslip.periodLabel} />
                   <MetaRow label="Status" value={selectedPayslip.status} />
                 </div>
               </div>
@@ -224,6 +290,68 @@ export function EmployeePayslipDashboard({
       </section>
     </>
   );
+}
+
+function mapPayslipToDisplay(record: PayslipRecord): DisplayPayslipRecord {
+  const additions = record.payroll_record.adjustments
+    .filter(
+      (item) =>
+        item.category === "earning" &&
+        item.adjustment_type !== "basic_pay" &&
+        Number(item.amount) > 0,
+    )
+    .map((item) => ({
+      label: prettyLabel(item.adjustment_type),
+      amount: Number(item.amount),
+    }));
+  const deductions = record.payroll_record.adjustments
+    .filter((item) => item.category === "deduction" && Number(item.amount) > 0)
+    .map((item) => ({
+      label: prettyLabel(item.adjustment_type),
+      amount: Number(item.amount),
+    }));
+
+  return {
+    id: String(record.id),
+    periodLabel: `${formatDate(record.cutoff_start)} - ${formatDate(record.cutoff_end)}`,
+    payoutDate: record.posted_at ?? record.updated_at,
+    status: prettyLabel(record.status),
+    basicPay: Number(record.payroll_record.basic_pay),
+    additions,
+    deductions,
+    grossPay: Number(record.payroll_record.gross_pay),
+    totalDeductions: Number(record.payroll_record.total_deductions),
+    netPay: Number(record.payroll_record.net_pay),
+    reference: record.generated_reference,
+  };
+}
+
+function buildMonthlyTrend(records: PayslipRecord[]): EmployeeMonthlyPayTrendRecord[] {
+  const buckets = new Map<string, { grossPay: number; netPay: number }>();
+
+  records.forEach((record) => {
+    const monthKey = record.cutoff_end.slice(0, 7);
+    const currentValue = buckets.get(monthKey) ?? { grossPay: 0, netPay: 0 };
+    currentValue.grossPay += Number(record.payroll_record.gross_pay);
+    currentValue.netPay += Number(record.payroll_record.net_pay);
+    buckets.set(monthKey, currentValue);
+  });
+
+  return [...buckets.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([monthKey, value]) => ({
+      monthKey,
+      monthLabel: formatMonthLongLabel(monthKey),
+      grossPay: value.grossPay,
+      netPay: value.netPay,
+    }));
+}
+
+function prettyLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function MonthlyPayTrendChart({
@@ -471,5 +599,15 @@ function formatMonthShortLabel(monthKey: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     year: "2-digit",
+  }).format(date);
+}
+
+function formatMonthLongLabel(monthKey: string) {
+  const [year, month] = monthKey.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
   }).format(date);
 }

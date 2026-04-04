@@ -170,6 +170,11 @@ export interface AttendanceLockResult {
   locked_summary_count: number;
 }
 
+export interface AttendanceUnlockResult {
+  cutoff: AttendanceCutoffRecord;
+  unlocked_summary_count: number;
+}
+
 export interface NotificationRecord {
   id: number;
   notification_type: string;

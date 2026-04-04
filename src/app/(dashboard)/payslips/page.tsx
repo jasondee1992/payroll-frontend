@@ -1,17 +1,27 @@
-import { PlannedModulePlaceholder } from "@/components/shared/planned-module-placeholder";
+import { EmployeePayslipDashboard } from "@/components/dashboard/employee-payslip-dashboard";
+import { PayslipWorkspace } from "@/components/payslips/payslip-workspace";
 import { PageHeader } from "@/components/shared/page-header";
-import { ResourceEmptyState } from "@/components/shared/resource-state";
+import { ResourceErrorState } from "@/components/shared/resource-state";
 import { getServerAuthSession } from "@/lib/auth/server-session";
+import { canViewPayslips, canViewPayroll } from "@/lib/auth/session";
 
 export default async function PayslipsPage() {
   const session = await getServerAuthSession();
 
-  if (session.role === "finance") {
+  if (!canViewPayslips(session.role)) {
     return (
-      <PlannedModulePlaceholder
-        title="Payslips"
-        description="Finance payslips space reserved for the release and statement views we will define next."
-      />
+      <>
+        <PageHeader
+          title="Payslips"
+          description="Review posted payroll statements and payroll release records."
+        />
+        <section className="panel p-6 sm:p-7">
+          <ResourceErrorState
+            title="Payslip access is unavailable"
+            description="Only employees, Finance, and Admin-Finance can access posted payslips."
+          />
+        </section>
+      </>
     );
   }
 
@@ -19,15 +29,14 @@ export default async function PayslipsPage() {
     <>
       <PageHeader
         title="Payslips"
-        description="Preview employee payslips, review recent releases, and prepare export or download actions for payroll statements."
+        description={
+          canViewPayroll(session.role)
+            ? "Review posted payslips and inspect the released payroll breakdown by employee."
+            : "Review your posted payslips and released salary breakdown."
+        }
       />
 
-      <section className="panel p-6 sm:p-7">
-        <ResourceEmptyState
-          title="Payslip data is unavailable"
-          description="The previous mock payslip preview and recent-payslips table were removed. The current backend does not expose a payslips endpoint yet, so this page now waits for a real API contract."
-        />
-      </section>
+      {session.role === "employee" ? <EmployeePayslipDashboard /> : <PayslipWorkspace />}
     </>
   );
 }
