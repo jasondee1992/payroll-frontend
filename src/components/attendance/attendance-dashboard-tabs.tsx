@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type AttendanceDashboardTab = {
@@ -11,13 +11,28 @@ type AttendanceDashboardTab = {
 
 type AttendanceDashboardTabsProps = {
   tabs: AttendanceDashboardTab[];
+  initialTabId?: string;
+  onTabChange?: (tabId: string) => void;
 };
 
 export function AttendanceDashboardTabs({
   tabs,
+  initialTabId,
+  onTabChange,
 }: AttendanceDashboardTabsProps) {
-  const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? "");
+  const [activeTab, setActiveTab] = useState(initialTabId ?? tabs[0]?.id ?? "");
   const currentTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+
+  useEffect(() => {
+    if (initialTabId) {
+      setActiveTab(initialTabId);
+    }
+  }, [initialTabId]);
+
+  function handleTabChange(tabId: string) {
+    setActiveTab(tabId);
+    onTabChange?.(tabId);
+  }
 
   return (
     <div className="space-y-4">
@@ -27,7 +42,7 @@ export function AttendanceDashboardTabs({
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={cn(
                 "inline-flex min-w-max items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition",
                 tab.id === currentTab?.id

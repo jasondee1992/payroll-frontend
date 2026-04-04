@@ -12,6 +12,8 @@ export type AppRole =
   | "hr"
   | "employee";
 
+const ATTENDANCE_UPLOAD_ROLES = new Set<AppRole>(["finance", "hr"]);
+
 const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
   "/employees",
@@ -70,4 +72,12 @@ export function normalizeAppRole(value: string | null | undefined): AppRole | nu
   }
 
   return null;
+}
+
+export function canManageTeamAttendance(role: AppRole | null | undefined) {
+  return role != null && role !== "employee";
+}
+
+export function canManageAttendanceUploads(role: AppRole | null | undefined) {
+  return role != null && ATTENDANCE_UPLOAD_ROLES.has(role);
 }

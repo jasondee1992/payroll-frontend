@@ -250,7 +250,7 @@ export default async function DashboardPage() {
             title="Quick actions"
             description="Jump directly into the most common payroll administration tasks."
           >
-            <QuickActionsPanel />
+            <QuickActionsPanel currentRole={session.role} />
           </DashboardSection>
 
           <DashboardSection

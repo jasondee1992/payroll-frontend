@@ -1,12 +1,17 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { CalendarPlus2, PlayCircle, Upload, UserPlus } from "lucide-react";
+import {
+  canManageAttendanceUploads,
+  type AppRole,
+} from "@/lib/auth/session";
 
 type QuickAction = {
   title: string;
   description: string;
   href: string;
   icon: LucideIcon;
+  isVisible?: (role: AppRole | null | undefined) => boolean;
 };
 
 const quickActions: QuickAction[] = [
@@ -21,6 +26,7 @@ const quickActions: QuickAction[] = [
     description: "Prepare the attendance import workflow for the active period.",
     href: "/attendance",
     icon: Upload,
+    isVisible: canManageAttendanceUploads,
   },
   {
     title: "Create Payroll Period",
@@ -36,10 +42,18 @@ const quickActions: QuickAction[] = [
   },
 ];
 
-export function QuickActionsPanel() {
+type QuickActionsPanelProps = {
+  currentRole?: AppRole | null;
+};
+
+export function QuickActionsPanel({ currentRole = null }: QuickActionsPanelProps) {
+  const visibleActions = quickActions.filter(
+    (action) => action.isVisible?.(currentRole) ?? true,
+  );
+
   return (
     <div className="grid gap-3">
-      {quickActions.map((action) => {
+      {visibleActions.map((action) => {
         const Icon = action.icon;
 
         return (
