@@ -231,6 +231,20 @@ export function GovernmentDeductionSettings() {
     () => computePreviewGrossPay(testInputs.monthly_salary, testInputs.pay_frequency),
     [testInputs.monthly_salary, testInputs.pay_frequency],
   );
+  const previewEmployerShareTotal = useMemo(
+    () =>
+      testResult
+        ? sumPreviewAmounts(testResult.items, "employer_share")
+        : "0.00",
+    [testResult],
+  );
+  const previewEmployerObligationTotal = useMemo(
+    () =>
+      testResult
+        ? sumPreviewAmounts(testResult.items, "total_employer_obligation")
+        : "0.00",
+    [testResult],
+  );
 
   function updateTestInputs(nextValue: Partial<TestInputs>) {
     setTestInputs((current) => {
@@ -1123,9 +1137,15 @@ export function GovernmentDeductionSettings() {
                           <MetricInline label="Salary Basis Used" value={summarizePreviewBasis(testResult.items)} />
                           <MetricInline label="Taxable Income Used" value={formatCurrency(testResult.taxable_income)} />
                           <MetricInline label="Employee Deductions Total" value={formatCurrency(testResult.total_employee_deductions)} />
-                          <MetricInline label="Employer Share Total" value={formatCurrency(testResult.total_employer_contributions)} />
+                          <MetricInline
+                            label="Employer Share Total"
+                            value={formatCurrency(previewEmployerShareTotal)}
+                          />
                           <MetricInline label="Net Effect on Employee" value={formatCurrency(testResult.total_employee_deductions)} />
-                          <MetricInline label="Estimated Total Employer Obligation" value={formatCurrency(testResult.total_employer_contributions)} />
+                          <MetricInline
+                            label="Estimated Total Employer Obligation"
+                            value={formatCurrency(previewEmployerObligationTotal)}
+                          />
                         </div>
 
                         <div className="space-y-3">
@@ -1264,6 +1284,36 @@ function formatOptionalCurrency(value: string | number) {
   return normalized && Number(normalized) > 0 ? formatCurrency(normalized) : "--";
 }
 
+function parseSnapshotCurrency(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? value : null;
+}
+
+function sumPreviewAmounts(
+  items: GovernmentDeductionTestCalculationRecord["items"],
+  field: "employer_share" | "total_employer_obligation",
+) {
+  const total = items.reduce((runningTotal, item) => runningTotal + Number(item[field] || 0), 0);
+  return total.toFixed(2);
+}
+
+function describeConversionRule(rule: string) {
+  if (rule === "converted_using_26_pay_periods_per_year") {
+    return "the 26-pay-period conversion rule";
+  }
+  if (rule === "converted_using_52_pay_periods_per_year") {
+    return "the 52-pay-period conversion rule";
+  }
+  if (rule === "converted_using_24_pay_periods_per_year") {
+    return "the 24-pay-period conversion rule";
+  }
+  return "the configured frequency conversion rule";
+}
+
 function getPayFrequencyExplanation(
   payFrequency: string,
   monthlySalaryValue: string,
@@ -1331,6 +1381,26 @@ function getPreviewBasisLabel(item: GovernmentDeductionTestCalculationRecord["it
   }
 
   if (item.deduction_code === "WITHHOLDING_TAX") {
+    const previewBasisAmount = parseSnapshotCurrency(item.config_snapshot.preview_basis_amount);
+    const lookupBasisAmount = parseSnapshotCurrency(item.config_snapshot.lookup_basis_amount);
+    const configuredFrequency = String(item.config_snapshot.configured_frequency ?? "").trim();
+    const previewPayFrequency = String(item.config_snapshot.preview_pay_frequency ?? "").trim();
+    const conversionRule = String(item.config_snapshot.conversion_rule ?? "").trim();
+
+    if (
+      previewBasisAmount &&
+      lookupBasisAmount &&
+      configuredFrequency &&
+      previewPayFrequency &&
+      configuredFrequency !== previewPayFrequency
+    ) {
+      return `Withholding Tax Basis: ${pretty(previewPayFrequency)} taxable income ${formatCurrency(previewBasisAmount)} converted to ${pretty(configuredFrequency)} basis ${formatCurrency(lookupBasisAmount)} using ${describeConversionRule(conversionRule)}.`;
+    }
+
+    if (previewBasisAmount && previewPayFrequency) {
+      return `Withholding Tax Basis: ${pretty(previewPayFrequency)} taxable income ${formatCurrency(previewBasisAmount)} using the current ${pretty(configuredFrequency || previewPayFrequency)} tax table.`;
+    }
+
     return `Withholding Tax Basis: Taxable income after applicable pre-tax deductions using the current tax table.`;
   }
 
@@ -1426,8 +1496,8 @@ function buildLatestPhilippineRuleSetDraft(
         income_ceiling: "",
         employee_share_ratio: "",
         employer_share_ratio: "",
-        cap_amount: "",
-        threshold_amount: "",
+        cap_amount: "10000",
+        threshold_amount: "1500",
         rate: "",
         rate_employee: "",
         rate_employer: "",
@@ -1496,7 +1566,7 @@ function buildLatestPhilippineRuleSetDraft(
         id: "pagibig-2",
         deduction_type_code: "PAGIBIG",
         min_salary: "1500.01",
-        max_salary: "5000",
+        max_salary: "10000",
         base_amount_employee: "",
         base_amount_employer: "",
         fixed_employee_amount: "",
@@ -1514,12 +1584,12 @@ function buildLatestPhilippineRuleSetDraft(
       {
         id: "pagibig-3",
         deduction_type_code: "PAGIBIG",
-        min_salary: "5000.01",
+        min_salary: "10000.01",
         max_salary: "",
         base_amount_employee: "",
         base_amount_employer: "",
-        fixed_employee_amount: "100",
-        fixed_employer_amount: "100",
+        fixed_employee_amount: "200",
+        fixed_employer_amount: "200",
         rate_employee: "",
         rate_employer: "",
         min_contribution: "",
