@@ -48,8 +48,10 @@ export function middleware(request: NextRequest) {
   }
 
   const authToken = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
-  const hasAuthToken = Boolean(authToken) && !isAccessTokenExpired(authToken);
-  const hasExpiredAuthToken = Boolean(authToken) && !hasAuthToken;
+  const hasAuthToken =
+    authToken != null && authToken.length > 0 && !isAccessTokenExpired(authToken);
+  const hasExpiredAuthToken =
+    authToken != null && authToken.length > 0 && !hasAuthToken;
   const rawUserRole = request.cookies.get(AUTH_ROLE_COOKIE)?.value?.trim().toLowerCase();
   const userRole = normalizeAppRole(rawUserRole);
   const passwordChangeRequired =

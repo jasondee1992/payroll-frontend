@@ -49,6 +49,14 @@ function toDisplayText(value?: string | null) {
   return value && value.trim().length > 0 ? value : "Not available";
 }
 
+function formatWorkDays(value?: string[] | null) {
+  if (!value || value.length === 0) {
+    return "Not available";
+  }
+
+  return value.join(", ");
+}
+
 async function loadOptionalResource<T>(load: () => Promise<T>) {
   try {
     return await load();
@@ -186,6 +194,9 @@ export async function getEmployeeProfileResource(
           value: normalizeEmployeeStatus(employee.employment_status, employee.is_active),
         },
         { label: "Payroll Schedule", value: normalizePayrollSchedule(employee.payroll_schedule) },
+        { label: "Shift Start", value: toDisplayText(employee.shift_start_time) },
+        { label: "Shift End", value: toDisplayText(employee.shift_end_time) },
+        { label: "Work Days", value: formatWorkDays(employee.work_days) },
         { label: "Linked User Role", value: linkedUser?.role ?? "Not linked" },
       ],
       governmentInformation: [

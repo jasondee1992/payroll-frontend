@@ -72,6 +72,9 @@ export interface EmployeeApiRecord {
   department: string;
   position: string;
   payroll_schedule: string;
+  shift_start_time?: string | null;
+  shift_end_time?: string | null;
+  work_days?: string[] | null;
   reporting_manager_id?: number | null;
   reporting_manager_name?: string | null;
   is_active: boolean;

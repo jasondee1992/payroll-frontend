@@ -78,6 +78,15 @@ const rateTypeOptions = [
 ];
 
 const suffixOptions = ["None", "Jr.", "Sr.", "II", "III", "IV"];
+const workDayOptions = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 const allowanceOptions = [
   "Rice subsidy / Rice allowance",
@@ -173,6 +182,9 @@ const defaultEmployeeData: EditableEmployeeData = {
   position: "",
   reportingManagerId: "",
   reportingManagerName: "",
+  shiftStartTime: "",
+  shiftEndTime: "",
+  workDays: [],
   employmentType: "Select employment type",
   employmentStatus: "Select status",
   payrollSchedule: "Select payroll schedule",
@@ -245,6 +257,13 @@ export function EmployeeForm({
   const [reportingManagerId, setReportingManagerId] = useState(
     formDataDefaults.reportingManagerId,
   );
+  const [shiftStartTime, setShiftStartTime] = useState(
+    formDataDefaults.shiftStartTime,
+  );
+  const [shiftEndTime, setShiftEndTime] = useState(
+    formDataDefaults.shiftEndTime,
+  );
+  const [workDays, setWorkDays] = useState<string[]>(formDataDefaults.workDays);
   const [allowanceValues, setAllowanceValues] = useState<Record<string, string>>(
     buildAllowanceValueMap(formDataDefaults.allowances),
   );
@@ -326,6 +345,14 @@ export function EmployeeForm({
     }
   }
 
+  function toggleWorkDay(day: string) {
+    setWorkDays((current) =>
+      current.includes(day)
+        ? current.filter((item) => item !== day)
+        : [...current, day],
+    );
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -405,6 +432,9 @@ export function EmployeeForm({
         department,
         position: getRequiredFormValue(formData, "position"),
         payroll_schedule: payrollSchedule,
+        shift_start_time: shiftStartTime || null,
+        shift_end_time: shiftEndTime || null,
+        work_days: workDays,
         reporting_manager_id: reportingManagerId ? Number(reportingManagerId) : null,
         is_active: employmentStatus !== "Inactive",
       };
@@ -488,6 +518,9 @@ export function EmployeeForm({
       setBasicSalary("");
       setAllowanceValues({});
       setReportingManagerId("");
+      setShiftStartTime("");
+      setShiftEndTime("");
+      setWorkDays([]);
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -701,6 +734,22 @@ export function EmployeeForm({
                       : "No active employees are currently available to select as reporting manager."
                 }
               />
+              <EmployeeInputField
+                id="shift-start-time"
+                label="Shift Start"
+                type="time"
+                value={shiftStartTime}
+                onChange={(event) => setShiftStartTime(event.target.value)}
+                helperText="Set the regular clock-in time for this employee."
+              />
+              <EmployeeInputField
+                id="shift-end-time"
+                label="Shift End"
+                type="time"
+                value={shiftEndTime}
+                onChange={(event) => setShiftEndTime(event.target.value)}
+                helperText="Set the regular clock-out time for this employee."
+              />
               <EmployeeSelectField
                 id="employment-type"
                 label="Employment Type"
@@ -743,6 +792,48 @@ export function EmployeeForm({
                 )}
                 required
               />
+            </div>
+            <div className="mt-5 rounded-[26px] border border-slate-200/80 bg-slate-50/80 p-5 sm:p-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-950">
+                    Work Days
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Choose the regular office days for this employee, such as
+                    Monday to Saturday.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                  {workDays.length} day{workDays.length === 1 ? "" : "s"} selected
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {workDayOptions.map((day) => {
+                  const checked = workDays.includes(day);
+
+                  return (
+                    <label
+                      key={day}
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition",
+                        checked
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleWorkDay(day)}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                      />
+                      <span>{day}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </EmployeeFormSection>
 
@@ -1507,6 +1598,24 @@ function buildEditChangeSummary(
   );
   pushFieldChange(changes, "Department", initialData.department, payload.employee.department);
   pushFieldChange(changes, "Position", initialData.position, payload.employee.position);
+  pushFieldChange(
+    changes,
+    "Shift Start",
+    initialData.shiftStartTime,
+    payload.employee.shift_start_time,
+  );
+  pushFieldChange(
+    changes,
+    "Shift End",
+    initialData.shiftEndTime,
+    payload.employee.shift_end_time,
+  );
+  pushFieldChange(
+    changes,
+    "Work Days",
+    initialData.workDays.join(", "),
+    payload.employee.work_days?.join(", "),
+  );
   pushFieldChange(
     changes,
     "Reporting Manager",

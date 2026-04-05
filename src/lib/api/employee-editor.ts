@@ -25,6 +25,9 @@ export type EditableEmployeeData = {
   position: string;
   reportingManagerId: string;
   reportingManagerName: string;
+  shiftStartTime: string;
+  shiftEndTime: string;
+  workDays: string[];
   employmentType: string;
   employmentStatus: string;
   payrollSchedule: string;
@@ -124,6 +127,9 @@ export async function getEditableEmployeeResource(
         ? String(employee.reporting_manager_id)
         : "",
       reportingManagerName: employee.reporting_manager_name ?? "",
+      shiftStartTime: employee.shift_start_time ?? "",
+      shiftEndTime: employee.shift_end_time ?? "",
+      workDays: employee.work_days ?? [],
       employmentType: normalizeEmploymentType(employee.employment_type),
       employmentStatus: normalizeEmployeeStatus(
         employee.employment_status,

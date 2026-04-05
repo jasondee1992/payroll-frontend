@@ -12,7 +12,7 @@ type FieldBaseProps = {
 };
 
 type EmployeeInputFieldProps = FieldBaseProps & {
-  type?: "text" | "date" | "email" | "number";
+  type?: "text" | "date" | "email" | "number" | "time";
   placeholder?: string;
   defaultValue?: string;
   value?: string;

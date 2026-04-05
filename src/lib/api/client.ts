@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api/config";
+import { AUTH_TOKEN_COOKIE } from "@/lib/auth/session";
 
 type QueryValue = string | number | boolean | undefined;
 type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -113,10 +114,17 @@ function mergeHeaders(
   defaultHeaders: HeadersInit | undefined,
   requestHeaders: HeadersInit | undefined,
   hasBody: boolean,
+  serverAuthHeaders?: HeadersInit,
 ) {
   const headers = new Headers(defaultHeaders);
 
   headers.set("Accept", "application/json");
+
+  if (serverAuthHeaders) {
+    for (const [key, value] of new Headers(serverAuthHeaders).entries()) {
+      headers.set(key, value);
+    }
+  }
 
   if (hasBody) {
     headers.set("Content-Type", "application/json");
@@ -129,6 +137,28 @@ function mergeHeaders(
   }
 
   return headers;
+}
+
+async function getServerAuthorizationHeaders() {
+  if (typeof window !== "undefined") {
+    return undefined;
+  }
+
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get(AUTH_TOKEN_COOKIE)?.value;
+
+    if (!accessToken) {
+      return undefined;
+    }
+
+    return {
+      Authorization: `Bearer ${accessToken}`,
+    } satisfies HeadersInit;
+  } catch {
+    return undefined;
+  }
 }
 
 export function createApiClient(config: ApiClientConfig = {}) {
@@ -153,10 +183,12 @@ export function createApiClient(config: ApiClientConfig = {}) {
       }
 
       const url = this.buildUrl(path, options.query);
+      const serverAuthHeaders = await getServerAuthorizationHeaders();
       const headers = mergeHeaders(
         defaultHeaders,
         options.headers,
         options.body !== undefined,
+        serverAuthHeaders,
       );
 
       const response = await fetch(url, {

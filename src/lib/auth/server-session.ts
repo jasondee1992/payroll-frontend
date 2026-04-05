@@ -17,7 +17,8 @@ export type ServerAuthSession = {
 export async function getServerAuthSession(): Promise<ServerAuthSession> {
   const cookieStore = await cookies();
   const authToken = cookieStore.get(AUTH_TOKEN_COOKIE)?.value;
-  const hasValidToken = Boolean(authToken) && !isAccessTokenExpired(authToken);
+  const hasValidToken =
+    authToken != null && authToken.length > 0 && !isAccessTokenExpired(authToken);
   const tokenUser = authToken
     && hasValidToken
     ? getAuthUserFromAccessToken(authToken)
