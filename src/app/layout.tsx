@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
-import { BackendStatusBanner } from "@/components/shared/backend-status-banner";
 import { APP_NAME } from "@/config/branding";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
@@ -23,10 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${publicSans.variable} antialiased`}>
-        <BackendStatusBanner />
-        {children}
-      </body>
+      <body className={`${publicSans.variable} antialiased`}>{children}</body>
     </html>
   );
 }

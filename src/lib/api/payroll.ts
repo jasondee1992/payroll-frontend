@@ -1157,6 +1157,13 @@ export async function activateGovernmentDeductionRuleSet(ruleSetId: number) {
   });
 }
 
+export async function archiveAndActivateGovernmentDeductionRuleSet(ruleSetId: number) {
+  return requestPayrollProxy(`/settings/deduction-rule-sets/${ruleSetId}/archive-and-activate`, {
+    method: "POST",
+    parser: parseGovernmentDeductionRuleSetDetailRecord,
+  });
+}
+
 export async function cloneGovernmentDeductionRuleSet(
   ruleSetId: number,
   payload: { name?: string; effective_from?: string; effective_to?: string | null },

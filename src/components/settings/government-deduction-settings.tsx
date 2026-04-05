@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   activateGovernmentDeductionRuleSet,
+  archiveAndActivateGovernmentDeductionRuleSet,
   archiveGovernmentDeductionRuleSet,
   cloneGovernmentDeductionRuleSet,
   createGovernmentDeductionRuleSet,
@@ -342,8 +343,7 @@ export function GovernmentDeductionSettings() {
     setMessage(null);
 
     try {
-      await archiveGovernmentDeductionRuleSet(overlappingActiveRuleSet.id);
-      const detail = await activateGovernmentDeductionRuleSet(draft.id);
+      const detail = await archiveAndActivateGovernmentDeductionRuleSet(draft.id);
       setDraft(buildDraftFromDetail(detail, types));
       setMessage(
         `${overlappingActiveRuleSet.name} was archived and ${detail.name} is now the active government deduction rule set.`,

@@ -1,9 +1,7 @@
 "use client";
 
 import { Building2, ChevronLeft } from "lucide-react";
-import { usePathname } from "next/navigation";
 import {
-  getActiveNavigationItem,
   getNavigationItemsForRole,
   type NavigationRole,
 } from "@/config/navigation";
@@ -16,6 +14,9 @@ type AppSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
   currentRole: NavigationRole | null;
+  activeHref: string;
+  pendingHref?: string | null;
+  onNavigate: (href: string) => void;
 };
 
 export function AppSidebar({
@@ -23,9 +24,10 @@ export function AppSidebar({
   mobileOpen,
   onClose,
   currentRole,
+  activeHref,
+  pendingHref = null,
+  onNavigate,
 }: AppSidebarProps) {
-  const pathname = usePathname();
-  const activeItem = getActiveNavigationItem(pathname, currentRole);
   const availableNavigationItems = getNavigationItemsForRole(currentRole);
 
   return (
@@ -107,8 +109,10 @@ export function AppSidebar({
               <NavigationLink
                 key={item.href}
                 item={item}
-                active={item.href === activeItem.href}
+                active={item.href === activeHref}
                 collapsed={collapsed}
+                pending={item.href === pendingHref}
+                onNavigate={onNavigate}
               />
             ))}
           </nav>
