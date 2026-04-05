@@ -121,6 +121,13 @@ export function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
       record.payroll_schedule,
       "employee.payroll_schedule",
     ),
+    schedule_arrangement: parseString(
+      record.schedule_arrangement,
+      "employee.schedule_arrangement",
+      {
+        optional: true,
+      },
+    ),
     shift_start_time: parseString(record.shift_start_time, "employee.shift_start_time", {
       optional: true,
     }),
@@ -468,6 +475,7 @@ export type EmployeeOnboardingPayload = {
     department: string;
     position: string;
     payroll_schedule: string;
+    schedule_arrangement?: string | null;
     shift_start_time?: string | null;
     shift_end_time?: string | null;
     work_days?: string[];
@@ -524,6 +532,7 @@ export type EmployeeUpdatePayload = {
     department: string;
     position: string;
     payroll_schedule: string;
+    schedule_arrangement?: string | null;
     shift_start_time?: string | null;
     shift_end_time?: string | null;
     work_days?: string[];
@@ -541,7 +550,7 @@ export type EmployeeUpdatePayload = {
     basic_salary: number;
     rate_type: string;
     pay_frequency: string;
-    allowances: Array<{
+    allowances?: Array<{
       allowance_name: string;
       amount: number;
     }>;

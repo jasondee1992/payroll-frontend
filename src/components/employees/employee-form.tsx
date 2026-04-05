@@ -54,6 +54,18 @@ const payrollScheduleOptions = [
   "Weekly",
 ];
 
+const scheduleArrangementOptions = [
+  "Select schedule arrangement",
+  "Fixed Schedule",
+  "Flexible Schedule",
+  "Output-Based Schedule",
+  "Shift-Based Schedule",
+  "Rotational Shift",
+  "Compressed Workweek",
+  "Field Work Arrangement",
+  "No Time Tracking",
+];
+
 const accountRoleOptions = [
   "Select account role",
   "Employee",
@@ -168,6 +180,16 @@ type SelectValidationError = {
   label: string;
 };
 
+type AllowanceComparisonInput =
+  | {
+      allowanceName: string;
+      amount: string | number;
+    }
+  | {
+      allowance_name: string;
+      amount: number;
+    };
+
 const defaultEmployeeData: EditableEmployeeData = {
   employeeId: 0,
   employeeCode: "",
@@ -182,6 +204,7 @@ const defaultEmployeeData: EditableEmployeeData = {
   position: "",
   reportingManagerId: "",
   reportingManagerName: "",
+  scheduleArrangement: "Select schedule arrangement",
   shiftStartTime: "",
   shiftEndTime: "",
   workDays: [],
@@ -224,6 +247,10 @@ export function EmployeeForm({
   const linkedAccountRoleOptions = mergeSelectOptions(
     accountRoleOptions,
     formDataDefaults.accountAccess.role,
+  );
+  const scheduleArrangementFieldOptions = mergeSelectOptions(
+    scheduleArrangementOptions,
+    formDataDefaults.scheduleArrangement,
   );
   const [createAccount, setCreateAccount] = useState(!isEditMode);
   const [allowanceModalOpen, setAllowanceModalOpen] = useState(false);
@@ -432,6 +459,9 @@ export function EmployeeForm({
         department,
         position: getRequiredFormValue(formData, "position"),
         payroll_schedule: payrollSchedule,
+        schedule_arrangement: normalizeOptionalSelection(
+          getRequiredFormValue(formData, "schedule-arrangement"),
+        ),
         shift_start_time: shiftStartTime || null,
         shift_end_time: shiftEndTime || null,
         work_days: workDays,
@@ -445,17 +475,18 @@ export function EmployeeForm({
         pagibig_number: getRequiredFormValue(formData, "pagibig"),
         tax_status: taxStatus,
       };
-      const salaryProfilePayload = {
+      const nextAllowancePayload = buildAllowancePayload(
+        selectedAllowanceOptions,
+        allowanceValues,
+      );
+      const allowancesChanged = !areAllowanceInputsEqual(
+        initialData?.allowances ?? [],
+        nextAllowancePayload,
+      );
+      const salaryProfileFields = {
         basic_salary: basicSalaryAmount,
         rate_type: rateType,
         pay_frequency: payrollSchedule,
-        ...(isEditMode ? {} : { effective_date: hireDate }),
-        allowances: selectedAllowanceOptions
-          .map((allowance) => ({
-            allowance_name: allowance,
-            amount: parseCurrencyInput(allowanceValues[allowance]),
-          }))
-          .filter((allowance) => allowance.amount > 0),
       };
 
       if (isEditMode) {
@@ -463,6 +494,14 @@ export function EmployeeForm({
           throw new Error("Employee edit data is unavailable.");
         }
 
+        const salaryProfilePayload: EmployeeUpdatePayload["salary_profile"] = {
+          ...salaryProfileFields,
+          ...(allowancesChanged
+            ? {
+                allowances: nextAllowancePayload,
+              }
+            : {}),
+        };
         const payload = {
           employee: employeePayload,
           government_info: governmentInfoPayload,
@@ -490,7 +529,11 @@ export function EmployeeForm({
       const result = await onboardEmployee({
         employee: employeePayload,
         government_info: governmentInfoPayload,
-        salary_profile: salaryProfilePayload,
+        salary_profile: {
+          ...salaryProfileFields,
+          effective_date: hireDate,
+          allowances: nextAllowancePayload,
+        },
         account_access: createAccount
           ? {
               enabled: true,
@@ -733,6 +776,15 @@ export function EmployeeForm({
                       ? "Search active employees to assign a reporting manager."
                       : "No active employees are currently available to select as reporting manager."
                 }
+              />
+              <EmployeeSelectField
+                id="schedule-arrangement"
+                label="Schedule Arrangement"
+                options={scheduleArrangementFieldOptions}
+                defaultValue={
+                  formDataDefaults.scheduleArrangement || "Select schedule arrangement"
+                }
+                helperText="Choose the employee's working schedule arrangement when applicable."
               />
               <EmployeeInputField
                 id="shift-start-time"
@@ -1600,6 +1652,12 @@ function buildEditChangeSummary(
   pushFieldChange(changes, "Position", initialData.position, payload.employee.position);
   pushFieldChange(
     changes,
+    "Schedule Arrangement",
+    normalizeDisplayValue(initialData.scheduleArrangement),
+    normalizeDisplayValue(payload.employee.schedule_arrangement),
+  );
+  pushFieldChange(
+    changes,
     "Shift Start",
     initialData.shiftStartTime,
     payload.employee.shift_start_time,
@@ -1689,18 +1747,13 @@ function buildEditChangeSummary(
     linkedAccountRole,
   );
 
-  const previousAllowances = new Map(
-    initialData.allowances
-      .filter((allowance) => parseCurrencyInput(allowance.amount) > 0)
-      .map((allowance) => [allowance.allowanceName, parseCurrencyInput(allowance.amount)]),
+  const previousAllowances = buildAllowanceComparisonMap(initialData.allowances);
+  const currentAllowances = buildAllowanceComparisonMap(
+    payload.salary_profile.allowances ?? initialData.allowances,
   );
-  const currentAllowances = new Map(
-    payload.salary_profile.allowances.map((allowance) => [
-      allowance.allowance_name,
-      allowance.amount,
-    ]),
-  );
-  const allowanceNames = [...new Set([...previousAllowances.keys(), ...currentAllowances.keys()])].sort();
+  const allowanceNames = [
+    ...new Set([...previousAllowances.keys(), ...currentAllowances.keys()]),
+  ].sort();
 
   for (const allowanceName of allowanceNames) {
     const previousValue = previousAllowances.get(allowanceName);
@@ -1708,9 +1761,9 @@ function buildEditChangeSummary(
 
     pushFieldChange(
       changes,
-      `Allowance: ${allowanceName}`,
-      previousValue != null ? formatCurrency(previousValue) : "Not included",
-      currentValue != null ? formatCurrency(currentValue) : "Not included",
+      `Allowance: ${currentValue?.label ?? previousValue?.label ?? allowanceName}`,
+      previousValue != null ? formatCurrency(previousValue.amount) : "Not included",
+      currentValue != null ? formatCurrency(currentValue.amount) : "Not included",
     );
   }
 
@@ -1815,6 +1868,71 @@ function buildAllowanceValueMap(
   });
 
   return entries;
+}
+
+function buildAllowancePayload(
+  selectedAllowanceNames: string[],
+  allowanceValues: Record<string, string>,
+) {
+  return dedupeAllowanceNames(selectedAllowanceNames)
+    .map((allowance) => ({
+      allowance_name: allowance,
+      amount: parseCurrencyInput(allowanceValues[allowance]),
+    }))
+    .filter((allowance) => allowance.amount > 0);
+}
+
+function buildAllowanceComparisonMap(allowances: AllowanceComparisonInput[]) {
+  const entries = new Map<
+    string,
+    {
+      label: string;
+      amount: number;
+    }
+  >();
+
+  for (const allowance of allowances) {
+    const rawAllowanceName =
+      "allowanceName" in allowance
+        ? allowance.allowanceName
+        : allowance.allowance_name;
+    const resolvedAllowanceName = resolveAllowanceDisplayName(rawAllowanceName);
+    const normalizedAllowanceName = normalizeAllowanceName(resolvedAllowanceName);
+    const amount = parseCurrencyInput(String(allowance.amount));
+
+    if (!normalizedAllowanceName || amount <= 0) {
+      continue;
+    }
+
+    entries.set(normalizedAllowanceName, {
+      label: resolvedAllowanceName,
+      amount,
+    });
+  }
+
+  return entries;
+}
+
+function areAllowanceInputsEqual(
+  previousAllowances: AllowanceComparisonInput[],
+  currentAllowances: AllowanceComparisonInput[],
+) {
+  const previousEntries = buildAllowanceComparisonMap(previousAllowances);
+  const currentEntries = buildAllowanceComparisonMap(currentAllowances);
+
+  if (previousEntries.size !== currentEntries.size) {
+    return false;
+  }
+
+  for (const [allowanceName, previousEntry] of previousEntries.entries()) {
+    const currentEntry = currentEntries.get(allowanceName);
+
+    if (!currentEntry || currentEntry.amount !== previousEntry.amount) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function mergeSelectOptions(options: string[], selectedValue?: string) {

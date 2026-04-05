@@ -194,6 +194,10 @@ export async function getEmployeeProfileResource(
           value: normalizeEmployeeStatus(employee.employment_status, employee.is_active),
         },
         { label: "Payroll Schedule", value: normalizePayrollSchedule(employee.payroll_schedule) },
+        {
+          label: "Schedule Arrangement",
+          value: toDisplayText(employee.schedule_arrangement),
+        },
         { label: "Shift Start", value: toDisplayText(employee.shift_start_time) },
         { label: "Shift End", value: toDisplayText(employee.shift_end_time) },
         { label: "Work Days", value: formatWorkDays(employee.work_days) },

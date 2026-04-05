@@ -72,6 +72,7 @@ export interface EmployeeApiRecord {
   department: string;
   position: string;
   payroll_schedule: string;
+  schedule_arrangement?: string | null;
   shift_start_time?: string | null;
   shift_end_time?: string | null;
   work_days?: string[] | null;
