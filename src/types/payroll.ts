@@ -305,3 +305,45 @@ export interface GovernmentDeductionTestCalculationRecord {
   items: GovernmentDeductionTestResultItemRecord[];
 }
 
+export interface PayrollPolicyProfileRecord {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  requires_attendance: boolean;
+  deduct_late: boolean;
+  deduct_undertime: boolean;
+  deduct_absence: boolean;
+  allow_overtime: boolean;
+  require_approved_overtime: boolean;
+  check_leave_records: boolean;
+  check_sick_leave_records: boolean;
+  auto_absent_if_no_log: boolean;
+  use_shift_schedule: boolean;
+  use_daily_hour_requirement: boolean;
+  is_active: boolean;
+  default_work_arrangement_types: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeEffectivePayrollRulesRecord {
+  employee_id: number;
+  work_arrangement_type?: string | null;
+  payroll_policy_id?: number | null;
+  payroll_policy_code: string;
+  payroll_policy_name: string;
+  rule_source: string;
+  requires_attendance: boolean;
+  deduct_late: boolean;
+  deduct_undertime: boolean;
+  deduct_absence: boolean;
+  allow_overtime: boolean;
+  require_approved_overtime: boolean;
+  check_leave_records: boolean;
+  check_sick_leave_records: boolean;
+  auto_absent_if_no_log: boolean;
+  use_shift_schedule: boolean;
+  use_daily_hour_requirement: boolean;
+}
+

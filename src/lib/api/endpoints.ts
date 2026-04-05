@@ -21,6 +21,11 @@ export const apiEndpoints = {
     list: `${API_V1_PREFIX}/attendance`,
   },
   payroll: {
+    policyProfiles: `${API_V1_PREFIX}/payroll/settings/policy-profiles`,
+    policyProfileDetail: (policyId: string) =>
+      `${API_V1_PREFIX}/payroll/settings/policy-profiles/${policyId}`,
+    employeeEffectiveRules: (employeeId: string) =>
+      `${API_V1_PREFIX}/payroll/employees/${employeeId}/effective-rules`,
     workflowCutoffs: `${API_V1_PREFIX}/payroll/cutoffs`,
     workflowBatches: `${API_V1_PREFIX}/payroll/batches`,
     workflowBatchDetail: (batchId: string) => `${API_V1_PREFIX}/payroll/batches/${batchId}`,

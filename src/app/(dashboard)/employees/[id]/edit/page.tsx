@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ResourceErrorState } from "@/components/shared/resource-state";
 import { getEditableEmployeeResource } from "@/lib/api/employee-editor";
 import { getActiveEmployeeManagerOptionsResource } from "@/lib/api/employees";
+import { getPayrollPolicyProfilesResource } from "@/lib/api/payroll";
 
 type EditEmployeePageProps = {
   params: Promise<{
@@ -34,8 +35,13 @@ export default async function EditEmployeePage({
     );
   }
 
-  const { data: activeEmployeeOptions, errorMessage: managerOptionsErrorMessage } =
-    await getActiveEmployeeManagerOptionsResource(employee.employeeId);
+  const [
+    { data: activeEmployeeOptions, errorMessage: managerOptionsErrorMessage },
+    { data: payrollPolicyProfiles, errorMessage: payrollPolicyProfilesErrorMessage },
+  ] = await Promise.all([
+    getActiveEmployeeManagerOptionsResource(employee.employeeId),
+    getPayrollPolicyProfilesResource(),
+  ]);
 
   return (
     <>
@@ -56,6 +62,8 @@ export default async function EditEmployeePage({
         initialData={employee}
         activeEmployeeOptions={activeEmployeeOptions}
         managerOptionsErrorMessage={managerOptionsErrorMessage}
+        payrollPolicyProfiles={payrollPolicyProfiles}
+        payrollPolicyProfilesErrorMessage={payrollPolicyProfilesErrorMessage}
       />
     </>
   );

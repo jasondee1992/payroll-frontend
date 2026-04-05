@@ -1,4 +1,4 @@
-import { isApiClientError } from "@/lib/api/client";
+import { getApiErrorMessage, isApiClientError } from "@/lib/api/client";
 import {
   buildEmployeeFullName,
   getEmployeeGovernmentInfo,
@@ -10,7 +10,13 @@ import {
   normalizeEmploymentType,
   normalizePayrollSchedule,
 } from "@/lib/api/employees";
-import { getPayrollPeriodRecordsResource, getPayrollRunRecordsResource, normalizePayrollStatus } from "@/lib/api/payroll";
+import {
+  getEmployeeEffectivePayrollRules,
+  getPayrollPeriodRecordsResource,
+  getPayrollPolicyProfilesResource,
+  getPayrollRunRecordsResource,
+  normalizePayrollStatus,
+} from "@/lib/api/payroll";
 import { getUserRecordsResource } from "@/lib/api/users";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { EmployeeStatus } from "@/types/employees";
@@ -31,6 +37,9 @@ export type EmployeeProfileData = {
   salaryProfileSummary: Array<{ label: string; value: string }>;
   salaryAllowanceItems: Array<{ label: string; value: string }>;
   salaryAllowanceTotal: string;
+  payrollPolicySummary: Array<{ label: string; value: string }>;
+  payrollRuleSummary: Array<{ label: string; value: string }>;
+  payrollRulesErrorMessage: string | null;
   payrollHistory: Array<{
     period: string;
     runDate: string;
@@ -69,6 +78,23 @@ async function loadOptionalResource<T>(load: () => Promise<T>) {
   }
 }
 
+async function loadPayrollRulesResource(employeeId: string) {
+  try {
+    return {
+      data: await getEmployeeEffectivePayrollRules(employeeId),
+      errorMessage: null,
+    };
+  } catch (error) {
+    return {
+      data: null,
+      errorMessage: getApiErrorMessage(
+        error,
+        "Effective payroll rules are unavailable from the backend.",
+      ),
+    };
+  }
+}
+
 export async function getEmployeeProfileResource(
   employeeCode: string,
 ): Promise<EmployeeProfileResource> {
@@ -100,6 +126,10 @@ export async function getEmployeeProfileResource(
       loadOptionalResource(() => getEmployeeGovernmentInfo(String(employee.id))),
       loadOptionalResource(() => getEmployeeSalaryProfile(String(employee.id))),
     ]);
+  const [policyProfilesResult, payrollRulesResult] = await Promise.all([
+    getPayrollPolicyProfilesResource(),
+    loadPayrollRulesResource(String(employee.id)),
+  ]);
 
   const linkedUser = usersResult.data.find((user) => user.employee_id === employee.id);
   const payrollPeriodsById = new Map(
@@ -162,6 +192,73 @@ export async function getEmployeeProfileResource(
   const salaryAllowanceTotal = salaryProfile?.totalAllowance
     ? formatCurrency(salaryProfile.totalAllowance)
     : "Not available";
+  const assignedPolicyName =
+    employee.payroll_policy_name ??
+    policyProfilesResult.data.find((profile) => profile.id === employee.payroll_policy_id)
+      ?.name ??
+    payrollRulesResult.data?.payroll_policy_name ??
+    "Not available";
+  const payrollPolicySummary = [
+    {
+      label: "Work Arrangement Type",
+      value: toDisplayText(employee.work_arrangement_type),
+    },
+    {
+      label: "Payroll Policy Profile",
+      value: assignedPolicyName,
+    },
+    {
+      label: "Payroll Policy Source",
+      value: payrollRulesResult.data?.rule_source
+        ? formatRuleSource(payrollRulesResult.data.rule_source)
+        : "Not available",
+    },
+  ];
+  const payrollRuleSummary = payrollRulesResult.data
+    ? [
+        {
+          label: "Attendance Required",
+          value: formatYesNo(payrollRulesResult.data.requires_attendance),
+        },
+        { label: "Deduct Late", value: formatYesNo(payrollRulesResult.data.deduct_late) },
+        {
+          label: "Deduct Undertime",
+          value: formatYesNo(payrollRulesResult.data.deduct_undertime),
+        },
+        {
+          label: "Deduct Absence",
+          value: formatYesNo(payrollRulesResult.data.deduct_absence),
+        },
+        {
+          label: "Allow Overtime",
+          value: formatYesNo(payrollRulesResult.data.allow_overtime),
+        },
+        {
+          label: "Require Approved Overtime",
+          value: formatYesNo(payrollRulesResult.data.require_approved_overtime),
+        },
+        {
+          label: "Check Leave Records",
+          value: formatYesNo(payrollRulesResult.data.check_leave_records),
+        },
+        {
+          label: "Check Sick Leave Records",
+          value: formatYesNo(payrollRulesResult.data.check_sick_leave_records),
+        },
+        {
+          label: "Auto Absent If No Log",
+          value: formatYesNo(payrollRulesResult.data.auto_absent_if_no_log),
+        },
+        {
+          label: "Use Shift Schedule",
+          value: formatYesNo(payrollRulesResult.data.use_shift_schedule),
+        },
+        {
+          label: "Use Daily Hour Requirement",
+          value: formatYesNo(payrollRulesResult.data.use_daily_hour_requirement),
+        },
+      ]
+    : [];
 
   return {
     data: {
@@ -195,8 +292,12 @@ export async function getEmployeeProfileResource(
         },
         { label: "Payroll Schedule", value: normalizePayrollSchedule(employee.payroll_schedule) },
         {
-          label: "Schedule Arrangement",
-          value: toDisplayText(employee.schedule_arrangement),
+          label: "Work Arrangement Type",
+          value: toDisplayText(employee.work_arrangement_type),
+        },
+        {
+          label: "Payroll Policy Profile",
+          value: assignedPolicyName,
         },
         { label: "Shift Start", value: toDisplayText(employee.shift_start_time) },
         { label: "Shift End", value: toDisplayText(employee.shift_end_time) },
@@ -219,8 +320,22 @@ export async function getEmployeeProfileResource(
       salaryProfileSummary,
       salaryAllowanceItems,
       salaryAllowanceTotal,
+      payrollPolicySummary,
+      payrollRuleSummary,
+      payrollRulesErrorMessage: payrollRulesResult.errorMessage,
       payrollHistory,
     },
     errorMessage: null,
   };
+}
+
+function formatYesNo(value: boolean) {
+  return value ? "Yes" : "No";
+}
+
+function formatRuleSource(value: string) {
+  return value
+    .split("_")
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
 }

@@ -121,12 +121,26 @@ export function parseEmployeeRecord(value: unknown): EmployeeApiRecord {
       record.payroll_schedule,
       "employee.payroll_schedule",
     ),
-    schedule_arrangement: parseString(
-      record.schedule_arrangement,
-      "employee.schedule_arrangement",
+    work_arrangement_type: parseString(
+      record.work_arrangement_type,
+      "employee.work_arrangement_type",
       {
         optional: true,
       },
+    ),
+    payroll_policy_id:
+      record.payroll_policy_id == null
+        ? null
+        : parseNumber(record.payroll_policy_id, "employee.payroll_policy_id"),
+    payroll_policy_code: parseString(
+      record.payroll_policy_code,
+      "employee.payroll_policy_code",
+      { optional: true },
+    ),
+    payroll_policy_name: parseString(
+      record.payroll_policy_name,
+      "employee.payroll_policy_name",
+      { optional: true },
     ),
     shift_start_time: parseString(record.shift_start_time, "employee.shift_start_time", {
       optional: true,
@@ -475,7 +489,8 @@ export type EmployeeOnboardingPayload = {
     department: string;
     position: string;
     payroll_schedule: string;
-    schedule_arrangement?: string | null;
+    work_arrangement_type?: string | null;
+    payroll_policy_id?: number | null;
     shift_start_time?: string | null;
     shift_end_time?: string | null;
     work_days?: string[];
@@ -532,7 +547,8 @@ export type EmployeeUpdatePayload = {
     department: string;
     position: string;
     payroll_schedule: string;
-    schedule_arrangement?: string | null;
+    work_arrangement_type?: string | null;
+    payroll_policy_id?: number | null;
     shift_start_time?: string | null;
     shift_end_time?: string | null;
     work_days?: string[];

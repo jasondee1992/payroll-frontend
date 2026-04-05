@@ -20,6 +20,7 @@ import {
 import { EmployeeSearchSelectField } from "@/components/employees/employee-search-select-field";
 import { EmployeeFormSection } from "@/components/employees/employee-form-section";
 import type { EmployeeManagerOption } from "@/types/employees";
+import type { PayrollPolicyProfileRecord } from "@/types/payroll";
 
 const departmentOptions = [
   "Select department",
@@ -54,8 +55,8 @@ const payrollScheduleOptions = [
   "Weekly",
 ];
 
-const scheduleArrangementOptions = [
-  "Select schedule arrangement",
+const workArrangementTypeOptions = [
+  "Select work arrangement type",
   "Fixed Schedule",
   "Flexible Schedule",
   "Output-Based Schedule",
@@ -152,6 +153,8 @@ type EmployeeFormProps = {
   initialData?: EditableEmployeeData;
   activeEmployeeOptions?: EmployeeManagerOption[];
   managerOptionsErrorMessage?: string | null;
+  payrollPolicyProfiles?: PayrollPolicyProfileRecord[];
+  payrollPolicyProfilesErrorMessage?: string | null;
 };
 
 type EditChangeItem = {
@@ -204,7 +207,9 @@ const defaultEmployeeData: EditableEmployeeData = {
   position: "",
   reportingManagerId: "",
   reportingManagerName: "",
-  scheduleArrangement: "Select schedule arrangement",
+  workArrangementType: "Select work arrangement type",
+  payrollPolicyId: "",
+  payrollPolicyName: "",
   shiftStartTime: "",
   shiftEndTime: "",
   workDays: [],
@@ -234,6 +239,8 @@ export function EmployeeForm({
   initialData,
   activeEmployeeOptions = [],
   managerOptionsErrorMessage = null,
+  payrollPolicyProfiles = [],
+  payrollPolicyProfilesErrorMessage = null,
 }: EmployeeFormProps) {
   const router = useRouter();
   const isEditMode = mode === "edit";
@@ -248,9 +255,27 @@ export function EmployeeForm({
     accountRoleOptions,
     formDataDefaults.accountAccess.role,
   );
-  const scheduleArrangementFieldOptions = mergeSelectOptions(
-    scheduleArrangementOptions,
-    formDataDefaults.scheduleArrangement,
+  const workArrangementTypeFieldOptions = mergeSelectOptions(
+    workArrangementTypeOptions,
+    formDataDefaults.workArrangementType,
+  );
+  const initialSuggestedPayrollPolicyName = getSuggestedPayrollPolicyName(
+    formDataDefaults.workArrangementType,
+    payrollPolicyProfiles,
+  );
+  const initialPayrollPolicySelection = resolvePayrollPolicyProfileName(
+    formDataDefaults.payrollPolicyId,
+    formDataDefaults.payrollPolicyName,
+    payrollPolicyProfiles,
+  );
+  const initialPayrollPolicyId =
+    initialPayrollPolicySelection !== "Not set"
+      ? initialPayrollPolicySelection
+      : initialSuggestedPayrollPolicyName;
+  const payrollPolicyFieldOptions = buildPayrollPolicyFieldOptions(
+    payrollPolicyProfiles,
+    initialPayrollPolicyId,
+    formDataDefaults.payrollPolicyName,
   );
   const [createAccount, setCreateAccount] = useState(!isEditMode);
   const [allowanceModalOpen, setAllowanceModalOpen] = useState(false);
@@ -283,6 +308,17 @@ export function EmployeeForm({
   );
   const [reportingManagerId, setReportingManagerId] = useState(
     formDataDefaults.reportingManagerId,
+  );
+  const [workArrangementType, setWorkArrangementType] = useState(
+    formDataDefaults.workArrangementType,
+  );
+  const [payrollPolicyId, setPayrollPolicyId] = useState(initialPayrollPolicyId);
+  const [hasManualPayrollPolicyOverride, setHasManualPayrollPolicyOverride] = useState(
+    Boolean(
+      formDataDefaults.payrollPolicyName &&
+        initialSuggestedPayrollPolicyName &&
+        formDataDefaults.payrollPolicyName !== initialSuggestedPayrollPolicyName,
+    ),
   );
   const [shiftStartTime, setShiftStartTime] = useState(
     formDataDefaults.shiftStartTime,
@@ -322,6 +358,13 @@ export function EmployeeForm({
     normalizeRoleValue(linkedAccountRole) !==
       normalizeRoleValue(formDataDefaults.accountAccess.role);
   const basicSalaryAmount = parseCurrencyInput(basicSalary);
+  const suggestedPayrollPolicyId = getSuggestedPayrollPolicyName(
+    workArrangementType,
+    payrollPolicyProfiles,
+  );
+  const selectedPayrollPolicyProfile = payrollPolicyProfiles.find(
+    (profile) => profile.name === payrollPolicyId,
+  );
   const allowanceSubtotal = selectedAllowanceOptions.reduce((total, allowance) => {
     return total + parseCurrencyInput(allowanceValues[allowance]);
   }, 0);
@@ -372,6 +415,32 @@ export function EmployeeForm({
     }
   }
 
+  function handleWorkArrangementTypeChange(value: string) {
+    clearSelectValidationError("work-arrangement-type");
+    setWorkArrangementType(value);
+
+    if (!hasManualPayrollPolicyOverride) {
+      const nextSuggestedPayrollPolicyId = getSuggestedPayrollPolicyName(
+        value,
+        payrollPolicyProfiles,
+      );
+      setPayrollPolicyId(nextSuggestedPayrollPolicyId);
+    }
+  }
+
+  function handlePayrollPolicyChange(value: string) {
+    clearSelectValidationError("payroll-policy");
+    setPayrollPolicyId(value);
+
+    const nextSuggestedPayrollPolicyId = getSuggestedPayrollPolicyName(
+      workArrangementType,
+      payrollPolicyProfiles,
+    );
+    setHasManualPayrollPolicyOverride(
+      value.length > 0 && value !== nextSuggestedPayrollPolicyId,
+    );
+  }
+
   function toggleWorkDay(day: string) {
     setWorkDays((current) =>
       current.includes(day)
@@ -406,6 +475,16 @@ export function EmployeeForm({
         id: "payroll-schedule",
         label: "Payroll Schedule",
         value: payrollSchedule,
+      },
+      {
+        id: "work-arrangement-type",
+        label: "Work Arrangement Type",
+        value: workArrangementType,
+      },
+      {
+        id: "payroll-policy",
+        label: "Payroll Policy Profile",
+        value: payrollPolicyId,
       },
       { id: "tax-status", label: "Tax Status", value: taxStatus },
       { id: "rate-type", label: "Rate Type", value: rateType },
@@ -459,8 +538,10 @@ export function EmployeeForm({
         department,
         position: getRequiredFormValue(formData, "position"),
         payroll_schedule: payrollSchedule,
-        schedule_arrangement: normalizeOptionalSelection(
-          getRequiredFormValue(formData, "schedule-arrangement"),
+        work_arrangement_type: normalizeOptionalSelection(workArrangementType),
+        payroll_policy_id: resolvePayrollPolicyProfileId(
+          payrollPolicyId,
+          payrollPolicyProfiles,
         ),
         shift_start_time: shiftStartTime || null,
         shift_end_time: shiftEndTime || null,
@@ -512,6 +593,7 @@ export function EmployeeForm({
             payload,
             linkedAccountRole,
             activeEmployeeOptions,
+            payrollPolicyProfiles,
           );
 
         if (changes.length === 0) {
@@ -561,6 +643,9 @@ export function EmployeeForm({
       setBasicSalary("");
       setAllowanceValues({});
       setReportingManagerId("");
+      setWorkArrangementType("Select work arrangement type");
+      setPayrollPolicyId("");
+      setHasManualPayrollPolicyOverride(false);
       setShiftStartTime("");
       setShiftEndTime("");
       setWorkDays([]);
@@ -778,13 +863,49 @@ export function EmployeeForm({
                 }
               />
               <EmployeeSelectField
-                id="schedule-arrangement"
-                label="Schedule Arrangement"
-                options={scheduleArrangementFieldOptions}
+                id="work-arrangement-type"
+                label="Work Arrangement Type"
+                options={workArrangementTypeFieldOptions}
                 defaultValue={
-                  formDataDefaults.scheduleArrangement || "Select schedule arrangement"
+                  formDataDefaults.workArrangementType || "Select work arrangement type"
                 }
-                helperText="Choose the employee's working schedule arrangement when applicable."
+                value={workArrangementType}
+                onChange={(event) =>
+                  handleWorkArrangementTypeChange(event.target.value)
+                }
+                invalid={hasSelectValidationError(
+                  selectValidationErrors,
+                  "work-arrangement-type",
+                )}
+                errorText={getSelectValidationMessage(
+                  selectValidationErrors,
+                  "work-arrangement-type",
+                )}
+                helperText="Classify the employee's schedule setup. This suggests, but does not force, the payroll policy."
+                required
+              />
+              <EmployeeSelectField
+                id="payroll-policy"
+                label="Payroll Policy Profile"
+                options={payrollPolicyFieldOptions}
+                defaultValue={initialPayrollPolicyId || "Select payroll policy profile"}
+                value={payrollPolicyId}
+                onChange={(event) => handlePayrollPolicyChange(event.target.value)}
+                invalid={hasSelectValidationError(selectValidationErrors, "payroll-policy")}
+                errorText={getSelectValidationMessage(
+                  selectValidationErrors,
+                  "payroll-policy",
+                )}
+                disabled={payrollPolicyProfiles.length === 0}
+                helperText={getPayrollPolicyHelperText({
+                  payrollPolicyProfiles,
+                  payrollPolicyProfilesErrorMessage,
+                  payrollPolicyId,
+                  selectedPayrollPolicyName: selectedPayrollPolicyProfile?.name,
+                  suggestedPayrollPolicyId,
+                  hasManualPayrollPolicyOverride,
+                })}
+                required
               />
               <EmployeeInputField
                 id="shift-start-time"
@@ -1626,6 +1747,7 @@ function buildEditChangeSummary(
   payload: EmployeeUpdatePayload,
   linkedAccountRole: string,
   activeEmployeeOptions: EmployeeManagerOption[],
+  payrollPolicyProfiles: PayrollPolicyProfileRecord[],
 ): EditChangeItem[] {
   const changes: EditChangeItem[] = [];
 
@@ -1652,9 +1774,21 @@ function buildEditChangeSummary(
   pushFieldChange(changes, "Position", initialData.position, payload.employee.position);
   pushFieldChange(
     changes,
-    "Schedule Arrangement",
-    normalizeDisplayValue(initialData.scheduleArrangement),
-    normalizeDisplayValue(payload.employee.schedule_arrangement),
+    "Work Arrangement Type",
+    normalizeDisplayValue(initialData.workArrangementType),
+    normalizeDisplayValue(payload.employee.work_arrangement_type),
+  );
+  pushFieldChange(
+    changes,
+    "Payroll Policy Profile",
+    resolvePayrollPolicyProfileName(initialData.payrollPolicyId, initialData.payrollPolicyName, payrollPolicyProfiles),
+    resolvePayrollPolicyProfileName(
+      payload.employee.payroll_policy_id != null
+        ? String(payload.employee.payroll_policy_id)
+        : "",
+      "",
+      payrollPolicyProfiles,
+    ),
   );
   pushFieldChange(
     changes,
@@ -1941,6 +2075,108 @@ function mergeSelectOptions(options: string[], selectedValue?: string) {
   }
 
   return [...options, selectedValue];
+}
+
+function buildPayrollPolicyFieldOptions(
+  payrollPolicyProfiles: PayrollPolicyProfileRecord[],
+  selectedValue?: string,
+  selectedName?: string,
+) {
+  const options = [
+    "Select payroll policy profile",
+    ...payrollPolicyProfiles.map((profile) => profile.name),
+  ];
+
+  const selectedLabel =
+    payrollPolicyProfiles.find((profile) => profile.name === selectedValue)?.name ??
+    selectedName;
+
+  return mergeSelectOptions(options, selectedLabel);
+}
+
+function getSuggestedPayrollPolicyName(
+  workArrangementType: string,
+  payrollPolicyProfiles: PayrollPolicyProfileRecord[],
+) {
+  if (isPlaceholderSelection(workArrangementType)) {
+    return "";
+  }
+
+  const matchedProfile = payrollPolicyProfiles.find((profile) =>
+    profile.default_work_arrangement_types.includes(workArrangementType),
+  );
+
+  return matchedProfile?.name ?? "";
+}
+
+function resolvePayrollPolicyProfileId(
+  payrollPolicyName: string,
+  payrollPolicyProfiles: PayrollPolicyProfileRecord[],
+) {
+  if (!payrollPolicyName) {
+    return null;
+  }
+
+  const matchedProfile = payrollPolicyProfiles.find(
+    (profile) => profile.name === payrollPolicyName,
+  );
+
+  return matchedProfile?.id ?? null;
+}
+
+function resolvePayrollPolicyProfileName(
+  payrollPolicyId: string,
+  fallbackName: string,
+  payrollPolicyProfiles: PayrollPolicyProfileRecord[],
+) {
+  if (!payrollPolicyId) {
+    return "Not set";
+  }
+
+  const matchedProfile = payrollPolicyProfiles.find(
+    (profile) =>
+      String(profile.id) === payrollPolicyId || profile.name === payrollPolicyId,
+  );
+
+  if (matchedProfile) {
+    return matchedProfile.name;
+  }
+
+  return fallbackName.trim() || `Policy #${payrollPolicyId}`;
+}
+
+function getPayrollPolicyHelperText({
+  payrollPolicyProfiles,
+  payrollPolicyProfilesErrorMessage,
+  payrollPolicyId,
+  selectedPayrollPolicyName,
+  suggestedPayrollPolicyId,
+  hasManualPayrollPolicyOverride,
+}: {
+  payrollPolicyProfiles: PayrollPolicyProfileRecord[];
+  payrollPolicyProfilesErrorMessage: string | null;
+  payrollPolicyId: string;
+  selectedPayrollPolicyName?: string;
+  suggestedPayrollPolicyId: string;
+  hasManualPayrollPolicyOverride: boolean;
+}) {
+  if (payrollPolicyProfilesErrorMessage) {
+    return `${payrollPolicyProfilesErrorMessage} Payroll policy profiles could not be loaded.`;
+  }
+
+  if (payrollPolicyProfiles.length === 0) {
+    return "No payroll policy profiles are currently available from the backend.";
+  }
+
+  if (!payrollPolicyId) {
+    return "Choose the payroll computation policy that should apply to this employee.";
+  }
+
+  if (!hasManualPayrollPolicyOverride && payrollPolicyId === suggestedPayrollPolicyId) {
+    return "This profile is the current default suggestion for the selected work arrangement type.";
+  }
+
+  return `Manual override active: ${selectedPayrollPolicyName ?? "selected payroll policy profile"}.`;
 }
 
 function normalizeRoleValue(value?: string | null) {

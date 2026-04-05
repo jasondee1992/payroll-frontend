@@ -137,6 +137,28 @@ export default async function EmployeeDetailPage({
       ),
     },
     {
+      id: "payroll-rules",
+      label: "Payroll Rules",
+      content: (
+        <EmployeeDetailSection
+          title="Payroll Rules"
+          description="Effective payroll behavior resolved from the employee's assigned policy profile and work arrangement type."
+        >
+          <div className="space-y-5">
+            <EmployeeDetailGrid items={employee.payrollPolicySummary} columns="two" />
+
+            {employee.payrollRulesErrorMessage ? (
+              <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/80 px-4 py-4 text-sm leading-6 text-amber-900">
+                {employee.payrollRulesErrorMessage}
+              </div>
+            ) : (
+              <EmployeeDetailGrid items={employee.payrollRuleSummary} columns="two" />
+            )}
+          </div>
+        </EmployeeDetailSection>
+      ),
+    },
+    {
       id: "payroll-history",
       label: "Payroll History",
       content: (

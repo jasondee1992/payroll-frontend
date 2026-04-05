@@ -15,6 +15,7 @@ import {
   parseString,
 } from "@/lib/api/parsers";
 import type {
+  EmployeeEffectivePayrollRulesRecord,
   GovernmentDeductionBracketRecord,
   GovernmentDeductionRuleSetDetailRecord,
   GovernmentDeductionRuleSetSummaryRecord,
@@ -30,6 +31,7 @@ import type {
   PayrollDeductionBreakdownRecord,
   PayrollPeriod,
   PayrollPeriodApiRecord,
+  PayrollPolicyProfileRecord,
   PayrollRecordRecord,
   PayrollRunApiRecord,
   PayrollStatus,
@@ -821,6 +823,143 @@ export function parseGovernmentDeductionTestCalculationRecord(
   };
 }
 
+export function parsePayrollPolicyProfileRecord(
+  value: unknown,
+): PayrollPolicyProfileRecord {
+  const record = parseRecord(value, "payroll policy profile");
+
+  return {
+    id: parseNumber(record.id, "payrollPolicyProfile.id"),
+    code: parseString(record.code, "payrollPolicyProfile.code"),
+    name: parseString(record.name, "payrollPolicyProfile.name"),
+    description: parseOptionalString(
+      record.description,
+      "payrollPolicyProfile.description",
+    ),
+    requires_attendance: parseBoolean(
+      record.requires_attendance,
+      "payrollPolicyProfile.requires_attendance",
+    ),
+    deduct_late: parseBoolean(record.deduct_late, "payrollPolicyProfile.deduct_late"),
+    deduct_undertime: parseBoolean(
+      record.deduct_undertime,
+      "payrollPolicyProfile.deduct_undertime",
+    ),
+    deduct_absence: parseBoolean(
+      record.deduct_absence,
+      "payrollPolicyProfile.deduct_absence",
+    ),
+    allow_overtime: parseBoolean(
+      record.allow_overtime,
+      "payrollPolicyProfile.allow_overtime",
+    ),
+    require_approved_overtime: parseBoolean(
+      record.require_approved_overtime,
+      "payrollPolicyProfile.require_approved_overtime",
+    ),
+    check_leave_records: parseBoolean(
+      record.check_leave_records,
+      "payrollPolicyProfile.check_leave_records",
+    ),
+    check_sick_leave_records: parseBoolean(
+      record.check_sick_leave_records,
+      "payrollPolicyProfile.check_sick_leave_records",
+    ),
+    auto_absent_if_no_log: parseBoolean(
+      record.auto_absent_if_no_log,
+      "payrollPolicyProfile.auto_absent_if_no_log",
+    ),
+    use_shift_schedule: parseBoolean(
+      record.use_shift_schedule,
+      "payrollPolicyProfile.use_shift_schedule",
+    ),
+    use_daily_hour_requirement: parseBoolean(
+      record.use_daily_hour_requirement,
+      "payrollPolicyProfile.use_daily_hour_requirement",
+    ),
+    is_active: parseBoolean(record.is_active, "payrollPolicyProfile.is_active"),
+    default_work_arrangement_types: parseCollection(
+      record.default_work_arrangement_types ?? [],
+      (item, index) =>
+        parseString(
+          item,
+          `payrollPolicyProfile.default_work_arrangement_types[${index}]`,
+        ),
+      "payrollPolicyProfile.default_work_arrangement_types",
+    ),
+    created_at: parseString(record.created_at, "payrollPolicyProfile.created_at"),
+    updated_at: parseString(record.updated_at, "payrollPolicyProfile.updated_at"),
+  };
+}
+
+export function parseEmployeeEffectivePayrollRulesRecord(
+  value: unknown,
+): EmployeeEffectivePayrollRulesRecord {
+  const record = parseRecord(value, "employee effective payroll rules");
+
+  return {
+    employee_id: parseNumber(record.employee_id, "employeeEffectiveRules.employee_id"),
+    work_arrangement_type: parseOptionalString(
+      record.work_arrangement_type,
+      "employeeEffectiveRules.work_arrangement_type",
+    ),
+    payroll_policy_id: parseOptionalNumber(
+      record.payroll_policy_id,
+      "employeeEffectiveRules.payroll_policy_id",
+    ),
+    payroll_policy_code: parseString(
+      record.payroll_policy_code,
+      "employeeEffectiveRules.payroll_policy_code",
+    ),
+    payroll_policy_name: parseString(
+      record.payroll_policy_name,
+      "employeeEffectiveRules.payroll_policy_name",
+    ),
+    rule_source: parseString(record.rule_source, "employeeEffectiveRules.rule_source"),
+    requires_attendance: parseBoolean(
+      record.requires_attendance,
+      "employeeEffectiveRules.requires_attendance",
+    ),
+    deduct_late: parseBoolean(record.deduct_late, "employeeEffectiveRules.deduct_late"),
+    deduct_undertime: parseBoolean(
+      record.deduct_undertime,
+      "employeeEffectiveRules.deduct_undertime",
+    ),
+    deduct_absence: parseBoolean(
+      record.deduct_absence,
+      "employeeEffectiveRules.deduct_absence",
+    ),
+    allow_overtime: parseBoolean(
+      record.allow_overtime,
+      "employeeEffectiveRules.allow_overtime",
+    ),
+    require_approved_overtime: parseBoolean(
+      record.require_approved_overtime,
+      "employeeEffectiveRules.require_approved_overtime",
+    ),
+    check_leave_records: parseBoolean(
+      record.check_leave_records,
+      "employeeEffectiveRules.check_leave_records",
+    ),
+    check_sick_leave_records: parseBoolean(
+      record.check_sick_leave_records,
+      "employeeEffectiveRules.check_sick_leave_records",
+    ),
+    auto_absent_if_no_log: parseBoolean(
+      record.auto_absent_if_no_log,
+      "employeeEffectiveRules.auto_absent_if_no_log",
+    ),
+    use_shift_schedule: parseBoolean(
+      record.use_shift_schedule,
+      "employeeEffectiveRules.use_shift_schedule",
+    ),
+    use_daily_hour_requirement: parseBoolean(
+      record.use_daily_hour_requirement,
+      "employeeEffectiveRules.use_daily_hour_requirement",
+    ),
+  };
+}
+
 const parsePayrollPeriodsResponse = createCollectionParser({
   label: "payroll periods",
   parseItem: (record: unknown) => parsePayrollPeriodRecord(record),
@@ -829,6 +968,11 @@ const parsePayrollPeriodsResponse = createCollectionParser({
 const parsePayrollRunsResponse = createCollectionParser({
   label: "payroll runs",
   parseItem: (record: unknown) => parsePayrollRunRecord(record),
+});
+
+const parsePayrollPolicyProfilesResponse = createCollectionParser({
+  label: "payroll policy profiles",
+  parseItem: (record: unknown) => parsePayrollPolicyProfileRecord(record),
 });
 
 export function mapPayrollPeriod(record: PayrollPeriodApiRecord): PayrollPeriod {
@@ -1319,5 +1463,30 @@ export async function getPayrollRunRecordsResource() {
   return loadApiResource(() => getPayrollRunRecords(), {
     fallbackData: [],
     errorMessage: "Unable to load payroll runs from the backend.",
+  });
+}
+
+export async function getPayrollPolicyProfiles() {
+  return apiClient.get<PayrollPolicyProfileRecord[], PayrollPolicyProfileRecord[]>(
+    apiEndpoints.payroll.policyProfiles,
+    {
+      parser: parsePayrollPolicyProfilesResponse,
+    },
+  );
+}
+
+export async function getPayrollPolicyProfilesResource() {
+  return loadApiResource(() => getPayrollPolicyProfiles(), {
+    fallbackData: [],
+    errorMessage: "Unable to load payroll policy profiles from the backend.",
+  });
+}
+
+export async function getEmployeeEffectivePayrollRules(employeeId: string) {
+  return apiClient.get<
+    EmployeeEffectivePayrollRulesRecord,
+    EmployeeEffectivePayrollRulesRecord
+  >(apiEndpoints.payroll.employeeEffectiveRules(employeeId), {
+    parser: (value) => parseEmployeeEffectivePayrollRulesRecord(value),
   });
 }

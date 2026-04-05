@@ -72,7 +72,10 @@ export interface EmployeeApiRecord {
   department: string;
   position: string;
   payroll_schedule: string;
-  schedule_arrangement?: string | null;
+  work_arrangement_type?: string | null;
+  payroll_policy_id?: number | null;
+  payroll_policy_code?: string | null;
+  payroll_policy_name?: string | null;
   shift_start_time?: string | null;
   shift_end_time?: string | null;
   work_days?: string[] | null;
