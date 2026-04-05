@@ -3,6 +3,7 @@ const API_V1_PREFIX = "/api/v1";
 export const apiEndpoints = {
   auth: {
     login: `${API_V1_PREFIX}/auth/login`,
+    refresh: `${API_V1_PREFIX}/auth/refresh`,
     me: `${API_V1_PREFIX}/auth/me`,
     profileImage: `${API_V1_PREFIX}/auth/me/profile-image`,
     changePassword: `${API_V1_PREFIX}/auth/change-password`,

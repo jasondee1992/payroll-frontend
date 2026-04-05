@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import {
-  AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
 } from "@/lib/auth/session";
-import { createUnauthorizedAuthResponse } from "@/lib/auth/route-auth";
+import {
+  createUnauthorizedAuthResponse,
+  getRememberSessionFromRequest,
+  setAuthSessionCookies,
+} from "@/lib/auth/route-auth";
 import { getAuthUserFromAccessToken } from "@/lib/auth/token";
 
 function getBackendErrorMessage(responseBody: unknown) {
@@ -89,6 +92,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const apiBaseUrl = getApiBaseUrl();
+  const rememberSession = getRememberSessionFromRequest(request);
 
   if (!apiBaseUrl) {
     return NextResponse.json(
@@ -160,21 +164,10 @@ export async function PATCH(request: NextRequest) {
 
     if (nextAccessToken) {
       const authUser = getAuthUserFromAccessToken(nextAccessToken);
-      nextResponse.cookies.set({
-        name: AUTH_TOKEN_COOKIE,
-        value: nextAccessToken,
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-      });
-      nextResponse.cookies.set({
-        name: AUTH_ROLE_COOKIE,
-        value: authUser.role ?? "",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
+      setAuthSessionCookies(nextResponse, {
+        accessToken: nextAccessToken,
+        role: authUser.role ?? "",
+        rememberSession,
       });
     }
 

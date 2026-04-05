@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { apiEndpoints } from "@/lib/api/endpoints";
 import { getApiBaseUrl } from "@/lib/api/config";
 import {
-  AUTH_SESSION_MAX_AGE,
   CHANGE_PASSWORD_REDIRECT,
-  AUTH_ROLE_COOKIE,
-  AUTH_TOKEN_COOKIE,
-  PASSWORD_CHANGE_REQUIRED_COOKIE,
   getSafeRedirectPath,
 } from "@/lib/auth/session";
+import {
+  setAuthSessionCookies,
+  setPasswordChangeRequiredCookie,
+} from "@/lib/auth/route-auth";
 import { getAuthUserFromAccessToken, getRoleFromAccessToken } from "@/lib/auth/token";
 
 type LoginRequestBody = {
@@ -119,46 +119,15 @@ export async function POST(request: Request) {
       redirectTo: passwordChangeRequired ? CHANGE_PASSWORD_REDIRECT : redirectTo,
     });
 
-    response.cookies.set({
-      name: AUTH_TOKEN_COOKIE,
-      value: accessToken,
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      ...(remember ? { maxAge: AUTH_SESSION_MAX_AGE } : {}),
+    setAuthSessionCookies(response, {
+      accessToken,
+      role: authUser.role ?? role ?? "",
+      rememberSession: remember,
     });
-    response.cookies.set({
-      name: AUTH_ROLE_COOKIE,
-      value: authUser.role ?? role ?? "",
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      ...(remember ? { maxAge: AUTH_SESSION_MAX_AGE } : {}),
+    setPasswordChangeRequiredCookie(response, {
+      required: passwordChangeRequired,
+      rememberSession: remember,
     });
-
-    if (passwordChangeRequired) {
-      response.cookies.set({
-        name: PASSWORD_CHANGE_REQUIRED_COOKIE,
-        value: "1",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        ...(remember ? { maxAge: AUTH_SESSION_MAX_AGE } : {}),
-      });
-    } else {
-      response.cookies.set({
-        name: PASSWORD_CHANGE_REQUIRED_COOKIE,
-        value: "",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        expires: new Date(0),
-      });
-    }
 
     return response;
   } catch {

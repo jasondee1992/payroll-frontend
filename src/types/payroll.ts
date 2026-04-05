@@ -288,11 +288,17 @@ export interface GovernmentDeductionTestResultItemRecord {
   basis_amount: string;
   employee_share: string;
   employer_share: string;
+  employer_ec: string;
+  total_employer_obligation: string;
+  total_remittance: string;
+  monthly_salary_credit?: string | null;
   bracket_id_used?: number | null;
+  config_snapshot: Record<string, unknown>;
 }
 
 export interface GovernmentDeductionTestCalculationRecord {
-  rule_set_id: number;
+  rule_set_id?: number | null;
+  rule_set_name?: string | null;
   taxable_income: string;
   total_employee_deductions: string;
   total_employer_contributions: string;

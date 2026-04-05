@@ -1,7 +1,12 @@
 export const AUTH_TOKEN_COOKIE = "payroll_access_token";
 export const AUTH_ROLE_COOKIE = "payroll_user_role";
 export const PASSWORD_CHANGE_REQUIRED_COOKIE = "payroll_password_change_required";
+export const AUTH_SESSION_PERSISTENCE_COOKIE = "payroll_session_persistent";
 export const AUTH_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+export const AUTH_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+export const AUTH_SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+export const AUTH_ACTIVITY_STORAGE_KEY = "payroll.auth.last-activity-at";
+export const AUTH_FORCE_LOGOUT_STORAGE_KEY = "payroll.auth.force-logout-at";
 export const DEFAULT_AUTH_REDIRECT = "/dashboard";
 export const CHANGE_PASSWORD_REDIRECT = "/change-password";
 

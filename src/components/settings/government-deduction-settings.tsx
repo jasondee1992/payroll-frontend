@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import {
   Calculator,
+  ChevronsLeft,
+  ChevronsRight,
   Clock3,
   Copy,
+  Info,
   Pencil,
   Plus,
   RefreshCcw,
@@ -104,6 +107,12 @@ type TestInputs = {
 };
 
 const CONFIG_SEED_ORDER = ["SSS", "PHILHEALTH", "PAGIBIG", "WITHHOLDING_TAX"];
+const PAY_FREQUENCY_OPTIONS = [
+  { value: "monthly", label: "Monthly" },
+  { value: "semi_monthly", label: "Semi-monthly" },
+  { value: "bi_weekly", label: "Bi-weekly" },
+  { value: "weekly", label: "Weekly" },
+] as const;
 
 export function GovernmentDeductionSettings() {
   const [types, setTypes] = useState<GovernmentDeductionTypeRecord[]>([]);
@@ -115,10 +124,11 @@ export function GovernmentDeductionSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isRuleSetListCollapsed, setIsRuleSetListCollapsed] = useState(false);
   const [testInputs, setTestInputs] = useState<TestInputs>({
-    monthly_salary: "28000",
-    gross_pay: "14600",
-    pay_frequency: "Bi-weekly",
+    monthly_salary: "",
+    gross_pay: "",
+    pay_frequency: "semi_monthly",
   });
   const [testResult, setTestResult] =
     useState<GovernmentDeductionTestCalculationRecord | null>(null);
@@ -216,6 +226,27 @@ export function GovernmentDeductionSettings() {
         CONFIG_SEED_ORDER.indexOf(left.code) - CONFIG_SEED_ORDER.indexOf(right.code),
     );
   }, [types]);
+
+  const grossPayAutoComputed = useMemo(
+    () => computePreviewGrossPay(testInputs.monthly_salary, testInputs.pay_frequency),
+    [testInputs.monthly_salary, testInputs.pay_frequency],
+  );
+
+  function updateTestInputs(nextValue: Partial<TestInputs>) {
+    setTestInputs((current) => {
+      const nextState = { ...current, ...nextValue };
+
+      if ("monthly_salary" in nextValue || "pay_frequency" in nextValue) {
+        nextState.gross_pay = computePreviewGrossPay(
+          nextState.monthly_salary,
+          nextState.pay_frequency,
+        );
+      }
+
+      return nextState;
+    });
+    setTestResult(null);
+  }
 
   function startDraft(nextDraft: RuleSetDraft, nextMessage: string) {
     detailRequestIdRef.current += 1;
@@ -442,8 +473,21 @@ export function GovernmentDeductionSettings() {
   }
 
   async function handleRunTestCalculation() {
-    if (!draft?.id) {
-      setError("Save the rule set first before running a test calculation.");
+    if (!draft) {
+      setError("Open or create a deduction rule before running test calculation.");
+      return;
+    }
+
+    const validationMessage = validateTestCalculationInputs(
+      draft,
+      {
+        ...testInputs,
+        gross_pay: grossPayAutoComputed,
+      },
+      sortedTypes,
+    );
+    if (validationMessage) {
+      setError(validationMessage);
       return;
     }
 
@@ -452,11 +496,15 @@ export function GovernmentDeductionSettings() {
     setMessage(null);
 
     try {
+      const payload = buildRuleSetPayload(draft);
       const result = await testGovernmentDeductionCalculation({
         rule_set_id: draft.id,
+        rule_set_name: draft.name.trim() || "Unsaved preview rule",
         monthly_salary: Number(testInputs.monthly_salary || 0),
-        gross_pay: Number(testInputs.gross_pay || 0),
+        gross_pay: Number(grossPayAutoComputed || 0),
         pay_frequency: testInputs.pay_frequency,
+        configs: payload.configs,
+        brackets: payload.brackets,
       });
       setTestResult(result);
       setMessage("Test calculation completed.");
@@ -562,22 +610,78 @@ export function GovernmentDeductionSettings() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
-            <div className="min-w-0 rounded-[28px] border border-slate-200/80 bg-white p-4 sm:p-5">
-              <div className="mb-4 flex items-start justify-between gap-3">
+          <div
+            className={cn(
+              "grid gap-4",
+              isRuleSetListCollapsed
+                ? "xl:grid-cols-[72px_minmax(0,1fr)]"
+                : "xl:grid-cols-[minmax(0,0.58fr)_minmax(0,1.42fr)]",
+            )}
+          >
+            <div
+              className={cn(
+                "min-w-0 rounded-[28px] border border-slate-200/80 bg-white p-4 sm:p-5",
+                isRuleSetListCollapsed && "xl:flex xl:min-h-[720px] xl:flex-col xl:items-center xl:px-2 xl:py-4",
+              )}
+            >
+              <div
+                className={cn(
+                  "mb-4 flex items-start justify-between gap-3",
+                  isRuleSetListCollapsed && "xl:mb-0 xl:flex-1 xl:flex-col xl:justify-start",
+                )}
+              >
                 <div>
-                  <h3 className="text-base font-semibold text-slate-950">Available rule sets</h3>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <h3
+                    className={cn(
+                      "text-base font-semibold text-slate-950",
+                      isRuleSetListCollapsed && "xl:hidden",
+                    )}
+                  >
+                    Available rule sets
+                  </h3>
+                  <p
+                    className={cn(
+                      "mt-1 text-sm text-slate-600",
+                      isRuleSetListCollapsed && "xl:hidden",
+                    )}
+                  >
                     Select an existing rule set or start a new draft.
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
-                  <ShieldCheck className="h-4 w-4" />
-                  Admin-Finance only
-                </span>
+                <div
+                  className={cn(
+                    "flex items-center gap-2",
+                    isRuleSetListCollapsed && "xl:w-full xl:flex-col",
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="hidden h-10 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-white xl:inline-flex"
+                    onClick={() => setIsRuleSetListCollapsed((current) => !current)}
+                    aria-label={isRuleSetListCollapsed ? "Expand rule sets" : "Collapse rule sets"}
+                  >
+                    {isRuleSetListCollapsed ? (
+                      <ChevronsRight className="h-4 w-4" />
+                    ) : (
+                      <ChevronsLeft className="h-4 w-4" />
+                    )}
+                    <span className={cn(isRuleSetListCollapsed && "xl:hidden")}>
+                      Collapse
+                    </span>
+                  </button>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600",
+                      isRuleSetListCollapsed && "xl:hidden",
+                    )}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    Admin-Finance only
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-3">
+              <div className={cn("space-y-3", isRuleSetListCollapsed && "xl:hidden")}>
                 {ruleSets.length > 0 ? (
                   ruleSets.map((ruleSet) => {
                     const active = ruleSet.id === selectedRuleSetSummary?.id;
@@ -921,11 +1025,14 @@ export function GovernmentDeductionSettings() {
                   </div>
 
                   <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/60 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="max-w-3xl">
                         <h4 className="text-sm font-semibold text-slate-950">Test calculation</h4>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Preview how the selected rule set computes mandatory deductions.
+                        <p className="mt-1 text-sm text-slate-600">
+                          Use this preview to validate the deduction rule you are currently editing before saving or activating it.
+                        </p>
+                        <p className="mt-2 text-xs text-slate-500">
+                          This tool uses the values currently entered in the open rule form, including any unsaved changes to brackets, rates, caps, ratios, and thresholds.
                         </p>
                       </div>
                       <button
@@ -939,30 +1046,134 @@ export function GovernmentDeductionSettings() {
                       </button>
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
-                      <LabeledInput label="Monthly salary" value={testInputs.monthly_salary} onChange={(value) => setTestInputs((current) => ({ ...current, monthly_salary: value }))} />
-                      <LabeledInput label="Gross pay" value={testInputs.gross_pay} onChange={(value) => setTestInputs((current) => ({ ...current, gross_pay: value }))} />
-                      <LabeledInput label="Pay frequency" value={testInputs.pay_frequency} onChange={(value) => setTestInputs((current) => ({ ...current, pay_frequency: value }))} />
+                    <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                      This preview uses the values currently entered in this rule. Change the rule inputs above, then click `Test calculate` again to refresh the result.
                     </div>
 
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      Employer Share is the company contribution shown for visibility and costing purposes. It is not deducted from the employee&apos;s net pay unless a deduction type specifically requires it.
+                    </div>
+
+                    <details className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-slate-950">
+                        <Info className="h-4 w-4 text-slate-500" />
+                        How this test works
+                      </summary>
+                      <div className="mt-3 space-y-2 text-sm text-slate-600">
+                        <p>The preview reads the deduction values currently entered on this page. It does not save anything automatically.</p>
+                        <p>Monthly Salary is the main preview input. Gross Pay is auto-computed from the selected Pay Frequency before the deduction test runs.</p>
+                        <p>Employee Deduction is the amount that affects employee pay. Employer Share is the company obligation shown for costing and remittance visibility.</p>
+                        <p>This helps payroll admins verify bracket setup, rates, caps, thresholds, ratios, and tax tables before saving the rule.</p>
+                      </div>
+                    </details>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <LabeledCurrencyInput
+                        label="Monthly salary"
+                        value={testInputs.monthly_salary}
+                        onChange={(value) => updateTestInputs({ monthly_salary: value })}
+                        placeholder="Enter monthly salary"
+                        helperText="Monthly Salary is the main input for this preview."
+                      />
+                      <LabeledCurrencyInput
+                        label="Gross pay"
+                        value={grossPayAutoComputed}
+                        onChange={() => undefined}
+                        readOnly
+                        placeholder="Auto-calculated"
+                        helperText="Gross Pay is automatically computed from Monthly Salary and Pay Frequency."
+                        statusBadge="Auto-calculated"
+                      />
+                      <LabeledSelect
+                        label="Pay frequency"
+                        value={testInputs.pay_frequency}
+                        onChange={(value) => updateTestInputs({ pay_frequency: value })}
+                        options={PAY_FREQUENCY_OPTIONS.map((option) => ({
+                          value: option.value,
+                          label: option.label,
+                        }))}
+                        helperText={getPayFrequencyExplanation(
+                          testInputs.pay_frequency,
+                          testInputs.monthly_salary,
+                          grossPayAutoComputed,
+                        )}
+                      />
+                    </div>
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      Results may change depending on monthly salary, pay frequency, the auto-computed gross pay, and the current rule setup entered above.
+                    </p>
+
                     {testResult ? (
-                      <div className="mt-4 space-y-3">
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <MetricInline label="Taxable income" value={formatCurrency(testResult.taxable_income)} />
-                          <MetricInline label="Employee deductions" value={formatCurrency(testResult.total_employee_deductions)} />
-                          <MetricInline label="Employer share" value={formatCurrency(testResult.total_employer_contributions)} />
+                      <div className="mt-5 space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          <MetricInline
+                            label="Monthly Salary"
+                            value={formatOptionalCurrency(testInputs.monthly_salary)}
+                          />
+                          <MetricInline
+                            label="Gross Pay Used"
+                            value={formatOptionalCurrency(grossPayAutoComputed)}
+                          />
+                          <MetricInline
+                            label="Pay Frequency"
+                            value={pretty(testInputs.pay_frequency)}
+                          />
+                          <MetricInline label="Gross Pay Source" value="Auto-computed" />
+                          <MetricInline label="Salary Basis Used" value={summarizePreviewBasis(testResult.items)} />
+                          <MetricInline label="Taxable Income Used" value={formatCurrency(testResult.taxable_income)} />
+                          <MetricInline label="Employee Deductions Total" value={formatCurrency(testResult.total_employee_deductions)} />
+                          <MetricInline label="Employer Share Total" value={formatCurrency(testResult.total_employer_contributions)} />
+                          <MetricInline label="Net Effect on Employee" value={formatCurrency(testResult.total_employee_deductions)} />
+                          <MetricInline label="Estimated Total Employer Obligation" value={formatCurrency(testResult.total_employer_contributions)} />
                         </div>
-                        <div className="space-y-2">
+
+                        <div className="space-y-3">
                           {testResult.items.map((item) => (
-                            <div key={item.deduction_code} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-950">{item.deduction_name}</p>
-                                <p className="mt-1 text-xs text-slate-500">Basis {formatCurrency(item.basis_amount)}</p>
+                            <div key={item.deduction_code} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-950">{item.deduction_name}</p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {getPreviewBasisLabel(item)}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {getPreviewItemExplanation(item)}
+                                  </p>
+                                </div>
+                                <span className="ui-badge bg-slate-100 text-slate-700">
+                                  Total Contribution {formatCurrency(item.total_remittance)}
+                                </span>
                               </div>
-                              <div className="text-right text-sm">
-                                <p className="font-semibold text-slate-950">Emp {formatCurrency(item.employee_share)}</p>
-                                <p className="mt-1 text-slate-500">Er {formatCurrency(item.employer_share)}</p>
+
+                              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                <MetricInline label="Basis Used" value={formatCurrency(item.basis_amount)} />
+                                <MetricInline label="Employee Deduction" value={formatCurrency(item.employee_share)} />
+                                <MetricInline label="Employer Share" value={formatCurrency(item.employer_share)} />
+                                <MetricInline
+                                  label="Employer Obligation"
+                                  value={formatCurrency(item.total_employer_obligation)}
+                                />
                               </div>
+
+                              {item.employer_ec !== "0.00" || item.monthly_salary_credit ? (
+                                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                                  {item.monthly_salary_credit ? (
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                                      MSC basis {formatCurrency(item.monthly_salary_credit)}
+                                    </span>
+                                  ) : null}
+                                  {item.employer_ec !== "0.00" ? (
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                                      EC {formatCurrency(item.employer_ec)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : null}
+
+                              <p className="mt-3 text-xs text-slate-500">
+                                Employer Share is shown for reference and company costing. It does not reduce employee net pay by itself.
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -977,6 +1188,167 @@ export function GovernmentDeductionSettings() {
       </SectionCard>
     </div>
   );
+}
+
+function validateTestCalculationInputs(
+  draft: RuleSetDraft,
+  testInputs: TestInputs,
+  types: GovernmentDeductionTypeRecord[],
+): string | null {
+  if (!testInputs.monthly_salary.trim()) {
+    return "Please enter a sample monthly salary to continue.";
+  }
+
+  const monthlySalary = Number(testInputs.monthly_salary);
+  const grossPay = Number(testInputs.gross_pay);
+  if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) {
+    return "Please enter a valid monthly salary greater than zero.";
+  }
+  if (!Number.isFinite(grossPay) || grossPay <= 0) {
+    return "Gross pay could not be computed yet. Check the monthly salary and pay frequency values.";
+  }
+
+  const missingBracketType = types.find(
+    (type) =>
+      type.calculation_method === "bracket" &&
+      !draft.brackets.some((item) => item.deduction_type_code === type.code),
+  );
+  if (missingBracketType) {
+    return `Please add at least one valid bracket row for ${missingBracketType.name}.`;
+  }
+
+  return null;
+}
+
+function computePreviewGrossPay(monthlySalaryValue: string, payFrequency: string) {
+  const monthlySalary = Number(monthlySalaryValue);
+  if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) {
+    return "";
+  }
+
+  let grossPay = monthlySalary;
+  if (payFrequency === "semi_monthly") {
+    grossPay = monthlySalary / 2;
+  } else if (payFrequency === "bi_weekly") {
+    grossPay = (monthlySalary * 12) / 26;
+  } else if (payFrequency === "weekly") {
+    grossPay = (monthlySalary * 12) / 52;
+  }
+
+  return grossPay.toFixed(2);
+}
+
+function sanitizeCurrencyInput(value: string) {
+  const digitsOnly = value.replace(/[^\d.]/g, "");
+  const [integerPart = "", ...fractionParts] = digitsOnly.split(".");
+  const fractionPart = fractionParts.join("").slice(0, 2);
+
+  if (digitsOnly.includes(".")) {
+    const safeIntegerPart = integerPart.length > 0 ? integerPart : "0";
+    return `${safeIntegerPart}.${fractionPart}`;
+  }
+
+  return integerPart;
+}
+
+function formatPesoInputValue(value: string) {
+  if (!value.trim()) {
+    return "";
+  }
+
+  return formatCurrency(value);
+}
+
+function formatOptionalCurrency(value: string | number) {
+  const normalized = typeof value === "number" ? String(value) : value;
+  return normalized && Number(normalized) > 0 ? formatCurrency(normalized) : "--";
+}
+
+function getPayFrequencyExplanation(
+  payFrequency: string,
+  monthlySalaryValue: string,
+  grossPayValue: string,
+) {
+  const formattedGrossPay = formatOptionalCurrency(grossPayValue);
+
+  if (payFrequency === "monthly") {
+    return monthlySalaryValue.trim()
+      ? `Gross Pay = Monthly Salary. Current preview uses ${formattedGrossPay}.`
+      : "Gross Pay = Monthly Salary for monthly payroll.";
+  }
+
+  if (payFrequency === "semi_monthly") {
+    return monthlySalaryValue.trim()
+      ? `Gross Pay = Monthly Salary / 2. Current preview uses ${formattedGrossPay}.`
+      : "Gross Pay = Monthly Salary / 2 for semi-monthly payroll.";
+  }
+
+  if (payFrequency === "bi_weekly") {
+    return monthlySalaryValue.trim()
+      ? `Gross Pay = (Monthly Salary x 12) / 26. Current preview uses ${formattedGrossPay}.`
+      : "Gross Pay = (Monthly Salary x 12) / 26 for bi-weekly payroll.";
+  }
+
+  if (payFrequency === "weekly") {
+    return monthlySalaryValue.trim()
+      ? `Gross Pay = (Monthly Salary x 12) / 52. Current preview uses ${formattedGrossPay}.`
+      : "Gross Pay = (Monthly Salary x 12) / 52 for weekly payroll.";
+  }
+
+  return "Gross Pay changes based on the selected pay frequency.";
+}
+
+function summarizePreviewBasis(items: GovernmentDeductionTestCalculationRecord["items"]) {
+  const basisLabels = Array.from(
+    new Set(
+      items
+        .map((item) => String(item.config_snapshot.based_on ?? "").trim())
+        .filter(Boolean)
+        .map(pretty),
+    ),
+  );
+
+  if (basisLabels.length === 0) {
+    return "Current rule inputs";
+  }
+
+  return basisLabels.join(", ");
+}
+
+function getPreviewBasisLabel(item: GovernmentDeductionTestCalculationRecord["items"][number]) {
+  if (item.deduction_code === "SSS") {
+    return item.monthly_salary_credit
+      ? `SSS Basis: MSC ${formatCurrency(item.monthly_salary_credit)} matched from the current salary range table.`
+      : `SSS Basis: Salary range lookup using the current SSS bracket rows.`;
+  }
+
+  if (item.deduction_code === "PHILHEALTH") {
+    return `PhilHealth Basis: Monthly salary after current floor, ceiling, cap, and ratio settings.`;
+  }
+
+  if (item.deduction_code === "PAGIBIG") {
+    return `Pag-IBIG Basis: Compensation basis after the current threshold, cap, and bracket setup.`;
+  }
+
+  if (item.deduction_code === "WITHHOLDING_TAX") {
+    return `Withholding Tax Basis: Taxable income after applicable pre-tax deductions using the current tax table.`;
+  }
+
+  return `Basis used: ${formatCurrency(item.basis_amount)}.`;
+}
+
+function getPreviewItemExplanation(
+  item: GovernmentDeductionTestCalculationRecord["items"][number],
+) {
+  if (item.deduction_code === "WITHHOLDING_TAX") {
+    return "This affects employee pay only. Employer share is reference-only here because withholding tax is not a company contribution.";
+  }
+
+  if (item.deduction_code === "SSS") {
+    return "Employee Deduction affects the employee pay. Employer Share and EC show the company’s remittance obligation for SSS.";
+  }
+
+  return "Employee Deduction affects employee pay. Employer Share is shown for company costing and remittance visibility.";
 }
 
 function buildEmptyRuleSetDraft(types: GovernmentDeductionTypeRecord[]): RuleSetDraft {
@@ -1018,7 +1390,7 @@ function buildLatestPhilippineRuleSetDraft(
         fixed_employee_amount: "",
         fixed_employer_amount: "",
         formula_expression: "",
-        priority_order: String(index + 1),
+        priority_order: "3",
       } satisfies ConfigDraft;
     }
 
@@ -1100,6 +1472,7 @@ function buildLatestPhilippineRuleSetDraft(
       "Preset based on the latest official Philippine SSS, PhilHealth, Pag-IBIG, and withholding tax rules verified on April 4, 2026. Review before activation.",
     configs,
     brackets: [
+      ...buildLatestPhilippineSssEmployerEmployeeBrackets(),
       {
         id: "pagibig-1",
         deduction_type_code: "PAGIBIG",
@@ -1273,6 +1646,83 @@ function buildLatestPhilippineRuleSetDraft(
       },
     ],
   };
+}
+
+function buildLatestPhilippineSssEmployerEmployeeBrackets(): BracketDraft[] {
+  const brackets: BracketDraft[] = [
+    buildSssBracketDraft({
+      sequence: 1,
+      minSalary: "0",
+      maxSalary: "5249.99",
+      monthlySalaryCredit: "5000",
+    }),
+  ];
+
+  let sequence = 2;
+  for (let monthlySalaryCredit = 5500; monthlySalaryCredit < 35000; monthlySalaryCredit += 500) {
+    const minSalary = monthlySalaryCredit - 250;
+    const maxSalary = monthlySalaryCredit + 249.99;
+
+    brackets.push(
+      buildSssBracketDraft({
+        sequence,
+        minSalary: formatSssMoney(minSalary),
+        maxSalary: formatSssMoney(maxSalary),
+        monthlySalaryCredit: formatSssMoney(monthlySalaryCredit),
+      }),
+    );
+    sequence += 1;
+  }
+
+  brackets.push(
+    buildSssBracketDraft({
+      sequence,
+      minSalary: "34750",
+      maxSalary: "",
+      monthlySalaryCredit: "35000",
+    }),
+  );
+
+  return brackets;
+}
+
+function buildSssBracketDraft({
+  sequence,
+  minSalary,
+  maxSalary,
+  monthlySalaryCredit,
+}: {
+  sequence: number;
+  minSalary: string;
+  maxSalary: string;
+  monthlySalaryCredit: string;
+}): BracketDraft {
+  const msc = Number(monthlySalaryCredit);
+
+  return {
+    id: `sss-${sequence}`,
+    deduction_type_code: "SSS",
+    min_salary: minSalary,
+    max_salary: maxSalary,
+    base_amount_employee: "",
+    base_amount_employer: "",
+    fixed_employee_amount: formatSssMoney(msc * 0.05),
+    fixed_employer_amount: formatSssMoney(msc * 0.1),
+    rate_employee: "",
+    rate_employer: "",
+    min_contribution: "",
+    max_contribution: "",
+    base_tax: "",
+    excess_over: "",
+    percent_over_excess: "",
+    reference_value: monthlySalaryCredit,
+    sequence: String(sequence),
+  };
+}
+
+function formatSssMoney(value: number): string {
+  const normalized = value.toFixed(2);
+  return normalized.endsWith(".00") ? normalized.slice(0, -3) : normalized;
 }
 
 function buildEmptyConfigDraft(deductionTypeCode: string, index: number): ConfigDraft {
@@ -1599,6 +2049,107 @@ function LabeledInput({
         disabled={disabled}
         className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 disabled:bg-slate-100"
       />
+    </div>
+  );
+}
+
+function LabeledCurrencyInput({
+  label,
+  value,
+  onChange,
+  disabled = false,
+  readOnly = false,
+  placeholder,
+  helperText,
+  statusBadge,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  readOnly?: boolean;
+  placeholder?: string;
+  helperText?: string;
+  statusBadge?: string;
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+  const displayValue = isFocused || !value.trim() ? value : formatPesoInputValue(value);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {label}
+        </label>
+        {statusBadge ? (
+          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700">
+            {statusBadge}
+          </span>
+        ) : null}
+      </div>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={displayValue}
+        onChange={(event) => {
+          if (readOnly) {
+            return;
+          }
+          onChange(sanitizeCurrencyInput(event.target.value));
+        }}
+        onFocus={() => {
+          if (!readOnly) {
+            setIsFocused(true);
+          }
+        }}
+        onBlur={() => setIsFocused(false)}
+        disabled={disabled}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 disabled:bg-slate-100 read-only:cursor-default read-only:bg-slate-100 read-only:text-slate-700"
+      />
+      {helperText ? (
+        <p className="mt-2 text-xs text-slate-500">{helperText}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function LabeledSelect({
+  label,
+  value,
+  onChange,
+  options,
+  disabled = false,
+  helperText,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  disabled?: boolean;
+  helperText?: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 disabled:bg-slate-100"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {helperText ? (
+        <p className="mt-2 text-xs text-slate-500">{helperText}</p>
+      ) : null}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import {
   normalizeAppRole,
   type AppRole,
 } from "@/lib/auth/session";
-import { getAuthUserFromAccessToken } from "@/lib/auth/token";
+import { getAuthUserFromAccessToken, isAccessTokenExpired } from "@/lib/auth/token";
 
 export type ServerAuthSession = {
   isAuthenticated: boolean;
@@ -17,15 +17,19 @@ export type ServerAuthSession = {
 export async function getServerAuthSession(): Promise<ServerAuthSession> {
   const cookieStore = await cookies();
   const authToken = cookieStore.get(AUTH_TOKEN_COOKIE)?.value;
+  const hasValidToken = Boolean(authToken) && !isAccessTokenExpired(authToken);
   const tokenUser = authToken
+    && hasValidToken
     ? getAuthUserFromAccessToken(authToken)
     : { username: null, role: null };
   const role =
-    normalizeAppRole(cookieStore.get(AUTH_ROLE_COOKIE)?.value) ??
+    (hasValidToken
+      ? normalizeAppRole(cookieStore.get(AUTH_ROLE_COOKIE)?.value)
+      : null) ??
     normalizeAppRole(tokenUser.role);
 
   return {
-    isAuthenticated: Boolean(authToken),
+    isAuthenticated: hasValidToken,
     role,
     username: tokenUser.username,
     displayRole: tokenUser.role,

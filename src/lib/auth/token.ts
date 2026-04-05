@@ -1,6 +1,7 @@
 import { normalizeAppRole, type AppRole } from "@/lib/auth/session";
 
 type JwtPayload = {
+  exp?: number;
   role?: string;
   username?: string;
 };
@@ -9,6 +10,12 @@ function decodeBase64UrlSegment(value: string) {
   const normalizedValue = value.replace(/-/g, "+").replace(/_/g, "/");
   const paddingLength = (4 - (normalizedValue.length % 4)) % 4;
   const paddedValue = normalizedValue + "=".repeat(paddingLength);
+
+  if (typeof globalThis.atob === "function") {
+    const binaryValue = globalThis.atob(paddedValue);
+    const bytes = Uint8Array.from(binaryValue, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
 
   return Buffer.from(paddedValue, "base64").toString("utf-8");
 }
@@ -43,6 +50,26 @@ export function getAuthUserFromAccessToken(token: string) {
         ? payload.role.trim()
         : null,
   };
+}
+
+export function getAccessTokenExpirationTime(token: string) {
+  const payload = getAccessTokenPayload(token);
+
+  if (!payload || typeof payload.exp !== "number") {
+    return null;
+  }
+
+  return payload.exp * 1000;
+}
+
+export function isAccessTokenExpired(token: string, now = Date.now()) {
+  const expirationTime = getAccessTokenExpirationTime(token);
+
+  if (expirationTime == null) {
+    return true;
+  }
+
+  return expirationTime <= now;
 }
 
 function getAccessTokenPayload(token: string): JwtPayload | null {

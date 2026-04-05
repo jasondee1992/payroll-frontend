@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { clearAuthCookies } from "@/lib/auth/route-auth";
 import {
   AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
@@ -10,6 +11,7 @@ import {
   isProtectedPath,
   normalizeAppRole,
 } from "@/lib/auth/session";
+import { isAccessTokenExpired } from "@/lib/auth/token";
 
 const EMPLOYEE_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
@@ -45,11 +47,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hasAuthToken = Boolean(request.cookies.get(AUTH_TOKEN_COOKIE)?.value);
+  const authToken = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
+  const hasAuthToken = Boolean(authToken) && !isAccessTokenExpired(authToken);
+  const hasExpiredAuthToken = Boolean(authToken) && !hasAuthToken;
   const rawUserRole = request.cookies.get(AUTH_ROLE_COOKIE)?.value?.trim().toLowerCase();
   const userRole = normalizeAppRole(rawUserRole);
   const passwordChangeRequired =
     request.cookies.get(PASSWORD_CHANGE_REQUIRED_COOKIE)?.value === "1";
+
+  if (pathname === "/login" && hasExpiredAuthToken) {
+    const response = NextResponse.next();
+    clearAuthCookies(response);
+    return response;
+  }
 
   if (pathname === "/login" && hasAuthToken) {
     const redirectTarget = passwordChangeRequired
@@ -86,7 +96,11 @@ export function middleware(request: NextRequest) {
       loginUrl.searchParams.set("next", `${pathname}${search}`);
     }
 
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    if (hasExpiredAuthToken) {
+      clearAuthCookies(response);
+    }
+    return response;
   }
 
   if (hasAuthToken && passwordChangeRequired && isProtectedPath(pathname)) {

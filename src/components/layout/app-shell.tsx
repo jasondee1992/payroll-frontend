@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { SessionActivityManager } from "@/components/auth/session-activity-manager";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { getActiveNavigationItem, type NavigationRole } from "@/config/navigation";
@@ -54,6 +55,8 @@ export function AppShell({
 
   return (
     <div className="min-h-screen text-slate-900">
+      <SessionActivityManager />
+
       <div
         className={cn(
           "fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-sm transition-opacity lg:hidden",

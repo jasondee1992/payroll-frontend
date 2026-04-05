@@ -67,6 +67,14 @@ function parseOptionalNumber(value: unknown, label: string) {
   return parseNumber(value, label);
 }
 
+function parseOptionalRecord(value: unknown, label: string) {
+  if (value == null) {
+    return null;
+  }
+
+  return parseRecord(value, label);
+}
+
 function parseOptionalNumericString(value: unknown, label: string) {
   return parseNumericString(value, label, { optional: true }) ?? null;
 }
@@ -767,7 +775,24 @@ export function parseGovernmentDeductionTestResultItemRecord(
     basis_amount: parseNumericString(record.basis_amount, "governmentDeductionTestItem.basis_amount"),
     employee_share: parseNumericString(record.employee_share, "governmentDeductionTestItem.employee_share"),
     employer_share: parseNumericString(record.employer_share, "governmentDeductionTestItem.employer_share"),
+    employer_ec: parseNumericString(record.employer_ec ?? "0", "governmentDeductionTestItem.employer_ec"),
+    total_employer_obligation: parseNumericString(
+      record.total_employer_obligation ?? record.employer_share ?? "0",
+      "governmentDeductionTestItem.total_employer_obligation",
+    ),
+    total_remittance: parseNumericString(
+      record.total_remittance ?? "0",
+      "governmentDeductionTestItem.total_remittance",
+    ),
+    monthly_salary_credit: parseOptionalNumericString(
+      record.monthly_salary_credit,
+      "governmentDeductionTestItem.monthly_salary_credit",
+    ),
     bracket_id_used: parseOptionalNumber(record.bracket_id_used, "governmentDeductionTestItem.bracket_id_used"),
+    config_snapshot: parseOptionalRecord(
+      record.config_snapshot,
+      "governmentDeductionTestItem.config_snapshot",
+    ) ?? {},
   };
 }
 
@@ -777,7 +802,8 @@ export function parseGovernmentDeductionTestCalculationRecord(
   const record = parseRecord(value, "government deduction test calculation");
 
   return {
-    rule_set_id: parseNumber(record.rule_set_id, "governmentDeductionTest.rule_set_id"),
+    rule_set_id: parseOptionalNumber(record.rule_set_id, "governmentDeductionTest.rule_set_id"),
+    rule_set_name: parseOptionalString(record.rule_set_name, "governmentDeductionTest.rule_set_name"),
     taxable_income: parseNumericString(record.taxable_income, "governmentDeductionTest.taxable_income"),
     total_employee_deductions: parseNumericString(
       record.total_employee_deductions,
@@ -1157,11 +1183,14 @@ export async function deleteGovernmentDeductionRuleSet(ruleSetId: number) {
 }
 
 export async function testGovernmentDeductionCalculation(payload: {
-  rule_set_id: number;
+  rule_set_id?: number | null;
+  rule_set_name?: string | null;
   monthly_salary: number;
   gross_pay: number;
   pay_frequency: string;
   taxable_income?: number;
+  configs?: GovernmentDeductionTypeConfigInputPayload[];
+  brackets?: GovernmentDeductionBracketInputPayload[];
 }) {
   return requestPayrollProxy("/settings/test-calculate", {
     method: "POST",
