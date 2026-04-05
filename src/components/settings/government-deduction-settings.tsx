@@ -219,6 +219,10 @@ export function GovernmentDeductionSettings() {
     ruleSets.find((item) => item.id === selectedRuleSetId) ?? null;
   const canEditRuleSet = draft != null && draft.status !== "archived";
   const activeRuleSetCount = ruleSets.filter((item) => item.status === "active").length;
+  const overlappingActiveRuleSet = useMemo(
+    () => (draft ? findOverlappingActiveRuleSet(draft, ruleSets) : null),
+    [draft, ruleSets],
+  );
 
   const sortedTypes = useMemo(() => {
     return [...types].sort(
@@ -322,6 +326,34 @@ export function GovernmentDeductionSettings() {
         nextError instanceof Error
           ? nextError.message
           : "Unable to activate the deduction rule set.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleArchiveAndActivateRuleSet() {
+    if (!draft?.id || !overlappingActiveRuleSet) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await archiveGovernmentDeductionRuleSet(overlappingActiveRuleSet.id);
+      const detail = await activateGovernmentDeductionRuleSet(draft.id);
+      setDraft(buildDraftFromDetail(detail, types));
+      setMessage(
+        `${overlappingActiveRuleSet.name} was archived and ${detail.name} is now the active government deduction rule set.`,
+      );
+      await loadOverview(detail.id);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to archive the current active rule set and activate this one.",
       );
     } finally {
       setSaving(false);
@@ -867,7 +899,7 @@ export function GovernmentDeductionSettings() {
                           type="button"
                           className="ui-button-primary gap-2"
                           onClick={() => void handleActivateRuleSet()}
-                          disabled={saving}
+                          disabled={saving || overlappingActiveRuleSet != null}
                         >
                           <Send className="h-4 w-4" />
                           Activate
@@ -899,6 +931,29 @@ export function GovernmentDeductionSettings() {
                       onChange={(value) => setDraft((current) => current ? { ...current, effective_to: value } : current)}
                     />
                   </div>
+
+                  {overlappingActiveRuleSet ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <p className="max-w-3xl">
+                          This rule set overlaps with the active rule set{" "}
+                          <span className="font-semibold">{overlappingActiveRuleSet.name}</span>.
+                          Archive the active rule set first or change the effective date range before activating this one.
+                        </p>
+                        {draft.id && draft.status === "draft" ? (
+                          <button
+                            type="button"
+                            className="ui-button-secondary gap-2 border-amber-300 bg-white text-amber-900 hover:border-amber-400"
+                            onClick={() => void handleArchiveAndActivateRuleSet()}
+                            disabled={saving}
+                          >
+                            <RefreshCcw className="h-4 w-4" />
+                            Archive current active and activate this rule
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -1299,6 +1354,38 @@ function sumPreviewAmounts(
 ) {
   const total = items.reduce((runningTotal, item) => runningTotal + Number(item[field] || 0), 0);
   return total.toFixed(2);
+}
+
+function findOverlappingActiveRuleSet(
+  draft: RuleSetDraft,
+  ruleSets: GovernmentDeductionRuleSetSummaryRecord[],
+) {
+  if (!draft.effective_from) {
+    return null;
+  }
+
+  const draftStart = new Date(`${draft.effective_from}T00:00:00`);
+  const draftEnd = draft.effective_to
+    ? new Date(`${draft.effective_to}T23:59:59`)
+    : new Date("9999-12-31T23:59:59");
+
+  return (
+    ruleSets.find((ruleSet) => {
+      if (ruleSet.status !== "active") {
+        return false;
+      }
+      if (draft.id && ruleSet.id === draft.id) {
+        return false;
+      }
+
+      const activeStart = new Date(`${ruleSet.effective_from}T00:00:00`);
+      const activeEnd = ruleSet.effective_to
+        ? new Date(`${ruleSet.effective_to}T23:59:59`)
+        : new Date("9999-12-31T23:59:59");
+
+      return activeStart <= draftEnd && activeEnd >= draftStart;
+    }) ?? null
+  );
 }
 
 function describeConversionRule(rule: string) {
