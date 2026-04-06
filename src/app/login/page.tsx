@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { Building2 } from "lucide-react";
 import { LoginBackendStatusCard } from "@/components/auth/login-backend-status-card";
@@ -39,6 +40,15 @@ export default function LoginPage() {
           </Suspense>
 
           <LoginBackendStatusCard />
+
+          <div className="mt-6 border-t border-slate-200/70 pt-5 text-center">
+            <Link
+              href="/docs"
+              className="text-sm font-medium text-slate-600 transition hover:text-slate-900"
+            >
+              View public payroll system documentation
+            </Link>
+          </div>
         </div>
       </section>
     </main>
