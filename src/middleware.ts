@@ -19,7 +19,6 @@ const EMPLOYEE_ALLOWED_PATHS = new Set<string>([
   "/leave-requests",
   "/payslips",
 ]);
-const ADMIN_FINANCE_BLOCKED_PATHS = new Set<string>(["/employees"]);
 const SYSTEM_ADMIN_ALLOWED_PATHS = new Set<string>(["/employees", "/settings"]);
 const HR_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
@@ -29,6 +28,13 @@ const HR_ALLOWED_PATHS = new Set<string>([
   "/settings",
 ]);
 const FINANCE_ALLOWED_PATHS = new Set<string>([
+  "/dashboard",
+  "/attendance",
+  "/leave-requests",
+  "/payroll",
+  "/payslips",
+]);
+const ADMIN_FINANCE_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
   "/attendance",
   "/leave-requests",
@@ -120,15 +126,6 @@ export function middleware(request: NextRequest) {
 
   if (
     hasAuthToken &&
-    userRole === "admin-finance" &&
-    isProtectedPath(pathname) &&
-    isAdminFinanceBlockedPath(pathname)
-  ) {
-    return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
-  }
-
-  if (
-    hasAuthToken &&
     userRole === "employee" &&
     isProtectedPath(pathname) &&
     !isEmployeeAllowedPath(pathname)
@@ -150,6 +147,15 @@ export function middleware(request: NextRequest) {
     userRole === "finance" &&
     isProtectedPath(pathname) &&
     !isFinanceAllowedPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
+  }
+
+  if (
+    hasAuthToken &&
+    userRole === "admin-finance" &&
+    isProtectedPath(pathname) &&
+    !isAdminFinanceAllowedPath(pathname)
   ) {
     return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, request.url));
   }
@@ -189,16 +195,6 @@ function isSystemAdminAllowedPath(pathname: string) {
   return false;
 }
 
-function isAdminFinanceBlockedPath(pathname: string) {
-  for (const blockedPath of ADMIN_FINANCE_BLOCKED_PATHS) {
-    if (pathname === blockedPath || pathname.startsWith(`${blockedPath}/`)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function isHrAllowedPath(pathname: string) {
   for (const allowedPath of HR_ALLOWED_PATHS) {
     if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
@@ -210,6 +206,10 @@ function isHrAllowedPath(pathname: string) {
 }
 
 function isFinanceAllowedPath(pathname: string) {
+  if (isReadOnlyEmployeePath(pathname)) {
+    return true;
+  }
+
   for (const allowedPath of FINANCE_ALLOWED_PATHS) {
     if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
       return true;
@@ -217,4 +217,26 @@ function isFinanceAllowedPath(pathname: string) {
   }
 
   return false;
+}
+
+function isAdminFinanceAllowedPath(pathname: string) {
+  if (isReadOnlyEmployeePath(pathname)) {
+    return true;
+  }
+
+  for (const allowedPath of ADMIN_FINANCE_ALLOWED_PATHS) {
+    if (pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isReadOnlyEmployeePath(pathname: string) {
+  if (pathname === "/employees") {
+    return true;
+  }
+
+  return /^\/employees\/[^/]+$/.test(pathname);
 }

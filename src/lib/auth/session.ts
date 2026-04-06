@@ -26,6 +26,20 @@ const ATTENDANCE_UNLOCK_ROLES = new Set<AppRole>([
   "admin-finance",
   "finance",
 ]);
+const EMPLOYEE_VIEW_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "finance",
+  "hr",
+]);
+const EMPLOYEE_MANAGE_ROLES = new Set<AppRole>(["admin", "hr"]);
+const EMPLOYEE_LOAN_VIEW_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "finance",
+  "hr",
+]);
+const EMPLOYEE_LOAN_MANAGE_ROLES = new Set<AppRole>(["hr"]);
 const PAYROLL_VIEW_ROLES = new Set<AppRole>(["admin-finance", "finance"]);
 const PAYROLL_MANAGE_ROLES = new Set<AppRole>(["admin-finance"]);
 const PAYSLIP_VIEW_ROLES = new Set<AppRole>([
@@ -108,6 +122,22 @@ export function canDeleteAttendanceCutoffs(role: AppRole | null | undefined) {
 
 export function canUnlockAttendanceCutoffs(role: AppRole | null | undefined) {
   return role != null && ATTENDANCE_UNLOCK_ROLES.has(role);
+}
+
+export function canViewEmployees(role: AppRole | null | undefined) {
+  return role != null && EMPLOYEE_VIEW_ROLES.has(role);
+}
+
+export function canManageEmployees(role: AppRole | null | undefined) {
+  return role != null && EMPLOYEE_MANAGE_ROLES.has(role);
+}
+
+export function canViewEmployeeLoans(role: AppRole | null | undefined) {
+  return role != null && EMPLOYEE_LOAN_VIEW_ROLES.has(role);
+}
+
+export function canManageEmployeeLoans(role: AppRole | null | undefined) {
+  return role != null && EMPLOYEE_LOAN_MANAGE_ROLES.has(role);
 }
 
 export function canViewPayroll(role: AppRole | null | undefined) {

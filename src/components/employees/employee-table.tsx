@@ -15,13 +15,17 @@ import type { EmployeeListItem } from "@/types/employees";
 
 type EmployeeTableProps = {
   employees: EmployeeListItem[];
+  canManageEmployees?: boolean;
 };
 
-export function EmployeeTable({ employees }: EmployeeTableProps) {
+export function EmployeeTable({
+  employees,
+  canManageEmployees = false,
+}: EmployeeTableProps) {
   const router = useRouter();
 
   if (employees.length === 0) {
-    return <EmployeeEmptyState />;
+    return <EmployeeEmptyState canManageEmployees={canManageEmployees} />;
   }
 
   return (
@@ -127,18 +131,24 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
   );
 }
 
-function EmployeeEmptyState() {
+function EmployeeEmptyState({
+  canManageEmployees,
+}: {
+  canManageEmployees: boolean;
+}) {
   return (
     <ResourceEmptyState
       title="No employees found"
       description="When employee records are available, the directory table will appear here with search, filters, payroll metadata, and detail actions."
       action={
-        <Link
-          href="/employees/new"
-          className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
-        >
-          Add Employee
-        </Link>
+        canManageEmployees ? (
+          <Link
+            href="/employees/new"
+            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Add Employee
+          </Link>
+        ) : null
       }
     />
   );

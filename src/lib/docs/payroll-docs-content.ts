@@ -43,7 +43,7 @@ export const payrollDocsHighlights = [
   {
     label: "Primary Scope",
     value:
-      "Employee setup, attendance review, payroll computation, deductions, payslips, and reporting",
+      "Employee setup, attendance review, payroll computation, statutory and loan deductions, payslips, and reporting",
   },
   {
     label: "Computation Basis",
@@ -920,6 +920,139 @@ export const payrollDocsSections: DocsSection[] = [
     ],
     note:
       "Statutory deductions should be reviewed whenever government contribution rules, employer policy, or payroll settings change.",
+  },
+  {
+    id: "government-loan-management",
+    title: "Government Loan Management",
+    eyebrow: "Employee Loan Deductions",
+    summary:
+      "Government loan management covers HR-maintained employee loan records that payroll can deduct and track during payroll processing. The system uses encoded employer deduction details rather than rebuilding external amortization formulas from scratch.",
+    paragraphs: [
+      "This area is intended for government-related employee loans such as SSS or PAG-IBIG loan deductions that are already communicated to the employer. The system stores the loan configuration maintained by HR, then payroll applies those stored values when the selected cutoff becomes eligible for deduction.",
+      "The current implementation is designed around operational deduction tracking, not around re-deriving official loan computation formulas. HR encodes the deduction amount, start date, deduction schedule, term, and any tracked balance fields. Payroll then uses those encoded fields as the controlled source for loan deduction behavior.",
+      "Finance and Admin-Finance can review employee loan records and deduction progress in read-only form through employee record views where access is available. HR remains the only role allowed to create, edit, activate, stop, cancel, or manually complete employee loan records.",
+    ],
+    steps: [
+      {
+        title: "Select the supported loan type",
+        description:
+          "Choose the applicable government loan type from the configured list, such as SSS Salary Loan, SSS Calamity Loan, SSS Emergency Loan, PAG-IBIG Personal Loan, PAG-IBIG Emergency Loan, PAG-IBIG Calamity Loan, or PAG-IBIG Housing Loan.",
+      },
+      {
+        title: "Encode the employee loan setup",
+        description:
+          "HR records the provider, loan name, deduction start date, monthly deduction amount, term in months, deduction schedule, deduction mode, and optional tracked totals such as total loan amount or remaining balance.",
+      },
+      {
+        title: "Maintain the active loan state",
+        description:
+          "Only HR should activate, stop, cancel, complete, or otherwise update the employee loan record. Finance and Admin-Finance should review the record but not edit it.",
+      },
+      {
+        title: "Payroll checks cutoff eligibility",
+        description:
+          "During payroll calculation, the system loads only deductible employee loans and checks whether the cutoff qualifies based on the loan start date, deduction schedule, remaining terms, tracked balance, and loan status.",
+      },
+      {
+        title: "Post and record the deduction history",
+        description:
+          "Loan progress is finalized when payroll is posted. At that point, the system records the deduction history row, updates paid installment counts, updates total deducted amounts, and reduces remaining terms or tracked balance where applicable.",
+      },
+      {
+        title: "Stop deductions when the loan is no longer deductible",
+        description:
+          "Completed, stopped, and cancelled loans are ignored for future payroll runs. Loans also stop automatically when the tracked completion conditions are reached and auto-stop is enabled.",
+      },
+    ],
+    cards: [
+      {
+        title: "Supported Government Loan Types",
+        description:
+          "The current default loan-type seed covers the most common government-related employee loan deductions presently configured in the system.",
+        bullets: [
+          "SSS Salary Loan",
+          "SSS Calamity Loan",
+          "SSS Emergency Loan",
+          "PAG-IBIG Personal Loan",
+          "PAG-IBIG Emergency Loan",
+          "PAG-IBIG Calamity Loan",
+          "PAG-IBIG Housing Loan",
+        ],
+      },
+      {
+        title: "Deduction Start Date and Schedules",
+        description:
+          "A loan is only considered once its start date is already within or before the payroll cutoff being processed. Schedule settings then control which cutoff should carry the deduction.",
+        bullets: [
+          "first_cutoff means payroll should deduct on the first-half cutoff only.",
+          "second_cutoff means payroll should deduct on the second-half cutoff only.",
+          "every_cutoff means payroll may deduct on both cutoffs, subject to mode and remaining loan state.",
+        ],
+      },
+      {
+        title: "Deduction Modes",
+        description:
+          "The system currently supports fixed amount and split amount deduction modes for employer-maintained payroll deductions.",
+        bullets: [
+          "fixed_amount means payroll deducts the configured amount on the selected eligible cutoff.",
+          "split_amount is intended for every_cutoff scheduling and can split the monthly amount across both cutoffs when configured that way.",
+          "Validation prevents split_amount from being paired with an unsupported schedule or an invalid per-cutoff amount.",
+        ],
+      },
+      {
+        title: "Loan Completion Logic",
+        description:
+          "A loan can complete automatically when there are no remaining installments left, when a tracked remaining balance reaches zero, or when total deducted amount reaches a tracked total loan amount.",
+        bullets: [
+          "Auto-completion applies only when auto-stop is enabled for that loan record.",
+          "Completed loans no longer qualify for future payroll deductions.",
+          "Stopped and cancelled loans are also excluded from payroll deduction planning.",
+        ],
+      },
+    ],
+    table: {
+      columns: ["Topic", "Current behavior"],
+      rows: [
+        {
+          label: "HR editing responsibility",
+          values: [
+            "Only HR can create, edit, activate, stop, cancel, or manually complete employee government loan records.",
+          ],
+        },
+        {
+          label: "Finance / Admin-Finance visibility",
+          values: [
+            "Finance and Admin-Finance can review employee loan records, statuses, progress, and deduction history in read-only form where the current employee record views are available to them.",
+          ],
+        },
+        {
+          label: "Employee visibility",
+          values: [
+            "Employee self-service loan visibility should be treated as limited or future-state unless a dedicated employee portal view is explicitly implemented in the active deployment.",
+          ],
+        },
+        {
+          label: "Loan status visibility",
+          values: [
+            "Loan records may appear as draft, scheduled, active, completed, stopped, or cancelled so reviewers can distinguish upcoming deductions from historical or inactive records.",
+          ],
+        },
+        {
+          label: "Deduction history",
+          values: [
+            "Posted payroll deductions create loan deduction history records that show deduction date, batch linkage, installment number, and deducted amount for audit and reconciliation.",
+          ],
+        },
+        {
+          label: "Duplicate deduction safeguards",
+          values: [
+            "The system guards against duplicate deductions by preventing the same employee loan from being finalized more than once for the same payroll cutoff and by failing posting when a stale or duplicate loan deduction is detected.",
+          ],
+        },
+      ],
+    },
+    note:
+      "Government loan management is currently implemented as an HR-maintained payroll deduction workflow. Any broader employee self-service loan module, finance-wide standalone loan reporting page, or deeper remittance workflow should be documented separately as a future enhancement unless it is already live in the active deployment.",
   },
   {
     id: "payslips-and-reports",

@@ -46,7 +46,7 @@ const systemProcessSummary = [
 export const metadata: Metadata = {
   title: `${APP_NAME} Docs`,
   description:
-    "Public payroll system documentation covering employee setup, attendance, payroll policy logic, payroll processing, deductions, payslips, and roles.",
+    "Public payroll system documentation covering employee setup, attendance, payroll policy logic, payroll processing, statutory and government loan deductions, payslips, and roles.",
 };
 
 export const dynamic = "force-dynamic";
@@ -93,7 +93,7 @@ export default async function DocsPage() {
 
             <PageHeader
               title="Payroll System Documentation"
-              description="This guide explains how the payroll platform works from employee setup to attendance review, policy-driven payroll computation, government deductions, payslips, and role-based operational use."
+              description="This guide explains how the payroll platform works from employee setup to attendance review, policy-driven payroll computation, statutory and government loan deductions, payslips, and role-based operational use."
               eyebrow="Reference Guide"
             />
 

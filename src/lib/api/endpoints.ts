@@ -17,6 +17,16 @@ export const apiEndpoints = {
     salaryProfile: (employeeId: string) =>
       `${API_V1_PREFIX}/employees/${employeeId}/salary-profile`,
   },
+  employeeLoans: {
+    loanTypes: `${API_V1_PREFIX}/loan-types`,
+    list: (employeeId: string) => `${API_V1_PREFIX}/employees/${employeeId}/loans`,
+    detail: (employeeId: string, loanId: string) =>
+      `${API_V1_PREFIX}/employees/${employeeId}/loans/${loanId}`,
+    status: (employeeId: string, loanId: string) =>
+      `${API_V1_PREFIX}/employees/${employeeId}/loans/${loanId}/status`,
+    deductions: (employeeId: string, loanId: string) =>
+      `${API_V1_PREFIX}/employees/${employeeId}/loans/${loanId}/deductions`,
+  },
   attendance: {
     list: `${API_V1_PREFIX}/attendance`,
   },

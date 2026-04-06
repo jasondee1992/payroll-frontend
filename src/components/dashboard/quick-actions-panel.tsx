@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Calculator, Upload, UserPlus } from "lucide-react";
 import {
+  canManageEmployees,
   canManageAttendanceUploads,
   canManagePayroll,
   type AppRole,
@@ -21,6 +22,7 @@ const quickActions: QuickAction[] = [
     description: "Create a new employee record and begin payroll setup.",
     href: "/employees/new",
     icon: UserPlus,
+    isVisible: canManageEmployees,
   },
   {
     title: "Upload Attendance",

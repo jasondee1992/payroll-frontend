@@ -1,5 +1,9 @@
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/client";
 import {
+  getEmployeeLoansResource,
+  getLoanTypesResource,
+} from "@/lib/api/employee-loans";
+import {
   buildEmployeeFullName,
   getEmployeeGovernmentInfo,
   getEmployeeRecordsResource,
@@ -19,10 +23,15 @@ import {
 } from "@/lib/api/payroll";
 import { getUserRecordsResource } from "@/lib/api/users";
 import { formatCurrency, formatDate } from "@/lib/format";
+import type {
+  EmployeeLoanApiRecord,
+  LoanTypeApiRecord,
+} from "@/types/employee-loans";
 import type { EmployeeStatus } from "@/types/employees";
 
 export type EmployeeProfileData = {
   id: string;
+  employeeId: number;
   fullName: string;
   department: string;
   position: string;
@@ -47,6 +56,9 @@ export type EmployeeProfileData = {
     netPay: string;
     status: string;
   }>;
+  loanTypes: LoanTypeApiRecord[];
+  loans: EmployeeLoanApiRecord[];
+  loansErrorMessage: string | null;
 };
 
 type EmployeeProfileResource = {
@@ -118,13 +130,23 @@ export async function getEmployeeProfileResource(
     };
   }
 
-  const [usersResult, periodsResult, runsResult, governmentInfoRecord, salaryProfileRecord] =
+  const [
+    usersResult,
+    periodsResult,
+    runsResult,
+    governmentInfoRecord,
+    salaryProfileRecord,
+    loanTypesResult,
+    employeeLoansResult,
+  ] =
     await Promise.all([
       getUserRecordsResource(),
       getPayrollPeriodRecordsResource(),
       getPayrollRunRecordsResource(),
       loadOptionalResource(() => getEmployeeGovernmentInfo(String(employee.id))),
       loadOptionalResource(() => getEmployeeSalaryProfile(String(employee.id))),
+      getLoanTypesResource(),
+      getEmployeeLoansResource(String(employee.id)),
     ]);
   const [policyProfilesResult, payrollRulesResult] = await Promise.all([
     getPayrollPolicyProfilesResource(),
@@ -263,6 +285,7 @@ export async function getEmployeeProfileResource(
   return {
     data: {
       id: employee.employee_code,
+      employeeId: employee.id,
       fullName: buildEmployeeFullName(employee),
       department: employee.department,
       position: employee.position,
@@ -324,6 +347,10 @@ export async function getEmployeeProfileResource(
       payrollRuleSummary,
       payrollRulesErrorMessage: payrollRulesResult.errorMessage,
       payrollHistory,
+      loanTypes: loanTypesResult.data,
+      loans: employeeLoansResult.data,
+      loansErrorMessage:
+        loanTypesResult.errorMessage ?? employeeLoansResult.errorMessage,
     },
     errorMessage: null,
   };

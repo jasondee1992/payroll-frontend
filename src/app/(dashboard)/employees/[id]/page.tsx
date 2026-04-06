@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, PencilLine } from "lucide-react";
 import { EmployeeDetailGrid } from "@/components/employees/employee-detail-grid";
+import { EmployeeGovernmentLoansSection } from "@/components/employees/employee-government-loans-section";
 import { EmployeeDetailSection } from "@/components/employees/employee-detail-section";
 import { EmployeeDetailTabs } from "@/components/employees/employee-detail-tabs";
 import { EmployeePayrollHistoryTable } from "@/components/employees/employee-payroll-history-table";
@@ -12,6 +13,8 @@ import {
   ResourceErrorState,
 } from "@/components/shared/resource-state";
 import { getEmployeeProfileResource } from "@/lib/api/employee-details";
+import { getServerAuthSession } from "@/lib/auth/server-session";
+import { canManageEmployeeLoans, canManageEmployees } from "@/lib/auth/session";
 
 type EmployeeDetailPageProps = {
   params: Promise<{
@@ -25,7 +28,12 @@ export default async function EmployeeDetailPage({
   params,
 }: EmployeeDetailPageProps) {
   const { id } = await params;
-  const { data: employee, errorMessage } = await getEmployeeProfileResource(id);
+  const [{ data: employee, errorMessage }, authSession] = await Promise.all([
+    getEmployeeProfileResource(id),
+    getServerAuthSession(),
+  ]);
+  const canEditEmployee = canManageEmployees(authSession.role);
+  const canManageLoans = canManageEmployeeLoans(authSession.role);
 
   if (errorMessage || !employee) {
     return (
@@ -159,6 +167,20 @@ export default async function EmployeeDetailPage({
       ),
     },
     {
+      id: "government-loans",
+      label: "Government Loans",
+      content: (
+        <EmployeeGovernmentLoansSection
+          employeeId={employee.employeeId}
+          employeeCode={employee.id}
+          loanTypes={employee.loanTypes}
+          initialLoans={employee.loans}
+          initialErrorMessage={employee.loansErrorMessage}
+          canManage={canManageLoans}
+        />
+      ),
+    },
+    {
       id: "payroll-history",
       label: "Payroll History",
       content: (
@@ -191,10 +213,12 @@ export default async function EmployeeDetailPage({
               <ArrowLeft className="h-4 w-4" />
               Back to Employees
             </Link>
-            <Link href={`/employees/${id}/edit`} className="ui-button-primary gap-2">
-              <PencilLine className="h-4 w-4" />
-              Edit Employee
-            </Link>
+            {canEditEmployee ? (
+              <Link href={`/employees/${id}/edit`} className="ui-button-primary gap-2">
+                <PencilLine className="h-4 w-4" />
+                Edit Employee
+              </Link>
+            ) : null}
           </div>
         }
       />

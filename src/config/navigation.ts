@@ -34,7 +34,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/employees",
     description: "Workforce records, onboarding, and directory views.",
     icon: Users,
-    roles: ["admin", "hr", "system-admin"],
+    roles: ["admin", "admin-finance", "finance", "hr", "system-admin"],
   },
   {
     title: "Attendance",
