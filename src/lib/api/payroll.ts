@@ -1187,6 +1187,13 @@ export async function recalculatePayrollBatch(
   });
 }
 
+export async function discardPayrollBatch(batchId: number) {
+  return requestPayrollProxy(`/batches/${batchId}`, {
+    method: "DELETE",
+    parser: () => undefined,
+  });
+}
+
 export async function approvePayrollBatch(
   batchId: number,
   payload: PayrollBatchRemarksPayload = {},

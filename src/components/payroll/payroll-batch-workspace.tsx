@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calculator, CheckCircle2, ChevronDown, ChevronUp, RefreshCw, Send } from "lucide-react";
+import { Calculator, CheckCircle2, ChevronDown, ChevronUp, RefreshCw, Send, Trash2 } from "lucide-react";
 import { PayrollStatusBadge } from "@/components/payroll/payroll-status-badge";
 import {
   ResourceEmptyState,
@@ -11,6 +11,7 @@ import {
 import {
   approvePayrollBatch,
   calculatePayrollBatch,
+  discardPayrollBatch,
   getPayrollBatchDetail,
   getPayrollBatches,
   getPayrollCutoffPreviews,
@@ -227,7 +228,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
     }
   }
 
-  async function runAction(action: "calculate" | "recalculate" | "approve" | "post") {
+  async function runAction(action: "calculate" | "recalculate" | "approve" | "post" | "discard") {
     const currentBatch = batch;
     const currentBatchId = currentBatch?.id ?? null;
 
@@ -241,31 +242,58 @@ export function PayrollBatchWorkspace({ role }: Props) {
     if (action === "post" && !window.confirm("Post this payroll batch and release payslips?")) {
       return;
     }
+    if (
+      action === "discard" &&
+      !window.confirm(
+        "Discard this unposted payroll batch? This will remove the computed batch, employee records, and any unposted payslip rows for this cutoff.",
+      )
+    ) {
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setMessage(null);
     try {
-      const nextBatch =
-        action === "calculate"
-          ? await calculatePayrollBatch({ cutoffId: selectedCutoff.cutoff.id, remarks })
-          : action === "recalculate"
-            ? await recalculatePayrollBatch(ensuredBatchId, { remarks })
-            : action === "approve"
-              ? await approvePayrollBatch(ensuredBatchId, { remarks })
-              : await postPayrollBatch(ensuredBatchId, { remarks });
-      setBatch(nextBatch);
-      setBatchId(nextBatch.id);
-      setRemarks(nextBatch.remarks ?? remarks);
-      setMessage(
-        action === "calculate"
-          ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was calculated.`
-          : action === "recalculate"
-            ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was recalculated.`
-            : action === "approve"
-              ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was approved.`
-              : `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was posted.`
-      );
-      await loadOverview(nextBatch.id);
+      if (action === "discard") {
+        const discardedBatch = currentBatch;
+        await discardPayrollBatch(ensuredBatchId);
+        setBatch(null);
+        setBatchId(null);
+        setExpandedRecordIds([]);
+        setRecordReviewRemarks({});
+        setRemarks("");
+        if (discardedBatch != null) {
+          setCutoffId(discardedBatch.cutoff.id);
+          setMessage(
+            `Payroll batch for ${label(discardedBatch.cutoff.cutoff_start, discardedBatch.cutoff.cutoff_end)} was discarded.`,
+          );
+          await loadOverview(null);
+        } else {
+          await loadOverview(null);
+        }
+      } else {
+        const nextBatch =
+          action === "calculate"
+            ? await calculatePayrollBatch({ cutoffId: selectedCutoff.cutoff.id, remarks })
+            : action === "recalculate"
+              ? await recalculatePayrollBatch(ensuredBatchId, { remarks })
+              : action === "approve"
+                ? await approvePayrollBatch(ensuredBatchId, { remarks })
+                : await postPayrollBatch(ensuredBatchId, { remarks });
+        setBatch(nextBatch);
+        setBatchId(nextBatch.id);
+        setRemarks(nextBatch.remarks ?? remarks);
+        setMessage(
+          action === "calculate"
+            ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was calculated.`
+            : action === "recalculate"
+              ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was recalculated.`
+              : action === "approve"
+                ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was approved.`
+                : `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was posted.`
+        );
+        await loadOverview(nextBatch.id);
+      }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to update payroll batch.");
     } finally {
@@ -425,6 +453,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                 {canManage && batch.status !== "posted" && batch.status !== "locked" ? <Action icon={RefreshCw} label="Recalculate" disabled={submitting} onClick={() => void runAction("recalculate")} /> : null}
                 {canManage && batch.status === "under_finance_review" ? <Action icon={CheckCircle2} label="Approve" disabled={submitting} onClick={() => void runAction("approve")} /> : null}
                 {canManage && batch.status === "approved" ? <Action icon={Send} label="Post payroll" disabled={submitting} onClick={() => void runAction("post")} /> : null}
+                {canManage && batch.status !== "posted" && batch.status !== "locked" ? <Action icon={Trash2} label="Discard batch" disabled={submitting} tone="danger" onClick={() => void runAction("discard")} /> : null}
               </div>
             </div>
 
@@ -740,8 +769,35 @@ function Banner({ children, tone }: { children: React.ReactNode; tone: "error" |
   return <div className={cn("rounded-2xl px-4 py-4 text-sm", tone === "error" ? "border border-rose-200 bg-rose-50 text-rose-800" : "border border-emerald-200 bg-emerald-50 text-emerald-800")}>{children}</div>;
 }
 
-function Action({ icon: Icon, label, onClick, disabled }: { icon: typeof RefreshCw; label: string; onClick: () => void; disabled: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"><Icon className="h-4 w-4" />{label}</button>;
+function Action({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  tone = "primary",
+}: {
+  icon: typeof RefreshCw;
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+  tone?: "primary" | "danger";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed",
+        tone === "danger"
+          ? "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          : "bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-300",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
 }
 
 function Head({ children }: { children: React.ReactNode }) {

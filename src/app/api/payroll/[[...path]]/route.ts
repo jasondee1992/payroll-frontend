@@ -87,11 +87,11 @@ async function proxyPayrollRequest(
     }
   }
 
-  if (request.method === "POST" && !canManagePayroll(userRole)) {
+  if (request.method !== "GET" && request.method !== "HEAD" && !canManagePayroll(userRole)) {
     return NextResponse.json(
       {
         error:
-          "Only Admin-Finance users can calculate, recalculate, approve, or post payroll batches.",
+          "Only Admin-Finance users can calculate, recalculate, approve, post, or discard payroll batches.",
       },
       { status: 403 },
     );
