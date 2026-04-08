@@ -69,7 +69,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/reports",
     description: "Reporting views for payroll, attendance, and costs.",
     icon: BarChart3,
-    roles: ["admin", "admin-finance"],
+    roles: ["admin", "admin-finance", "finance"],
   },
   {
     title: "Settings",

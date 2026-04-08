@@ -1,6 +1,9 @@
 const API_V1_PREFIX = "/api/v1";
 
 export const apiEndpoints = {
+  dashboard: {
+    summary: `${API_V1_PREFIX}/dashboard/summary`,
+  },
   auth: {
     login: `${API_V1_PREFIX}/auth/login`,
     refresh: `${API_V1_PREFIX}/auth/refresh`,
