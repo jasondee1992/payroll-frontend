@@ -22,18 +22,18 @@ export function SectionCard({
   contentClassName,
 }: SectionCardProps) {
   return (
-    <section className={cn("panel p-6 sm:p-7", className)}>
+    <section className={cn("panel-strong p-6 sm:p-7", className)}>
       <div
         className={cn(
-          "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+          "ui-section-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
           headerClassName,
         )}
       >
         <div>
-          <h2 className="text-lg font-semibold text-slate-950">{title}</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
           <p
             className={cn(
-              "mt-1 text-sm leading-6 text-slate-600",
+              "mt-1 max-w-3xl text-sm leading-6 text-slate-600",
               descriptionClassName,
             )}
           >

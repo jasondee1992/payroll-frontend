@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Ban,
   CheckCircle2,
@@ -27,6 +27,8 @@ import {
   updateEmployeeLoanStatus,
 } from "@/lib/api/employee-loans";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { preserveCurrentValue } from "@/lib/preserved-collection-state";
+import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import { cn } from "@/lib/utils";
 import type {
   EmployeeLoanApiRecord,
@@ -338,6 +340,7 @@ export function EmployeeGovernmentLoansSection({
     buildCreateFormValues(loanTypes),
   );
   const [isPending, startTransition] = useTransition();
+  const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
 
   const {
     activeLoans,
@@ -417,6 +420,16 @@ export function EmployeeGovernmentLoansSection({
     [archivedLoans, loanTypeFilter, providerFilter, visibilityFilter],
   );
 
+  useEffect(() => {
+    setExpandedLoanId((currentValue) =>
+      preserveCurrentValue(
+        loans.map((loan) => loan.id),
+        currentValue,
+        { preferFirst: false },
+      ),
+    );
+  }, [loans]);
+
   function openCreateForm() {
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -440,6 +453,7 @@ export function EmployeeGovernmentLoansSection({
     setEditingLoanId(loan.id);
     setFormMode("edit");
     setFormValues(buildEditFormValues(loan));
+    setExpandedLoanId(loan.id);
   }
 
   function closeForm() {
@@ -502,6 +516,7 @@ export function EmployeeGovernmentLoansSection({
 
     setFormErrors({});
 
+    const scrollPosition = captureScrollPosition();
     startTransition(async () => {
       try {
         const payload = buildPayload(formValues);
@@ -511,6 +526,7 @@ export function EmployeeGovernmentLoansSection({
             : await createEmployeeLoan(employeeId, payload);
 
         setLoans((currentLoans) => replaceLoan(currentLoans, nextLoan));
+        setExpandedLoanId(nextLoan.id);
         setSuccessMessage(
           formMode === "edit"
             ? "Employee loan record updated."
@@ -523,6 +539,8 @@ export function EmployeeGovernmentLoansSection({
             ? error.message
             : "Unable to save the employee loan record.",
         );
+      } finally {
+        restoreScrollPosition(scrollPosition);
       }
     });
   }
@@ -531,10 +549,12 @@ export function EmployeeGovernmentLoansSection({
     setSuccessMessage(null);
     setErrorMessage(null);
 
+    const scrollPosition = captureScrollPosition();
     startTransition(async () => {
       try {
         const nextLoan = await updateEmployeeLoanStatus(employeeId, loanId, { status });
         setLoans((currentLoans) => replaceLoan(currentLoans, nextLoan));
+        setExpandedLoanId(nextLoan.id);
         setSuccessMessage(
           `Loan status updated to ${formatEmployeeLoanStatus(status).toLowerCase()}.`,
         );
@@ -544,6 +564,8 @@ export function EmployeeGovernmentLoansSection({
             ? error.message
             : "Unable to update the employee loan status.",
         );
+      } finally {
+        restoreScrollPosition(scrollPosition);
       }
     });
   }

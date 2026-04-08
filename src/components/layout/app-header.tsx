@@ -27,7 +27,7 @@ export function AppHeader({
   currentDisplayRole,
 }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/92 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
       <div className="flex min-h-20 w-full items-center justify-between gap-4 px-4 py-3 sm:px-5 lg:px-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -52,7 +52,7 @@ export function AppHeader({
             )}
           </button>
 
-          <div className="min-w-0">
+          <div className="min-w-0 rounded-[22px] border border-slate-200/70 bg-white/70 px-3 py-2 shadow-sm sm:px-4">
             <p className="hidden text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">
               Workspace
             </p>
@@ -71,7 +71,7 @@ export function AppHeader({
             currentUsername={currentUsername}
           />
 
-          <div className="hidden rounded-2xl border border-emerald-200/80 bg-emerald-50 px-4 py-2.5 text-right sm:block">
+          <div className="hidden rounded-[22px] border border-emerald-200/80 bg-emerald-50/90 px-4 py-2.5 text-right shadow-sm sm:block">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
               {currentRole === "employee" ? "Portal access" : "Current period"}
             </p>

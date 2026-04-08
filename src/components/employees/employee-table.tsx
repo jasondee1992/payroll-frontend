@@ -8,6 +8,7 @@ import { ResourceEmptyState } from "@/components/shared/resource-state";
 import {
   DataTableBodyCell,
   DataTableHeaderCell,
+  DataTableRow,
   DataTableShell,
 } from "@/components/ui/data-table";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
@@ -47,9 +48,8 @@ export function EmployeeTable({
             </thead>
             <tbody className="bg-white">
               {employees.map((employee) => (
-                <tr
+                <DataTableRow
                   key={employee.id}
-                  className="cursor-pointer transition hover:bg-slate-50/80"
                   onClick={() => router.push(`/employees/${employee.id}`)}
                 >
                   <DataTableBodyCell>{employee.id}</DataTableBodyCell>
@@ -80,7 +80,7 @@ export function EmployeeTable({
                       View
                     </Link>
                   </DataTableBodyCell>
-                </tr>
+                </DataTableRow>
               ))}
             </tbody>
           </table>
@@ -91,7 +91,7 @@ export function EmployeeTable({
         {employees.map((employee) => (
           <article
             key={employee.id}
-            className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:bg-slate-50/70"
+            className="panel-subtle rounded-[24px] p-4 shadow-sm transition hover:border-slate-300"
           >
             <Link href={`/employees/${employee.id}`} className="block">
               <div className="flex items-start justify-between gap-3">

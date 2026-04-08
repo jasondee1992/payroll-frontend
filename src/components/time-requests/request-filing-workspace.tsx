@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CurrentEmployeeRequestContext } from "@/lib/api/current-employee";
 import type { TimeRequestRecord } from "@/lib/api/time-requests";
 import type { AppRole } from "@/lib/auth/session";
@@ -12,6 +12,7 @@ import {
   getTimeRequests,
   updateTimeRequestStatus,
 } from "@/lib/api/time-requests";
+import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import {
   allRequestTypes,
   requestGroups,
@@ -58,7 +59,10 @@ export function RequestFilingWorkspace({
   currentEmployeeContext?: CurrentEmployeeRequestContext | null;
   currentEmployeeContextErrorMessage?: string | null;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
   const reportingManagerName =
     currentEmployeeContext?.reportingManagerName ?? null;
   const isReportingManager =
@@ -207,6 +211,22 @@ export function RequestFilingWorkspace({
     }
   }
 
+  function updateSearchParams(nextTab: TimeRequestTab) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", nextTab);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }
+
+  async function preserveContextDuring(action: () => Promise<void>) {
+    const scrollPosition = captureScrollPosition();
+
+    try {
+      await action();
+    } finally {
+      restoreScrollPosition(scrollPosition);
+    }
+  }
+
   function handleRequestTypeChange(nextTypeId: string) {
     setSelectedTypeId(nextTypeId);
     setFormState(createEmptyFormState(reportingManagerName));
@@ -237,71 +257,75 @@ export function RequestFilingWorkspace({
 
     setIsSubmitting(true);
 
-    try {
-      await createTimeRequest({
-        request_type_id: selectedType.id,
-        date_from: formState.dateFrom || null,
-        date_to: formState.dateTo || null,
-        request_date: formState.requestDate || null,
-        start_time: normalizeTimeValue(formState.startTime),
-        end_time: normalizeTimeValue(formState.endTime),
-        actual_time: normalizeTimeValue(formState.actualTime),
-        expected_time: normalizeTimeValue(formState.expectedTime),
-        location: normalizeTextValue(formState.location),
-        coverage_plan: normalizeTextValue(formState.coveragePlan),
-        reason: formState.reason.trim(),
-        attachment_label: normalizeTextValue(formState.attachmentLabel),
-        contact_person: normalizeTextValue(formState.contactPerson),
-      });
+    await preserveContextDuring(async () => {
+      try {
+        await createTimeRequest({
+          request_type_id: selectedType.id,
+          date_from: formState.dateFrom || null,
+          date_to: formState.dateTo || null,
+          request_date: formState.requestDate || null,
+          start_time: normalizeTimeValue(formState.startTime),
+          end_time: normalizeTimeValue(formState.endTime),
+          actual_time: normalizeTimeValue(formState.actualTime),
+          expected_time: normalizeTimeValue(formState.expectedTime),
+          location: normalizeTextValue(formState.location),
+          coverage_plan: normalizeTextValue(formState.coveragePlan),
+          reason: formState.reason.trim(),
+          attachment_label: normalizeTextValue(formState.attachmentLabel),
+          contact_person: normalizeTextValue(formState.contactPerson),
+        });
 
-      setFormState(createEmptyFormState(reportingManagerName));
-      setSuccessMessage(
-        `${selectedType.title} request submitted and stored in the database.`,
-      );
-      await refreshRequests();
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to submit the time request.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+        setFormState(createEmptyFormState(reportingManagerName));
+        setSuccessMessage(
+          `${selectedType.title} request submitted and stored in the database.`,
+        );
+        await refreshRequests();
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to submit the time request.",
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
   }
 
   async function handleReviewAction(
     requestId: number,
     action: "approve" | "decline",
   ) {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    setReviewingRequestId(requestId);
+    await preserveContextDuring(async () => {
+      setErrorMessage(null);
+      setSuccessMessage(null);
+      setReviewingRequestId(requestId);
 
-    try {
-      await updateTimeRequestStatus(requestId, {
-        action,
-        note:
+      try {
+        await updateTimeRequestStatus(requestId, {
+          action,
+          note:
+            action === "approve"
+              ? `Reviewed by ${currentUsername ?? "current reviewer"}`
+              : `Declined by ${currentUsername ?? "current reviewer"}`,
+        });
+
+        setSuccessMessage(
           action === "approve"
-            ? `Reviewed by ${currentUsername ?? "current reviewer"}`
-            : `Declined by ${currentUsername ?? "current reviewer"}`,
-      });
-
-      setSuccessMessage(
-        action === "approve"
-          ? "Request review recorded successfully."
-          : "Request was declined successfully.",
-      );
-      await refreshRequests();
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to update the request status.",
-      );
-    } finally {
-      setReviewingRequestId(null);
-    }
+            ? "Request review recorded successfully."
+            : "Request was declined successfully.",
+        );
+        await refreshRequests();
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to update the request status.",
+        );
+      } finally {
+        setReviewingRequestId(null);
+      }
+    });
   }
 
   useEffect(() => {
@@ -354,7 +378,10 @@ export function RequestFilingWorkspace({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  updateSearchParams(tab.id);
+                }}
                 className={
                   active
                     ? "inline-flex min-w-max items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition"

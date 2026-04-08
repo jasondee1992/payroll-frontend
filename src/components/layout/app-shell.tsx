@@ -135,7 +135,7 @@ export function AppShell({
           />
 
           <main className="flex-1 px-4 py-5 sm:px-5 sm:py-6 lg:px-4 lg:py-7">
-            <div className="relative">
+            <div className="relative mx-auto w-full max-w-[1680px]">
               <div
                 className={cn(
                   "pointer-events-none absolute inset-x-0 top-0 z-20 overflow-hidden rounded-full transition-opacity duration-200",

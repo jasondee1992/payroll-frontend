@@ -12,9 +12,9 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <section className="flex flex-col gap-4 border-b border-slate-200/70 pb-5 sm:pb-6 lg:flex-row lg:items-end lg:justify-between">
+    <section className="ui-page-header flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+        <p className="ui-section-eyebrow">
           {eyebrow}
         </p>
         <div className="flex flex-col gap-2">
@@ -27,7 +27,11 @@ export function PageHeader({
         </div>
       </div>
 
-      {actions ? <div className="shrink-0 self-start lg:self-auto">{actions}</div> : null}
+      {actions ? (
+        <div className="ui-action-bar shrink-0 self-start lg:min-w-[16rem] lg:self-auto">
+          {actions}
+        </div>
+      ) : null}
     </section>
   );
 }

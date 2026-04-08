@@ -2,6 +2,7 @@ import { DetailItem } from "@/components/ui/detail-item";
 import {
   DataTableBodyCell,
   DataTableHeaderCell,
+  DataTableRow,
   DataTableShell,
 } from "@/components/ui/data-table";
 import {
@@ -42,7 +43,7 @@ export function PayrollResultsTable({ results }: PayrollResultsTableProps) {
             </thead>
             <tbody className="bg-white">
               {results.map((result) => (
-                <tr key={result.employeeId}>
+                <DataTableRow key={result.employeeId}>
                   <DataTableBodyCell>{result.employeeId}</DataTableBodyCell>
                   <DataTableBodyCell>
                     <span className="font-medium text-slate-900">{result.name}</span>
@@ -58,7 +59,7 @@ export function PayrollResultsTable({ results }: PayrollResultsTableProps) {
                   <DataTableBodyCell>
                     <PayrollStatusBadge status={result.status} />
                   </DataTableBodyCell>
-                </tr>
+                </DataTableRow>
               ))}
             </tbody>
           </table>
@@ -69,7 +70,7 @@ export function PayrollResultsTable({ results }: PayrollResultsTableProps) {
         {results.map((result) => (
           <article
             key={`${result.employeeId}-card`}
-            className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
+            className="panel-subtle p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div>

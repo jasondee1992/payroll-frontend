@@ -52,11 +52,47 @@ button {
 
 @layer utilities {
   .panel {
-    @apply rounded-[24px] border border-slate-200/80 bg-white shadow-[var(--shadow)];
+    @apply rounded-[24px] border border-slate-200/80 bg-white/95 shadow-[var(--shadow)];
   }
 
   .panel-muted {
     @apply rounded-[24px] border border-slate-200/70 bg-slate-50/85;
+  }
+
+  .panel-strong {
+    @apply rounded-[28px] border border-slate-200/90 bg-white/96 shadow-[0_18px_44px_-26px_rgba(15,23,42,0.28)];
+  }
+
+  .panel-subtle {
+    @apply rounded-[24px] border border-slate-200/80 bg-linear-to-br from-white via-slate-50/75 to-slate-100/70;
+  }
+
+  .ui-page-header {
+    @apply rounded-[28px] border border-slate-200/80 bg-linear-to-r from-white via-white to-slate-50/90 px-6 py-6 shadow-[0_16px_38px_-28px_rgba(15,23,42,0.3)] sm:px-7;
+  }
+
+  .ui-section-header {
+    @apply border-b border-slate-200/80 pb-4;
+  }
+
+  .ui-section-eyebrow {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500;
+  }
+
+  .ui-toolbar {
+    @apply rounded-[24px] border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm;
+  }
+
+  .ui-toolbar-muted {
+    @apply rounded-[22px] border border-slate-200/80 bg-slate-50/88 p-3 shadow-sm;
+  }
+
+  .ui-action-bar {
+    @apply rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-sm backdrop-blur-sm;
+  }
+
+  .ui-sticky-band {
+    @apply sticky top-24 z-10 backdrop-blur-sm;
   }
 
   .ui-icon-button {
@@ -88,15 +124,35 @@ button {
   }
 
   .ui-table-shell {
-    @apply overflow-hidden rounded-[24px] border border-slate-200/80 bg-white;
+    @apply overflow-hidden rounded-[26px] border border-slate-200/80 bg-white/95 shadow-[0_12px_32px_-26px_rgba(15,23,42,0.35)];
   }
 
   .ui-table-head-cell {
-    @apply border-b border-slate-200/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500;
+    @apply border-b border-slate-200/80 bg-slate-50/85 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500;
   }
 
   .ui-table-body-cell {
     @apply border-b border-slate-200/70 px-4 py-4 text-sm text-slate-600;
+  }
+
+  .ui-table-row {
+    @apply transition duration-150 hover:bg-slate-50/90;
+  }
+
+  .ui-table-row-selected {
+    @apply bg-linear-to-r from-sky-50/95 via-white to-white shadow-[inset_5px_0_0_0_rgba(2,132,199,0.72),0_10px_24px_-20px_rgba(14,165,233,0.4)];
+  }
+
+  .ui-table-row-expanded {
+    @apply bg-linear-to-r from-slate-50/95 via-white to-sky-50/30 shadow-[inset_5px_0_0_0_rgba(15,23,42,0.18)];
+  }
+
+  .ui-expanded-panel {
+    @apply rounded-[24px] border border-slate-200/90 bg-linear-to-br from-white via-slate-50/75 to-sky-50/40 p-5 shadow-[0_18px_38px_-28px_rgba(15,23,42,0.34)];
+  }
+
+  .ui-detail-panel {
+    @apply rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-sm;
   }
 
   .ui-empty-state {
@@ -105,6 +161,50 @@ button {
 
   .ui-badge {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ring-black/5;
+  }
+
+  .ui-badge-success {
+    @apply bg-emerald-50 text-emerald-700 ring-emerald-200/80;
+  }
+
+  .ui-badge-warning {
+    @apply bg-amber-50 text-amber-700 ring-amber-200/80;
+  }
+
+  .ui-badge-danger {
+    @apply bg-rose-50 text-rose-700 ring-rose-200/80;
+  }
+
+  .ui-badge-info {
+    @apply bg-sky-50 text-sky-700 ring-sky-200/80;
+  }
+
+  .ui-badge-neutral {
+    @apply bg-slate-100 text-slate-700 ring-slate-200/90;
+  }
+
+  .ui-state-banner {
+    @apply rounded-[22px] border px-4 py-4 text-sm shadow-sm;
+  }
+
+  .ui-state-banner-success {
+    @apply border-emerald-200 bg-emerald-50/90 text-emerald-800;
+  }
+
+  .ui-state-banner-error {
+    @apply border-rose-200 bg-rose-50/90 text-rose-800;
+  }
+
+  .ui-state-banner-warning {
+    @apply border-amber-200 bg-amber-50/90 text-amber-800;
+  }
+
+  .ui-state-banner-info {
+    @apply border-sky-200 bg-sky-50/90 text-sky-800;
+  }
+
+  .ui-metric-card {
+    @apply rounded-[26px] border border-slate-200/80 bg-white/96 px-5 py-5 shadow-sm;
   }
 
   .text-muted {

@@ -19,7 +19,7 @@ export function EmployeePagination({
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="panel-subtle flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
       <p className="text-sm text-slate-600">
         Showing <span className="font-semibold text-slate-900">{startItem}</span> to{" "}
         <span className="font-semibold text-slate-900">{endItem}</span> of{" "}
@@ -39,7 +39,7 @@ export function EmployeePagination({
             className={cn(
               "inline-flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-sm font-medium transition",
               pageNumber === currentPage
-                ? "border-slate-900 bg-slate-900 text-white"
+                ? "border-sky-300 bg-sky-50 text-sky-900 shadow-[inset_3px_0_0_0_rgba(2,132,199,0.7)]"
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
             )}
           >

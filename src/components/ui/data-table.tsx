@@ -31,3 +31,34 @@ export function DataTableBodyCell({
   return <td className={cn("ui-table-body-cell", className)}>{children}</td>;
 }
 
+type DataTableRowProps = {
+  children: React.ReactNode;
+  className?: string;
+  selected?: boolean;
+  expanded?: boolean;
+  onClick?: () => void;
+};
+
+export function DataTableRow({
+  children,
+  className,
+  selected = false,
+  expanded = false,
+  onClick,
+}: DataTableRowProps) {
+  return (
+    <tr
+      className={cn(
+        "ui-table-row",
+        selected && "ui-table-row-selected",
+        expanded && "ui-table-row-expanded",
+        onClick && "cursor-pointer",
+        className,
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </tr>
+  );
+}
+

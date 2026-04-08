@@ -9,6 +9,7 @@ import {
 } from "@/components/shared/resource-state";
 import { getPayslips } from "@/lib/api/payroll";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import { cn } from "@/lib/utils";
 import type { PayslipRecord } from "@/types/payroll";
 
@@ -17,6 +18,7 @@ export function PayslipWorkspace() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
 
   async function loadPayslips() {
     setLoading(true);
@@ -77,13 +79,22 @@ export function PayslipWorkspace() {
         <Metric label="Latest update" value={latestUpdatedAt ? formatDate(latestUpdatedAt) : "None"} detail="Most recent payslip calculation or posting update." />
       </section>
 
-      <div className="panel p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-3">
+      <div className="panel-strong p-5 sm:p-6">
+        <div className="ui-section-header flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Generated payslips</h2>
             <p className="mt-1 text-sm text-slate-600">Review payroll output by employee, including calculated, approved, and posted payslips.</p>
           </div>
-          <button type="button" onClick={() => void loadPayslips()} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => {
+              captureScrollPosition();
+              void loadPayslips().finally(() => {
+                restoreScrollPosition();
+              });
+            }}
+            className="ui-button-secondary h-10 px-4"
+          >
             <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
@@ -100,9 +111,9 @@ export function PayslipWorkspace() {
                   type="button"
                   onClick={() => setSelectedId(item.id)}
                   className={cn(
-                    "w-full rounded-2xl border px-4 py-4 text-left transition",
+                    "w-full rounded-[24px] border px-4 py-4 text-left transition",
                     active
-                      ? "border-slate-900 bg-slate-900 text-white"
+                      ? "border-sky-300 bg-sky-50/90 text-slate-950 shadow-[inset_4px_0_0_0_rgba(2,132,199,0.7)]"
                       : "border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-white",
                   )}
                 >
@@ -111,15 +122,15 @@ export function PayslipWorkspace() {
                       <p className="text-sm font-semibold">
                         {item.payroll_record.employee_name_snapshot}
                       </p>
-                      <p className={cn("mt-1 text-xs", active ? "text-slate-300" : "text-slate-500")}>
+                      <p className={cn("mt-1 text-xs", active ? "text-sky-700" : "text-slate-500")}>
                         {item.generated_reference} • {formatDate(item.cutoff_start)} - {formatDate(item.cutoff_end)}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className={cn("text-sm font-semibold", active ? "text-white" : "text-slate-900")}>
+                      <p className={cn("text-sm font-semibold", active ? "text-slate-950" : "text-slate-900")}>
                         {formatCurrency(item.payroll_record.net_pay)}
                       </p>
-                      <p className={cn("mt-1 text-[11px] font-semibold uppercase tracking-[0.16em]", active ? "text-slate-300" : payslipStatusToneClassName(item.status))}>
+                      <p className={cn("mt-1 text-[11px] font-semibold uppercase tracking-[0.16em]", active ? "text-sky-700" : payslipStatusToneClassName(item.status))}>
                         {pretty(item.status)}
                       </p>
                     </div>
@@ -129,7 +140,7 @@ export function PayslipWorkspace() {
             })}
           </div>
 
-          <div className="rounded-3xl border border-slate-200/80 bg-white p-5">
+          <div className="ui-expanded-panel xl:sticky xl:top-24">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
                 <FileText className="h-5 w-5" />
@@ -160,7 +171,7 @@ export function PayslipWorkspace() {
             <div className="mt-5 space-y-3">
               {selectedPayslip.payroll_record.adjustments.length > 0 ? (
                 selectedPayslip.payroll_record.adjustments.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4">
+                  <div key={item.id} className="rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-slate-950">{pretty(item.adjustment_type)}</p>
@@ -188,11 +199,11 @@ export function PayslipWorkspace() {
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-3xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p><p className="mt-2 text-sm text-slate-600">{detail}</p></div>;
+  return <div className="ui-metric-card"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p><p className="mt-2 text-sm text-slate-600">{detail}</p></div>;
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-2 text-sm font-medium text-slate-900">{value}</p></div>;
+  return <div className="rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-2 text-sm font-medium text-slate-900">{value}</p></div>;
 }
 
 function pretty(value: string) {

@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import {
   activateGovernmentDeductionRuleSet,
-  archiveAndActivateGovernmentDeductionRuleSet,
   archiveGovernmentDeductionRuleSet,
   cloneGovernmentDeductionRuleSet,
   createGovernmentDeductionRuleSet,
@@ -34,6 +33,8 @@ import {
   type GovernmentDeductionTypeConfigInputPayload,
 } from "@/lib/api/payroll";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { preserveCurrentValue } from "@/lib/preserved-collection-state";
+import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import type {
   GovernmentDeductionBracketRecord,
   GovernmentDeductionRuleSetDetailRecord,
@@ -135,6 +136,7 @@ export function GovernmentDeductionSettings() {
     useState<GovernmentDeductionTestCalculationRecord | null>(null);
   const selectedRuleSetIdRef = useRef<number | null>(null);
   const detailRequestIdRef = useRef(0);
+  const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
 
   useEffect(() => {
     selectedRuleSetIdRef.current = selectedRuleSetId;
@@ -152,13 +154,13 @@ export function GovernmentDeductionSettings() {
       setTypes(nextTypes);
       setRuleSets(nextRuleSets);
 
-      const nextSelectedRuleSetId =
-        preferredRuleSetId && nextRuleSets.some((item) => item.id === preferredRuleSetId)
-          ? preferredRuleSetId
-          : selectedRuleSetIdRef.current &&
-              nextRuleSets.some((item) => item.id === selectedRuleSetIdRef.current)
-            ? selectedRuleSetIdRef.current
-            : nextRuleSets[0]?.id ?? null;
+      const nextSelectedRuleSetId = preserveCurrentValue(
+        nextRuleSets.map((item) => item.id),
+        selectedRuleSetIdRef.current,
+        {
+          fallbackValue: preferredRuleSetId ?? null,
+        },
+      );
       setSelectedRuleSetId(nextSelectedRuleSetId);
 
       if (nextSelectedRuleSetId == null) {
@@ -278,34 +280,46 @@ export function GovernmentDeductionSettings() {
     setError(null);
   }
 
+  async function preserveContextDuring(action: () => Promise<void>) {
+    const scrollPosition = captureScrollPosition();
+
+    try {
+      await action();
+    } finally {
+      restoreScrollPosition(scrollPosition);
+    }
+  }
+
   async function handleSaveDraft() {
     if (!draft) {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      const payload = buildRuleSetPayload(draft);
-      const detail = draft.id
-        ? await updateGovernmentDeductionRuleSet(draft.id, payload)
-        : await createGovernmentDeductionRuleSet(payload);
+      try {
+        const payload = buildRuleSetPayload(draft);
+        const detail = draft.id
+          ? await updateGovernmentDeductionRuleSet(draft.id, payload)
+          : await createGovernmentDeductionRuleSet(payload);
 
-      setDraft(buildDraftFromDetail(detail, types));
-      setSelectedRuleSetId(detail.id);
-      setMessage(`${detail.name} was saved.`);
-      await loadOverview(detail.id);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to save the deduction rule set.",
-      );
-    } finally {
-      setSaving(false);
-    }
+        setDraft(buildDraftFromDetail(detail, types));
+        setSelectedRuleSetId(detail.id);
+        setMessage(`${detail.name} was saved.`);
+        await loadOverview(detail.id);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to save the deduction rule set.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleActivateRuleSet() {
@@ -313,51 +327,32 @@ export function GovernmentDeductionSettings() {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    const ruleSetId = draft.id;
+    const previousActiveRuleSet = overlappingActiveRuleSet;
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      const detail = await activateGovernmentDeductionRuleSet(draft.id);
-      setDraft(buildDraftFromDetail(detail, types));
-      setMessage(`${detail.name} is now the active government deduction rule set.`);
-      await loadOverview(detail.id);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to activate the deduction rule set.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleArchiveAndActivateRuleSet() {
-    if (!draft?.id || !overlappingActiveRuleSet) {
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      const detail = await archiveAndActivateGovernmentDeductionRuleSet(draft.id);
-      setDraft(buildDraftFromDetail(detail, types));
-      setMessage(
-        `${overlappingActiveRuleSet.name} was archived and ${detail.name} is now the active government deduction rule set.`,
-      );
-      await loadOverview(detail.id);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to archive the current active rule set and activate this one.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      try {
+        const detail = await activateGovernmentDeductionRuleSet(ruleSetId);
+        setDraft(buildDraftFromDetail(detail, types));
+        setMessage(
+          previousActiveRuleSet
+            ? `${previousActiveRuleSet.name} was moved back to draft and ${detail.name} is now the active government deduction rule set.`
+            : `${detail.name} is now the active government deduction rule set.`,
+        );
+        await loadOverview(detail.id);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to activate the deduction rule set.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleCloneRuleSet(
@@ -370,27 +365,29 @@ export function GovernmentDeductionSettings() {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      const detail = await cloneGovernmentDeductionRuleSet(sourceRuleSet.id, {
-        name: `${sourceRuleSet.name} Copy`,
-      });
-      setDraft(buildDraftFromDetail(detail, types));
-      setSelectedRuleSetId(detail.id);
-      setMessage(`${detail.name} was cloned as a new draft.`);
-      await loadOverview(detail.id);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to clone the deduction rule set.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      try {
+        const detail = await cloneGovernmentDeductionRuleSet(sourceRuleSet.id, {
+          name: `${sourceRuleSet.name} Copy`,
+        });
+        setDraft(buildDraftFromDetail(detail, types));
+        setSelectedRuleSetId(detail.id);
+        setMessage(`${detail.name} was cloned as a new draft.`);
+        await loadOverview(detail.id);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to clone the deduction rule set.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleEditRuleSet(
@@ -414,27 +411,29 @@ export function GovernmentDeductionSettings() {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      const detail = await cloneGovernmentDeductionRuleSet(sourceRuleSet.id, {
-        name: `${sourceRuleSet.name} Draft`,
-      });
-      setDraft(buildDraftFromDetail(detail, types));
-      setSelectedRuleSetId(detail.id);
-      setMessage(`${sourceRuleSet.name} is now open as an editable draft.`);
-      await loadOverview(detail.id);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to open the deduction rule set for editing.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      try {
+        const detail = await cloneGovernmentDeductionRuleSet(sourceRuleSet.id, {
+          name: `${sourceRuleSet.name} Draft`,
+        });
+        setDraft(buildDraftFromDetail(detail, types));
+        setSelectedRuleSetId(detail.id);
+        setMessage(`${sourceRuleSet.name} is now open as an editable draft.`);
+        await loadOverview(detail.id);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to open the deduction rule set for editing.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleArchiveRuleSet(
@@ -452,25 +451,27 @@ export function GovernmentDeductionSettings() {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      const detail = await archiveGovernmentDeductionRuleSet(sourceRuleSet.id);
-      setDraft(buildDraftFromDetail(detail, types));
-      setSelectedRuleSetId(detail.id);
-      setMessage(`${detail.name} was archived.`);
-      await loadOverview(detail.id);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to archive the deduction rule set.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      try {
+        const detail = await archiveGovernmentDeductionRuleSet(sourceRuleSet.id);
+        setDraft(buildDraftFromDetail(detail, types));
+        setSelectedRuleSetId(detail.id);
+        setMessage(`${detail.name} was archived.`);
+        await loadOverview(detail.id);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to archive the deduction rule set.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleDeleteRuleSet(
@@ -494,28 +495,30 @@ export function GovernmentDeductionSettings() {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      await deleteGovernmentDeductionRuleSet(sourceRuleSet.id);
-      detailRequestIdRef.current += 1;
-      selectedRuleSetIdRef.current = null;
-      setSelectedRuleSetId(null);
-      setDraft(null);
-      setTestResult(null);
-      setMessage(`${sourceRuleSet.name} was deleted.`);
-      await loadOverview();
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to delete the deduction rule set.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      try {
+        await deleteGovernmentDeductionRuleSet(sourceRuleSet.id);
+        detailRequestIdRef.current += 1;
+        selectedRuleSetIdRef.current = null;
+        setSelectedRuleSetId(null);
+        setDraft(null);
+        setTestResult(null);
+        setMessage(`${sourceRuleSet.name} was deleted.`);
+        await loadOverview();
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to delete the deduction rule set.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleRunTestCalculation() {
@@ -537,32 +540,34 @@ export function GovernmentDeductionSettings() {
       return;
     }
 
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+    await preserveContextDuring(async () => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
 
-    try {
-      const payload = buildRuleSetPayload(draft);
-      const result = await testGovernmentDeductionCalculation({
-        rule_set_id: draft.id,
-        rule_set_name: draft.name.trim() || "Unsaved preview rule",
-        monthly_salary: Number(testInputs.monthly_salary || 0),
-        gross_pay: Number(grossPayAutoComputed || 0),
-        pay_frequency: testInputs.pay_frequency,
-        configs: payload.configs,
-        brackets: payload.brackets,
-      });
-      setTestResult(result);
-      setMessage("Test calculation completed.");
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to test the deduction calculation.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      try {
+        const payload = buildRuleSetPayload(draft);
+        const result = await testGovernmentDeductionCalculation({
+          rule_set_id: draft.id,
+          rule_set_name: draft.name.trim() || "Unsaved preview rule",
+          monthly_salary: Number(testInputs.monthly_salary || 0),
+          gross_pay: Number(grossPayAutoComputed || 0),
+          pay_frequency: testInputs.pay_frequency,
+          configs: payload.configs,
+          brackets: payload.brackets,
+        });
+        setTestResult(result);
+        setMessage("Test calculation completed.");
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to test the deduction calculation.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   if (loading) {
@@ -608,7 +613,7 @@ export function GovernmentDeductionSettings() {
               onClick={() => {
                 setMessage(null);
                 setError(null);
-                void loadOverview(selectedRuleSetId);
+                void preserveContextDuring(() => loadOverview(selectedRuleSetId));
               }}
               disabled={saving}
             >
@@ -899,7 +904,7 @@ export function GovernmentDeductionSettings() {
                           type="button"
                           className="ui-button-primary gap-2"
                           onClick={() => void handleActivateRuleSet()}
-                          disabled={saving || overlappingActiveRuleSet != null}
+                          disabled={saving}
                         >
                           <Send className="h-4 w-4" />
                           Activate
@@ -934,24 +939,14 @@ export function GovernmentDeductionSettings() {
 
                   {overlappingActiveRuleSet ? (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <p className="max-w-3xl">
-                          This rule set overlaps with the active rule set{" "}
-                          <span className="font-semibold">{overlappingActiveRuleSet.name}</span>.
-                          Archive the active rule set first or change the effective date range before activating this one.
-                        </p>
-                        {draft.id && draft.status === "draft" ? (
-                          <button
-                            type="button"
-                            className="ui-button-secondary gap-2 border-amber-300 bg-white text-amber-900 hover:border-amber-400"
-                            onClick={() => void handleArchiveAndActivateRuleSet()}
-                            disabled={saving}
-                          >
-                            <RefreshCcw className="h-4 w-4" />
-                            Archive current active and activate this rule
-                          </button>
-                        ) : null}
-                      </div>
+                      <p className="max-w-3xl">
+                        This rule set overlaps with the active rule set{" "}
+                        <span className="font-semibold">{overlappingActiveRuleSet.name}</span>.
+                        Clicking <span className="font-semibold">Activate</span> will move the
+                        active label to this rule set and return{" "}
+                        <span className="font-semibold">{overlappingActiveRuleSet.name}</span> to
+                        draft so it can be activated again later.
+                      </p>
                     </div>
                   ) : null}
 

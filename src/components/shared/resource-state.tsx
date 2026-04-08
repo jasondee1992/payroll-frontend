@@ -1,3 +1,4 @@
+import { AlertTriangle, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ResourceStateProps = {
@@ -20,8 +21,11 @@ export function ResourceEmptyState({
   className,
 }: ResourceStateProps) {
   return (
-    <div className={cn("ui-empty-state", className)}>
-      <h2 className="text-lg font-semibold text-slate-950">{title}</h2>
+    <div className={cn("ui-empty-state bg-linear-to-br from-white via-slate-50/80 to-slate-100/70", className)}>
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm">
+        <Inbox className="h-6 w-6" />
+      </div>
+      <h2 className="mt-5 text-lg font-semibold text-slate-950">{title}</h2>
       <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
         {description}
       </p>
@@ -37,8 +41,11 @@ export function ResourceErrorState({
   className,
 }: ResourceStateProps) {
   return (
-    <div className={cn("ui-empty-state", className)}>
-      <h2 className="text-lg font-semibold text-slate-950">{title}</h2>
+    <div className={cn("ui-empty-state border-rose-200 bg-rose-50/60", className)}>
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-200 bg-white/90 text-rose-700 shadow-sm">
+        <AlertTriangle className="h-6 w-6" />
+      </div>
+      <h2 className="mt-5 text-lg font-semibold text-slate-950">{title}</h2>
       <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
         {description}
       </p>
@@ -58,7 +65,7 @@ export function ResourceTableSkeleton({
         {Array.from({ length: filterCount }).map((_, index) => (
           <div
             key={index}
-            className="h-12 animate-pulse rounded-2xl bg-slate-100"
+            className="h-12 animate-pulse rounded-2xl border border-slate-200/70 bg-white/80"
           />
         ))}
       </div>
@@ -67,7 +74,7 @@ export function ResourceTableSkeleton({
         {Array.from({ length: rowCount }).map((_, index) => (
           <div
             key={index}
-            className="h-16 animate-pulse rounded-2xl bg-slate-100"
+            className="h-16 animate-pulse rounded-2xl border border-slate-200/70 bg-white/80"
           />
         ))}
       </div>

@@ -35,6 +35,8 @@ import {
   canUnlockAttendanceCutoffs,
   type AppRole,
 } from "@/lib/auth/session";
+import { preserveCurrentValue } from "@/lib/preserved-collection-state";
+import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import type {
   AttendanceCutoffRecord,
   AttendanceCutoffSummaryRecord,
@@ -84,6 +86,7 @@ export function AttendanceWorkspace({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
   const [cutoffs, setCutoffs] = useState<AttendanceCutoffRecord[]>([]);
   const [selectedCutoffId, setSelectedCutoffId] = useState<number | null>(null);
   const [teamSummary, setTeamSummary] = useState<AttendanceCutoffSummaryRecord | null>(null);
@@ -142,10 +145,14 @@ export function AttendanceWorkspace({
 
         setCutoffs(cutoffRecords);
         const cutoffIdFromUrl = Number(searchParams.get("cutoffId") ?? "");
-        const nextCutoffId =
+        const requestedCutoffId =
           Number.isFinite(cutoffIdFromUrl) && cutoffIdFromUrl > 0
             ? cutoffIdFromUrl
-            : cutoffRecords[0]?.id ?? null;
+            : selectedCutoffId;
+        const nextCutoffId = preserveCurrentValue(
+          cutoffRecords.map((item) => item.id),
+          requestedCutoffId,
+        );
         setSelectedCutoffId(nextCutoffId);
       } catch (error) {
         if (!isCancelled) {
@@ -167,7 +174,7 @@ export function AttendanceWorkspace({
     return () => {
       isCancelled = true;
     };
-  }, [searchParams]);
+  }, [searchParams, selectedCutoffId]);
 
   useEffect(() => {
     if (selectedCutoffId == null) {
@@ -258,12 +265,22 @@ export function AttendanceWorkspace({
       nextParams.set("cutoffId", String(nextCutoffId));
     }
 
-    router.replace(`${pathname}?${nextParams.toString()}`);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
   }
 
   function handleSelectCutoff(nextCutoffId: number) {
     setSelectedCutoffId(nextCutoffId);
     updateSearchParams(initialTabId, nextCutoffId);
+  }
+
+  async function preserveContextDuring(action: () => Promise<void>) {
+    const scrollPosition = captureScrollPosition();
+
+    try {
+      await action();
+    } finally {
+      restoreScrollPosition(scrollPosition);
+    }
   }
 
   async function handleUploadAttendance() {
@@ -289,64 +306,66 @@ export function AttendanceWorkspace({
       return;
     }
 
-    setUploadingAttendance(true);
-    setInlineError(null);
-    setSuccessMessage(null);
-    let activeCutoffId: number | null = null;
+    await preserveContextDuring(async () => {
+      setUploadingAttendance(true);
+      setInlineError(null);
+      setSuccessMessage(null);
+      let activeCutoffId: number | null = null;
 
-    try {
-      const existingCutoff = cutoffs.find(
-        (cutoff) =>
-          cutoff.cutoff_start === createCutoffStart && cutoff.cutoff_end === createCutoffEnd,
-      );
-      const cutoff =
-        existingCutoff ??
-        (await createAttendanceCutoff({
-          cutoff_start: createCutoffStart,
-          cutoff_end: createCutoffEnd,
-        }));
+      try {
+        const existingCutoff = cutoffs.find(
+          (cutoff) =>
+            cutoff.cutoff_start === createCutoffStart && cutoff.cutoff_end === createCutoffEnd,
+        );
+        const cutoff =
+          existingCutoff ??
+          (await createAttendanceCutoff({
+            cutoff_start: createCutoffStart,
+            cutoff_end: createCutoffEnd,
+          }));
 
-      activeCutoffId = cutoff.id;
-      const summary = await uploadAttendanceCsv(activeCutoffId, selectedUploadFile);
-      setImportSummary(summary);
-      setSelectedCutoffId(activeCutoffId);
-      setSelectedUploadFile(null);
-      setCreateCutoffStart("");
-      setCreateCutoffEnd("");
-      setCutoffs((current) =>
-        current.some((item) => item.id === cutoff.id) ? current : [cutoff, ...current],
-      );
-      updateSearchParams("team-attendance", activeCutoffId);
-      setSuccessMessage(
-        existingCutoff
-          ? "Attendance replaced for the selected cutoff and processed."
-          : "Attendance CSV uploaded and processed.",
-      );
-      const [nextSummary, nextMyReview, nextRequests, nextCutoffs] = await Promise.all([
-        getAttendanceCutoffSummary(activeCutoffId),
-        getMyAttendanceReview(activeCutoffId).catch(() => null),
-        getAttendanceReviewRequests({
-          cutoffId: activeCutoffId,
-          status: requestFilterStatus || null,
-          employee: requestFilterEmployee || null,
-        }),
-        getAttendanceCutoffs(),
-      ]);
-      setTeamSummary(nextSummary);
-      setRequests(nextRequests);
-      setMyReview(nextMyReview);
-      setCutoffs(nextCutoffs);
-    } catch (error) {
-      if (activeCutoffId != null) {
+        activeCutoffId = cutoff.id;
+        const summary = await uploadAttendanceCsv(activeCutoffId, selectedUploadFile);
+        setImportSummary(summary);
         setSelectedCutoffId(activeCutoffId);
-        void getAttendanceCutoffs().then(setCutoffs).catch(() => undefined);
+        setSelectedUploadFile(null);
+        setCreateCutoffStart("");
+        setCreateCutoffEnd("");
+        setCutoffs((current) =>
+          current.some((item) => item.id === cutoff.id) ? current : [cutoff, ...current],
+        );
+        updateSearchParams("team-attendance", activeCutoffId);
+        setSuccessMessage(
+          existingCutoff
+            ? "Attendance replaced for the selected cutoff and processed."
+            : "Attendance CSV uploaded and processed.",
+        );
+        const [nextSummary, nextMyReview, nextRequests, nextCutoffs] = await Promise.all([
+          getAttendanceCutoffSummary(activeCutoffId),
+          getMyAttendanceReview(activeCutoffId).catch(() => null),
+          getAttendanceReviewRequests({
+            cutoffId: activeCutoffId,
+            status: requestFilterStatus || null,
+            employee: requestFilterEmployee || null,
+          }),
+          getAttendanceCutoffs(),
+        ]);
+        setTeamSummary(nextSummary);
+        setRequests(nextRequests);
+        setMyReview(nextMyReview);
+        setCutoffs(nextCutoffs);
+      } catch (error) {
+        if (activeCutoffId != null) {
+          setSelectedCutoffId(activeCutoffId);
+          void getAttendanceCutoffs().then(setCutoffs).catch(() => undefined);
+        }
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to upload attendance CSV.",
+        );
+      } finally {
+        setUploadingAttendance(false);
       }
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to upload attendance CSV.",
-      );
-    } finally {
-      setUploadingAttendance(false);
-    }
+    });
   }
 
   async function handleAcknowledgeReview() {
@@ -354,25 +373,27 @@ export function AttendanceWorkspace({
       return;
     }
 
-    setAcknowledgingReview(true);
-    setInlineError(null);
-    setSuccessMessage(null);
-    const activeCutoffId = selectedCutoffId;
+    await preserveContextDuring(async () => {
+      setAcknowledgingReview(true);
+      setInlineError(null);
+      setSuccessMessage(null);
+      const activeCutoffId = selectedCutoffId;
 
-    try {
-      const reviewResult = await acknowledgeAttendanceReview(activeCutoffId);
-      setMyReview(reviewResult);
-      if (canReviewTeamAttendance) {
-        setTeamSummary(await getAttendanceCutoffSummary(activeCutoffId));
+      try {
+        const reviewResult = await acknowledgeAttendanceReview(activeCutoffId);
+        setMyReview(reviewResult);
+        if (canReviewTeamAttendance) {
+          setTeamSummary(await getAttendanceCutoffSummary(activeCutoffId));
+        }
+        setSuccessMessage("Attendance review acknowledged.");
+      } catch (error) {
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to acknowledge attendance review.",
+        );
+      } finally {
+        setAcknowledgingReview(false);
       }
-      setSuccessMessage("Attendance review acknowledged.");
-    } catch (error) {
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to acknowledge attendance review.",
-      );
-    } finally {
-      setAcknowledgingReview(false);
-    }
+    });
   }
 
   async function handleSubmitAttendanceRequest() {
@@ -393,83 +414,87 @@ export function AttendanceWorkspace({
       reason: requestDraft.reason,
     };
 
-    setSubmittingRequest(true);
-    setInlineError(null);
-    setSuccessMessage(null);
-    const activeCutoffId = selectedCutoffId;
+    await preserveContextDuring(async () => {
+      setSubmittingRequest(true);
+      setInlineError(null);
+      setSuccessMessage(null);
+      const activeCutoffId = selectedCutoffId;
 
-    try {
-      await createAttendanceReviewRequest(payload);
-      const [nextReview, nextTeamSummary, nextRequests] = await Promise.all([
-        getMyAttendanceReview(activeCutoffId),
-        canReviewTeamAttendance
-          ? getAttendanceCutoffSummary(activeCutoffId)
-          : Promise.resolve(null),
-        canReviewTeamAttendance
-          ? getAttendanceReviewRequests({ cutoffId: activeCutoffId })
-          : Promise.resolve([]),
-      ]);
-      setMyReview(nextReview);
-      if (nextTeamSummary) {
-        setTeamSummary(nextTeamSummary);
+      try {
+        await createAttendanceReviewRequest(payload);
+        const [nextReview, nextTeamSummary, nextRequests] = await Promise.all([
+          getMyAttendanceReview(activeCutoffId),
+          canReviewTeamAttendance
+            ? getAttendanceCutoffSummary(activeCutoffId)
+            : Promise.resolve(null),
+          canReviewTeamAttendance
+            ? getAttendanceReviewRequests({ cutoffId: activeCutoffId })
+            : Promise.resolve([]),
+        ]);
+        setMyReview(nextReview);
+        if (nextTeamSummary) {
+          setTeamSummary(nextTeamSummary);
+        }
+        if (canReviewTeamAttendance) {
+          setRequests(nextRequests);
+        }
+        setRequestDraft({
+          ...DEFAULT_REQUEST_DRAFT,
+          attendance_record_id: String(nextReview.records[0]?.id ?? ""),
+        });
+        setSuccessMessage("Attendance review request submitted.");
+      } catch (error) {
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to submit attendance request.",
+        );
+      } finally {
+        setSubmittingRequest(false);
       }
-      if (canReviewTeamAttendance) {
-        setRequests(nextRequests);
-      }
-      setRequestDraft({
-        ...DEFAULT_REQUEST_DRAFT,
-        attendance_record_id: String(nextReview.records[0]?.id ?? ""),
-      });
-      setSuccessMessage("Attendance review request submitted.");
-    } catch (error) {
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to submit attendance request.",
-      );
-    } finally {
-      setSubmittingRequest(false);
-    }
+    });
   }
 
   async function handleReviewRequest(requestId: number, action: "approve" | "reject") {
-    setInlineError(null);
-    setSuccessMessage(null);
+    await preserveContextDuring(async () => {
+      setInlineError(null);
+      setSuccessMessage(null);
 
-    try {
-      if (action === "approve") {
-        await approveAttendanceReviewRequest(requestId, {
-          remarks: reviewRemarks[requestId] ?? null,
-        });
-      } else {
-        await rejectAttendanceReviewRequest(requestId, {
-          remarks: reviewRemarks[requestId] ?? null,
-        });
+      try {
+        if (action === "approve") {
+          await approveAttendanceReviewRequest(requestId, {
+            remarks: reviewRemarks[requestId] ?? null,
+          });
+        } else {
+          await rejectAttendanceReviewRequest(requestId, {
+            remarks: reviewRemarks[requestId] ?? null,
+          });
+        }
+
+        if (selectedCutoffId != null) {
+          const activeCutoffId = selectedCutoffId;
+          const [nextSummary, nextRequests] = await Promise.all([
+            getAttendanceCutoffSummary(activeCutoffId),
+            getAttendanceReviewRequests({
+              cutoffId: activeCutoffId,
+              status: requestFilterStatus || null,
+              employee: requestFilterEmployee || null,
+            }),
+          ]);
+          setTeamSummary(nextSummary);
+          setRequests(nextRequests);
+          setMyReview(await getMyAttendanceReview(activeCutoffId).catch(() => null));
+        }
+
+        setSuccessMessage(
+          action === "approve"
+            ? "Attendance request approved."
+            : "Attendance request rejected.",
+        );
+      } catch (error) {
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to review attendance request.",
+        );
       }
-
-      if (selectedCutoffId != null) {
-        const activeCutoffId = selectedCutoffId;
-        const [nextSummary, nextRequests] = await Promise.all([
-          getAttendanceCutoffSummary(activeCutoffId),
-          getAttendanceReviewRequests({
-            cutoffId: activeCutoffId,
-            status: requestFilterStatus || null,
-            employee: requestFilterEmployee || null,
-          }),
-        ]);
-        setTeamSummary(nextSummary);
-        setRequests(nextRequests);
-        setMyReview(await getMyAttendanceReview(activeCutoffId).catch(() => null));
-      }
-
-      setSuccessMessage(
-        action === "approve"
-          ? "Attendance request approved."
-          : "Attendance request rejected.",
-      );
-    } catch (error) {
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to review attendance request.",
-      );
-    }
+    });
   }
 
   async function handleLockCutoff() {
@@ -484,29 +509,31 @@ export function AttendanceWorkspace({
       return;
     }
 
-    setLockingCutoff(true);
-    setInlineError(null);
-    setSuccessMessage(null);
-    const activeCutoffId = selectedCutoffId;
+    await preserveContextDuring(async () => {
+      setLockingCutoff(true);
+      setInlineError(null);
+      setSuccessMessage(null);
+      const activeCutoffId = selectedCutoffId;
 
-    try {
-      await lockAttendanceCutoff(activeCutoffId);
-      const [nextCutoffs, nextSummary, nextMyReview] = await Promise.all([
-        getAttendanceCutoffs(),
-        getAttendanceCutoffSummary(activeCutoffId),
-        getMyAttendanceReview(activeCutoffId).catch(() => null),
-      ]);
-      setCutoffs(nextCutoffs);
-      setTeamSummary(nextSummary);
-      setMyReview(nextMyReview);
-      setSuccessMessage("Attendance cutoff locked and marked payroll-ready.");
-    } catch (error) {
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to lock the attendance cutoff.",
-      );
-    } finally {
-      setLockingCutoff(false);
-    }
+      try {
+        await lockAttendanceCutoff(activeCutoffId);
+        const [nextCutoffs, nextSummary, nextMyReview] = await Promise.all([
+          getAttendanceCutoffs(),
+          getAttendanceCutoffSummary(activeCutoffId),
+          getMyAttendanceReview(activeCutoffId).catch(() => null),
+        ]);
+        setCutoffs(nextCutoffs);
+        setTeamSummary(nextSummary);
+        setMyReview(nextMyReview);
+        setSuccessMessage("Attendance cutoff locked and marked payroll-ready.");
+      } catch (error) {
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to lock the attendance cutoff.",
+        );
+      } finally {
+        setLockingCutoff(false);
+      }
+    });
   }
 
   async function handleUnlockCutoff() {
@@ -521,27 +548,29 @@ export function AttendanceWorkspace({
       return;
     }
 
-    setLockingCutoff(true);
-    setInlineError(null);
-    setSuccessMessage(null);
-    const activeCutoffId = selectedCutoffId;
+    await preserveContextDuring(async () => {
+      setLockingCutoff(true);
+      setInlineError(null);
+      setSuccessMessage(null);
+      const activeCutoffId = selectedCutoffId;
 
-    try {
-      await unlockAttendanceCutoff(activeCutoffId);
-      const [nextCutoffs, nextSummary, nextMyReview] = await Promise.all([
-        getAttendanceCutoffs(),
-        getAttendanceCutoffSummary(activeCutoffId),
-        getMyAttendanceReview(activeCutoffId).catch(() => null),
-      ]);
-      setCutoffs(nextCutoffs);
-      setTeamSummary(nextSummary);
-      setMyReview(nextMyReview);
-      setSuccessMessage("Attendance cutoff unlocked and reopened for attendance updates.");
-    } catch (error) {
-      setInlineError(getAttendanceUnlockErrorMessage(error));
-    } finally {
-      setLockingCutoff(false);
-    }
+      try {
+        await unlockAttendanceCutoff(activeCutoffId);
+        const [nextCutoffs, nextSummary, nextMyReview] = await Promise.all([
+          getAttendanceCutoffs(),
+          getAttendanceCutoffSummary(activeCutoffId),
+          getMyAttendanceReview(activeCutoffId).catch(() => null),
+        ]);
+        setCutoffs(nextCutoffs);
+        setTeamSummary(nextSummary);
+        setMyReview(nextMyReview);
+        setSuccessMessage("Attendance cutoff unlocked and reopened for attendance updates.");
+      } catch (error) {
+        setInlineError(getAttendanceUnlockErrorMessage(error));
+      } finally {
+        setLockingCutoff(false);
+      }
+    });
   }
 
   if (loadingCutoffs) {
@@ -598,7 +627,7 @@ export function AttendanceWorkspace({
   return (
     <div className="space-y-4">
       {canManageUploadedCutoffDeletes ? (
-        <div className="rounded-[24px] border border-sky-200 bg-sky-50/80 px-5 py-4 text-sm text-sky-900">
+        <div className="ui-state-banner ui-state-banner-info">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold">Wrong cutoff upload?</p>
@@ -615,12 +644,12 @@ export function AttendanceWorkspace({
       ) : null}
 
       {inlineError ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
+        <div className="ui-state-banner ui-state-banner-error">
           {inlineError}
         </div>
       ) : null}
       {successMessage ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
+        <div className="ui-state-banner ui-state-banner-success">
           {successMessage}
         </div>
       ) : null}
@@ -739,7 +768,7 @@ function TeamAttendancePanel(props: {
           title="Upload attendance"
           description="Pick the cutoff dates, attach the CSV file, then save the attendance import to the API."
         >
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
+          <div className="ui-detail-panel">
             <div className="grid gap-3 md:grid-cols-2">
               <Field label="Cutoff Start">
                 <input
@@ -854,7 +883,7 @@ function TeamAttendancePanel(props: {
         action={selectedCutoff ? <StatusPill status={selectedCutoff.status} /> : null}
       >
         {props.cutoffs.length > 0 ? (
-          <div className="mb-5 grid gap-3 md:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="ui-toolbar mb-5 grid gap-3 md:grid-cols-[280px_minmax(0,1fr)]">
             <Field label="Review Cutoff">
               <select
                 value={selectedCutoff?.id ?? ""}
@@ -869,7 +898,7 @@ function TeamAttendancePanel(props: {
                 ))}
               </select>
             </Field>
-            <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
+            <div className="ui-toolbar-muted text-sm text-slate-600">
               Select a cutoff to review uploaded attendance, employee summaries, and request approvals.
             </div>
           </div>
@@ -896,7 +925,7 @@ function TeamAttendancePanel(props: {
               />
             </div>
 
-            <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200/80">
+            <div className="ui-table-shell mt-5">
               <table className="min-w-full border-separate border-spacing-0 bg-white">
                 <thead className="bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                   <tr>
@@ -913,7 +942,7 @@ function TeamAttendancePanel(props: {
                   {props.summary.employees.map((employee) => (
                     <tr
                       key={`${employee.employee_id}-${employee.cutoff_id}`}
-                      className="border-t border-slate-200/80 text-sm text-slate-700"
+                      className="ui-table-row text-sm text-slate-700"
                     >
                       <td className="px-4 py-4">
                         <p className="font-semibold text-slate-950">{employee.employee_name}</p>
@@ -933,29 +962,31 @@ function TeamAttendancePanel(props: {
               </table>
             </div>
 
-            <div className="mt-5 flex justify-end">
-              {props.summary.cutoff.status === "locked" ? (
-                props.canUnlockCutoffs ? (
+            {(props.summary.cutoff.status === "locked" || props.canManageAttendanceImports) ? (
+              <div className="ui-action-bar ui-sticky-band mt-5 flex justify-end">
+                {props.summary.cutoff.status === "locked" ? (
+                  props.canUnlockCutoffs ? (
+                    <button
+                      type="button"
+                      onClick={props.onUnlockCutoff}
+                      disabled={props.lockingCutoff}
+                      className="ui-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {props.lockingCutoff ? "Unlocking cutoff..." : "Unlock cutoff"}
+                    </button>
+                  ) : null
+                ) : props.canManageAttendanceImports ? (
                   <button
                     type="button"
-                    onClick={props.onUnlockCutoff}
+                    onClick={props.onLockCutoff}
                     disabled={props.lockingCutoff}
-                    className="ui-button-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                    className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {props.lockingCutoff ? "Unlocking cutoff..." : "Unlock cutoff"}
+                    {props.lockingCutoff ? "Locking cutoff..." : "Lock cutoff"}
                   </button>
-                ) : null
-              ) : props.canManageAttendanceImports ? (
-                <button
-                  type="button"
-                  onClick={props.onLockCutoff}
-                  disabled={props.lockingCutoff}
-                  className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {props.lockingCutoff ? "Locking cutoff..." : "Lock cutoff"}
-                </button>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            ) : null}
           </>
         ) : (
           <ResourceEmptyState
@@ -973,7 +1004,7 @@ function TeamAttendancePanel(props: {
         title="Attendance requests for approval"
         description="Review employee attendance correction requests by cutoff, status, and employee."
       >
-        <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="ui-toolbar grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
           <select
             value={props.requestFilterStatus}
             onChange={(event) => props.onRequestFilterStatusChange(event.target.value)}
@@ -1001,9 +1032,9 @@ function TeamAttendancePanel(props: {
               <article
                 key={request.id}
                 className={cn(
-                  "rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4",
+                  "rounded-[24px] border border-slate-200/80 bg-linear-to-r from-white via-slate-50/85 to-slate-50/65 p-4 shadow-sm",
                   props.highlightedRequestId === request.id &&
-                    "border-emerald-300 ring-2 ring-emerald-200",
+                    "border-sky-300 ring-2 ring-sky-200 shadow-[inset_4px_0_0_0_rgba(2,132,199,0.7)]",
                 )}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1041,7 +1072,7 @@ function TeamAttendancePanel(props: {
                 <p className="mt-4 text-sm leading-6 text-slate-600">{request.reason}</p>
 
                 {request.status === "pending" ? (
-                  <div className="mt-4 flex flex-col gap-3 md:flex-row">
+                  <div className="ui-action-bar mt-4 flex flex-col gap-3 md:flex-row md:items-center">
                     <input
                       type="text"
                       value={props.reviewRemarks[request.id] ?? ""}
@@ -1121,7 +1152,7 @@ function AttendanceReviewPanel(props: {
             : "Review attendance records and exceptions for this account."
         }
       >
-        <div className="grid gap-3 md:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="ui-toolbar grid gap-3 md:grid-cols-[280px_minmax(0,1fr)]">
           <select
             value={props.selectedCutoffId ?? ""}
             onChange={(event) => props.onSelectCutoff(Number(event.target.value))}
@@ -1134,7 +1165,7 @@ function AttendanceReviewPanel(props: {
               </option>
             ))}
           </select>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 text-sm text-slate-600">
+          <div className="ui-toolbar-muted text-sm text-slate-600">
             Select a cutoff to review daily logs, acknowledge attendance, and submit corrections before payroll is finalized.
           </div>
         </div>
@@ -1170,7 +1201,7 @@ function AttendanceReviewPanel(props: {
               />
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="ui-action-bar ui-sticky-band mt-5 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-500">
                 {props.review.summary.acknowledged_at
                   ? `Acknowledged ${formatPhilippineDateTime(props.review.summary.acknowledged_at)}`
@@ -1191,7 +1222,7 @@ function AttendanceReviewPanel(props: {
             title="Daily attendance logs"
             description="Review imported logs, missing entries, and computed minutes for the selected cutoff."
           >
-            <div className="overflow-hidden rounded-[24px] border border-slate-200/80">
+            <div className="ui-table-shell">
               <table className="min-w-full border-separate border-spacing-0 bg-white">
                 <thead className="bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                   <tr>
@@ -1207,7 +1238,14 @@ function AttendanceReviewPanel(props: {
                 </thead>
                 <tbody>
                   {props.review.records.map((record) => (
-                    <tr key={record.id} className="border-t border-slate-200/80 text-sm text-slate-700">
+                    <tr
+                      key={record.id}
+                      className={cn(
+                        "ui-table-row text-sm text-slate-700",
+                        (record.has_missing_time_in || record.has_missing_time_out) &&
+                          "ui-table-row-selected",
+                      )}
+                    >
                       <td className="px-4 py-4">{formatDate(record.attendance_date)}</td>
                       <td className="px-4 py-4">{formatWeekday(record.attendance_date)}</td>
                       <td className="px-4 py-4">{formatTime(record.time_in ?? undefined)}</td>
@@ -1343,11 +1381,11 @@ function AttendanceReviewPanel(props: {
                   }))
                 }
                 rows={4}
-                className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10"
+                className="ui-textarea min-h-28"
               />
             </Field>
 
-            <div className="mt-4 flex justify-end">
+            <div className="ui-action-bar mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={props.onSubmitRequest}
@@ -1369,9 +1407,9 @@ function AttendanceReviewPanel(props: {
                   <article
                     key={request.id}
                     className={cn(
-                      "rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4",
+                      "rounded-[24px] border border-slate-200/80 bg-linear-to-r from-white via-slate-50/85 to-slate-50/65 p-4 shadow-sm",
                       props.highlightedRequestId === request.id &&
-                        "border-emerald-300 ring-2 ring-emerald-200",
+                        "border-sky-300 ring-2 ring-sky-200 shadow-[inset_4px_0_0_0_rgba(2,132,199,0.7)]",
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1435,7 +1473,7 @@ function Field({
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-4">
+    <div className="ui-metric-card">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
         {label}
       </p>
@@ -1446,7 +1484,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 
 function MetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3">
+    <div className="panel-subtle rounded-2xl px-4 py-3">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
         {label}
       </p>
@@ -1464,19 +1502,19 @@ function StatusPill({
 }) {
   const normalizedStatus = status.toLowerCase();
   const tone = normalizedStatus.includes("approved") || normalizedStatus.includes("acknowledged")
-    ? "bg-emerald-100 text-emerald-700"
+    ? "ui-badge-success"
     : normalizedStatus.includes("locked")
-      ? "bg-slate-900 text-white"
+      ? "bg-slate-900 text-white ring-slate-900/10"
       : normalizedStatus.includes("pending") || normalizedStatus.includes("review")
-        ? "bg-amber-100 text-amber-700"
+        ? "ui-badge-warning"
         : normalizedStatus.includes("reject") || normalizedStatus.includes("declined")
-          ? "bg-rose-100 text-rose-700"
-          : "bg-slate-100 text-slate-700";
+          ? "ui-badge-danger"
+          : "ui-badge-neutral";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
+        "ui-badge uppercase tracking-[0.16em]",
         tone,
         compact && "px-2.5 py-1 text-[11px]",
       )}
@@ -1498,8 +1536,8 @@ function SimpleTable({
   emptyMessage?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white">
-      <div className="border-b border-slate-200/80 px-4 py-3">
+    <div className="ui-table-shell">
+      <div className="border-b border-slate-200/80 bg-slate-50/70 px-4 py-3">
         <p className="text-sm font-semibold text-slate-950">{title}</p>
       </div>
       {rows.length > 0 ? (
@@ -1516,7 +1554,7 @@ function SimpleTable({
             </thead>
             <tbody>
               {rows.map((row, rowIndex) => (
-                <tr key={`${title}-${rowIndex}`} className="border-t border-slate-200/80 text-sm text-slate-700">
+                <tr key={`${title}-${rowIndex}`} className="ui-table-row text-sm text-slate-700">
                   {row.map((cell, cellIndex) => (
                     <td key={`${title}-${rowIndex}-${cellIndex}`} className="px-4 py-3 align-top">
                       {cell}

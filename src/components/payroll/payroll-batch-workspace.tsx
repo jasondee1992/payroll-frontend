@@ -39,6 +39,11 @@ import {
 } from "@/lib/api/payroll";
 import { canManagePayroll, type AppRole } from "@/lib/auth/session";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import {
+  preserveCurrentValue,
+  preserveCurrentValues,
+} from "@/lib/preserved-collection-state";
+import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import { cn } from "@/lib/utils";
 import type {
   EmployeePayrollCutoffPreviewRecord,
@@ -53,12 +58,30 @@ type Props = {
   role: AppRole | null;
 };
 
+type BreakdownRow = {
+  label: string;
+  amount: string;
+  note: string;
+};
+
+type BreakdownSection = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  summaryLabel: string;
+  summaryValue: string;
+  rows: BreakdownRow[];
+  tone: "positive" | "negative" | "neutral";
+  footerNote?: string;
+};
+
 const PAYROLL_REFRESH_INTERVAL_MS = 5000;
 
 export function PayrollBatchWorkspace({ role }: Props) {
   const canManage = canManagePayroll(role);
   const batchListRef = useRef<HTMLDivElement | null>(null);
   const batchDetailRef = useRef<HTMLDivElement | null>(null);
+  const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
   const [cutoffs, setCutoffs] = useState<PayrollCutoffPreviewRecord[]>([]);
   const [cutoffEmployeeStatuses, setCutoffEmployeeStatuses] = useState<
     EmployeePayrollCutoffStatusRecord[]
@@ -82,8 +105,27 @@ export function PayrollBatchWorkspace({ role }: Props) {
   const [loadingCutoffEmployees, setLoadingCutoffEmployees] = useState(false);
   const [loadingEmployeePreview, setLoadingEmployeePreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [activeEmployeeActionKey, setActiveEmployeeActionKey] = useState<string | null>(null);
+  const [cutoffEmployeeFeedback, setCutoffEmployeeFeedback] = useState<{
+    tone: "error" | "success";
+    message: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cutoffEmployeeFeedback == null) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCutoffEmployeeFeedback(null);
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [cutoffEmployeeFeedback]);
 
   const loadOverview = useCallback(async (
     preferredBatchId?: number | null,
@@ -102,17 +144,17 @@ export function PayrollBatchWorkspace({ role }: Props) {
       ]);
       setCutoffs(nextCutoffs);
       setBatches(nextBatches);
-      const nextCutoffId = cutoffId && nextCutoffs.some((item) => item.cutoff.id === cutoffId)
-        ? cutoffId
-        : nextCutoffs[0]?.cutoff.id ?? null;
+      const availableCutoffIds = nextCutoffs.map((item) => item.cutoff.id);
+      const nextCutoffId = preserveCurrentValue(availableCutoffIds, cutoffId);
       setCutoffId(nextCutoffId);
-      const nextBatchId = preferredBatchId && nextBatches.some((item) => item.id === preferredBatchId)
-        ? preferredBatchId
-        : batchId && nextBatches.some((item) => item.id === batchId)
-          ? batchId
-          : nextCutoffs.find((item) => item.cutoff.id === nextCutoffId)?.existing_batch_id ??
-            nextBatches[0]?.id ??
-            null;
+      const availableBatchIds = nextBatches.map((item) => item.id);
+      const fallbackBatchId =
+        nextCutoffs.find((item) => item.cutoff.id === nextCutoffId)?.existing_batch_id ?? null;
+      const nextBatchId = preserveCurrentValue(
+        availableBatchIds,
+        preferredBatchId ?? batchId,
+        { fallbackValue: fallbackBatchId },
+      );
       setBatchId(nextBatchId);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Unable to load payroll data.");
@@ -144,11 +186,19 @@ export function PayrollBatchWorkspace({ role }: Props) {
         ? await evaluateEmployeePayrollCutoffStatuses(nextCutoffId)
         : await getEmployeePayrollCutoffStatuses(nextCutoffId);
       setCutoffEmployeeStatuses(nextStatuses);
-      setEmployeePreviewStatus((currentValue) =>
-        currentValue == null
-          ? null
-          : nextStatuses.find((item) => item.employee_id === currentValue.employee_id) ?? null,
+      const preservedEmployeeId = preserveCurrentValue(
+        nextStatuses.map((item) => item.employee_id),
+        employeePreviewStatus?.employee_id ?? null,
+        { preferFirst: false },
       );
+      setEmployeePreviewStatus(
+        preservedEmployeeId == null
+          ? null
+          : nextStatuses.find((item) => item.employee_id === preservedEmployeeId) ?? null,
+      );
+      if (preservedEmployeeId == null) {
+        setEmployeePreview(null);
+      }
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -160,7 +210,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
         setLoadingCutoffEmployees(false);
       }
     }
-  }, []);
+  }, [employeePreviewStatus?.employee_id]);
 
   useEffect(() => {
     void loadOverview();
@@ -209,7 +259,10 @@ export function PayrollBatchWorkspace({ role }: Props) {
         }
         setBatch(detail);
         setExpandedRecordIds((currentValue) =>
-          currentValue.filter((value) => detail.records.some((record) => record.id === value)),
+          preserveCurrentValues(
+            detail.records.map((record) => record.id),
+            currentValue,
+          ),
         );
         setRecordReviewRemarks(
           detail.records.reduce<Record<number, string>>((accumulator, record) => {
@@ -260,7 +313,11 @@ export function PayrollBatchWorkspace({ role }: Props) {
     ? "A payroll batch already exists for this cutoff. Review it below or use Recalculate from the batch details."
     : selectedCutoff?.blocked_reason ?? null;
 
-  function focusPayrollBatch(nextBatchId: number | null, nextCutoffId?: number | null) {
+  function focusPayrollBatch(
+    nextBatchId: number | null,
+    nextCutoffId?: number | null,
+    options?: { scroll?: boolean },
+  ) {
     setError(null);
     setMessage(null);
     if (nextCutoffId !== undefined) {
@@ -268,10 +325,12 @@ export function PayrollBatchWorkspace({ role }: Props) {
     }
     setBatchId(nextBatchId);
 
-    window.setTimeout(() => {
-      const target = batchDetailRef.current ?? batchListRef.current;
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
+    if (options?.scroll) {
+      window.setTimeout(() => {
+        const target = batchDetailRef.current ?? batchListRef.current;
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
   }
 
   function toggleRecordExpansion(recordIdValue: number) {
@@ -288,6 +347,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
     }
 
     const reviewRemarks = recordReviewRemarks[record.id] ?? "";
+    const scrollPosition = captureScrollPosition();
     setSubmitting(true);
     setError(null);
     setMessage(null);
@@ -318,13 +378,17 @@ export function PayrollBatchWorkspace({ role }: Props) {
       );
     } finally {
       setSubmitting(false);
+      restoreScrollPosition(scrollPosition);
     }
   }
 
-  async function loadEmployeePreview(statusRecord: EmployeePayrollCutoffStatusRecord) {
+  async function loadEmployeePreview(
+    statusRecord: EmployeePayrollCutoffStatusRecord,
+    options?: { forceOpen?: boolean },
+  ) {
     const alreadyOpen = employeePreviewStatus?.employee_id === statusRecord.employee_id;
 
-    if (alreadyOpen) {
+    if (alreadyOpen && !options?.forceOpen) {
       setEmployeePreviewStatus(null);
       setEmployeePreview(null);
       setLoadingEmployeePreview(false);
@@ -377,15 +441,25 @@ export function PayrollBatchWorkspace({ role }: Props) {
       return;
     }
 
+    const scrollPosition = captureScrollPosition();
     setSubmitting(true);
     setError(null);
     setMessage(null);
+    setCutoffEmployeeFeedback(null);
+    setActiveEmployeeActionKey(
+      statusRecord && (action === "calculate" || action === "recalculate")
+        ? getEmployeeActionKey(action, statusRecord)
+        : null,
+    );
     try {
       let preferredBatchId = batchId;
       if (action === "evaluate") {
         const nextStatuses = await evaluateEmployeePayrollCutoffStatuses(activeCutoffId);
         setCutoffEmployeeStatuses(nextStatuses);
-        setMessage("Employee payroll readiness was re-evaluated for this cutoff.");
+        setCutoffEmployeeFeedback({
+          tone: "success",
+          message: "Employee payroll readiness was re-evaluated for this cutoff.",
+        });
         await loadOverview(preferredBatchId, { background: true });
         return;
       }
@@ -396,10 +470,16 @@ export function PayrollBatchWorkspace({ role }: Props) {
 
       if (action === "lock") {
         await lockEmployeePayrollCutoff(statusRecord.cutoff_id, statusRecord.employee_id);
-        setMessage(`Locked ${statusRecord.employee_name} for payroll.`);
+        setCutoffEmployeeFeedback({
+          tone: "success",
+          message: `Locked ${statusRecord.employee_name} for payroll.`,
+        });
       } else if (action === "unlock") {
         await unlockEmployeePayrollCutoff(statusRecord.cutoff_id, statusRecord.employee_id);
-        setMessage(`Unlocked ${statusRecord.employee_name} from payroll.`);
+        setCutoffEmployeeFeedback({
+          tone: "success",
+          message: `Unlocked ${statusRecord.employee_name} from payroll.`,
+        });
       } else {
         const nextBatch =
           action === "calculate"
@@ -417,11 +497,13 @@ export function PayrollBatchWorkspace({ role }: Props) {
         setBatchId(nextBatch.id);
         setRemarks(nextBatch.remarks ?? remarks);
         preferredBatchId = nextBatch.id;
-        setMessage(
-          action === "calculate"
-            ? `Calculated payroll for ${statusRecord.employee_name}.`
-            : `Recalculated payroll for ${statusRecord.employee_name}.`,
-        );
+        setCutoffEmployeeFeedback({
+          tone: "success",
+          message:
+            action === "calculate"
+              ? `Calculated payroll for ${statusRecord.employee_name}.`
+              : `Recalculated payroll for ${statusRecord.employee_name}.`,
+        });
       }
 
       await loadOverview(preferredBatchId, { background: true });
@@ -437,18 +519,22 @@ export function PayrollBatchWorkspace({ role }: Props) {
             (item) => item.employee_id === statusRecord.employee_id,
           );
           if (refreshedStatus) {
-            await loadEmployeePreview(refreshedStatus);
+            await loadEmployeePreview(refreshedStatus, { forceOpen: true });
           }
         }
       }
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to update the employee payroll cutoff status.",
-      );
+      setCutoffEmployeeFeedback({
+        tone: "error",
+        message:
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to update the employee payroll cutoff status.",
+      });
     } finally {
+      setActiveEmployeeActionKey(null);
       setSubmitting(false);
+      restoreScrollPosition(scrollPosition);
     }
   }
 
@@ -474,6 +560,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
     ) {
       return;
     }
+    const scrollPosition = captureScrollPosition();
     setSubmitting(true);
     setError(null);
     setMessage(null);
@@ -522,6 +609,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
       setError(nextError instanceof Error ? nextError.message : "Unable to update payroll batch.");
     } finally {
       setSubmitting(false);
+      restoreScrollPosition(scrollPosition);
     }
   }
 
@@ -546,13 +634,22 @@ export function PayrollBatchWorkspace({ role }: Props) {
       {message ? <Banner tone="success">{message}</Banner> : null}
 
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="panel p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
+        <div className="panel-strong p-5 sm:p-6">
+          <div className="ui-section-header flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">Cutoff readiness</h2>
               <p className="mt-1 text-sm text-slate-600">Select a cutoff, review the employee readiness rows below, and calculate batch payroll from the locked employees.</p>
             </div>
-            <button type="button" onClick={() => void loadOverview(batchId)} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <button
+              type="button"
+              onClick={() => {
+                const scrollPosition = captureScrollPosition();
+                void loadOverview(batchId).finally(() => {
+                  restoreScrollPosition(scrollPosition);
+                });
+              }}
+              className="ui-button-secondary h-10 px-4"
+            >
               <RefreshCw className="h-4 w-4" />
               Refresh
             </button>
@@ -569,12 +666,17 @@ export function PayrollBatchWorkspace({ role }: Props) {
                     setCutoffId(item.cutoff.id);
                     setBatchId(item.existing_batch_id ?? null);
                   }}
-                  className={cn("w-full rounded-2xl border px-4 py-4 text-left transition", active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-white")}
+                  className={cn(
+                    "w-full rounded-[24px] border px-4 py-4 text-left transition",
+                    active
+                      ? "border-sky-300 bg-sky-50/90 text-slate-950 shadow-[inset_4px_0_0_0_rgba(2,132,199,0.7)]"
+                      : "border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-white",
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold">{label(item.cutoff.cutoff_start, item.cutoff.cutoff_end)}</p>
-                      <p className={cn("mt-1 text-xs", active ? "text-slate-300" : "text-slate-500")}>
+                      <p className={cn("mt-1 text-xs", active ? "text-sky-700" : "text-slate-500")}>
                         Review deadline {item.review_deadline_at ? formatDateTime(item.review_deadline_at) : "Not set"}
                       </p>
                     </div>
@@ -588,16 +690,16 @@ export function PayrollBatchWorkspace({ role }: Props) {
           {selectedCutoff && canManage ? (
             <div className="mt-5 space-y-3">
               {selectedCutoffActionHint ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="ui-state-banner ui-state-banner-warning">
                   {selectedCutoffActionHint}
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-3">
+              <div className="ui-action-bar ui-sticky-band flex flex-wrap gap-3">
                 <button
                   type="button"
                   disabled={submitting || !selectedCutoff.can_calculate || selectedCutoffHasExistingBatch}
                   onClick={() => void runAction("calculate")}
-                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="ui-button-primary px-5"
                 >
                   <Calculator className="h-4 w-4" />
                   Calculate payroll
@@ -609,12 +711,13 @@ export function PayrollBatchWorkspace({ role }: Props) {
                       focusPayrollBatch(
                         selectedCutoff.existing_batch_id ?? null,
                         selectedCutoff.cutoff.id,
+                        { scroll: true },
                       );
                       setMessage(
                         `Opened the payroll batch for ${label(selectedCutoff.cutoff.cutoff_start, selectedCutoff.cutoff.cutoff_end)} below.`,
                       );
                     }}
-                    className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className="ui-button-secondary px-5"
                   >
                     Open payroll batch
                   </button>
@@ -624,9 +727,11 @@ export function PayrollBatchWorkspace({ role }: Props) {
           ) : null}
         </div>
 
-        <div ref={batchListRef} className="panel p-5 sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-950">Payroll batches</h2>
-          <p className="mt-1 text-sm text-slate-600">Review computed payroll before approval and posting.</p>
+        <div ref={batchListRef} className="panel-strong p-5 sm:p-6">
+          <div className="ui-section-header">
+            <h2 className="text-lg font-semibold text-slate-950">Payroll batches</h2>
+            <p className="mt-1 text-sm text-slate-600">Review computed payroll before approval and posting.</p>
+          </div>
           <div className="mt-5 space-y-3">
             {batches.length > 0 ? batches.map((item) => {
               const active = item.id === batchId;
@@ -635,14 +740,19 @@ export function PayrollBatchWorkspace({ role }: Props) {
                   key={item.id}
                   type="button"
                   onClick={() => {
-                    focusPayrollBatch(item.id, item.cutoff.id);
+                    focusPayrollBatch(item.id, item.cutoff.id, { scroll: true });
                   }}
-                  className={cn("w-full rounded-2xl border px-4 py-4 text-left transition", active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-white")}
+                  className={cn(
+                    "w-full rounded-[24px] border px-4 py-4 text-left transition",
+                    active
+                      ? "border-sky-300 bg-sky-50/90 text-slate-950 shadow-[inset_4px_0_0_0_rgba(2,132,199,0.7)]"
+                      : "border-slate-200/80 bg-slate-50/70 hover:border-slate-300 hover:bg-white",
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold">{label(item.cutoff.cutoff_start, item.cutoff.cutoff_end)}</p>
-                      <p className={cn("mt-1 text-xs", active ? "text-slate-300" : "text-slate-500")}>
+                      <p className={cn("mt-1 text-xs", active ? "text-sky-700" : "text-slate-500")}>
                         {item.record_count} employees • {item.records_with_flags} flagged
                       </p>
                     </div>
@@ -660,8 +770,8 @@ export function PayrollBatchWorkspace({ role }: Props) {
         </div>
       </section>
 
-      <section className="panel p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="panel-strong p-5 sm:p-6">
+        <div className="ui-section-header flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Cutoff employee payroll control</h2>
             <p className="mt-1 text-sm text-slate-600">
@@ -671,8 +781,13 @@ export function PayrollBatchWorkspace({ role }: Props) {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => void loadCutoffEmployees(cutoffId)}
-              className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => {
+                const scrollPosition = captureScrollPosition();
+                void loadCutoffEmployees(cutoffId).finally(() => {
+                  restoreScrollPosition(scrollPosition);
+                });
+              }}
+              className="ui-button-secondary h-10 px-4"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -682,7 +797,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                 type="button"
                 disabled={submitting || cutoffId == null}
                 onClick={() => void runEmployeeCutoffAction("evaluate")}
-                className="inline-flex h-10 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="ui-button-primary h-10 px-4"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Re-evaluate
@@ -691,7 +806,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="ui-toolbar mt-5 flex flex-wrap gap-2">
           {([
             ["all", "All"],
             ["not_ready", "Not ready"],
@@ -708,7 +823,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
               className={cn(
                 "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition",
                 employeeStatusFilter === value
-                  ? "bg-slate-900 text-white"
+                  ? "bg-slate-900 text-white shadow-sm"
                   : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
               )}
             >
@@ -717,7 +832,15 @@ export function PayrollBatchWorkspace({ role }: Props) {
           ))}
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/80">
+        {cutoffEmployeeFeedback ? (
+          <div className="mt-4">
+            <Banner tone={cutoffEmployeeFeedback.tone}>
+              {cutoffEmployeeFeedback.message}
+            </Banner>
+          </div>
+        ) : null}
+
+        <div className="ui-table-shell mt-5">
           {loadingCutoffEmployees ? (
             <ResourceTableSkeleton rowCount={6} />
           ) : filteredCutoffEmployeeStatuses.length === 0 ? (
@@ -748,17 +871,26 @@ export function PayrollBatchWorkspace({ role }: Props) {
                   {filteredCutoffEmployeeStatuses.map((item) => {
                     const previewOpen = employeePreviewStatus?.employee_id === item.employee_id;
                     const calculateDisabled = !item.is_locked || item.is_finalized;
+                    const calculating =
+                      activeEmployeeActionKey === getEmployeeActionKey("calculate", item);
+                    const recalculating =
+                      activeEmployeeActionKey === getEmployeeActionKey("recalculate", item);
                     const showIssues = item.blocking_issues[0] ?? item.warnings[0] ?? item.notes ?? "Clear";
 
                     return (
                       <Fragment key={item.id}>
-                        <tr className="transition hover:bg-slate-50">
+                        <tr className={cn("ui-table-row", previewOpen && "ui-table-row-selected")}>
                           <Cell>
                             <button
                               type="button"
                               disabled={submitting}
                               onClick={() => void runEmployeeCutoffAction("review", item)}
-                              className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                              className={cn(
+                                "inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400",
+                                previewOpen
+                                  ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                                  : "border-slate-200 text-slate-700 hover:bg-slate-50",
+                              )}
                             >
                               {previewOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                               {previewOpen ? "Collapse" : "Expand"}
@@ -816,8 +948,8 @@ export function PayrollBatchWorkspace({ role }: Props) {
                                     onClick={() => void runEmployeeCutoffAction("recalculate", item)}
                                     className="inline-flex h-9 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
                                   >
-                                    <RefreshCw className="h-3.5 w-3.5" />
-                                    Recalculate
+                                    <RefreshCw className={cn("h-3.5 w-3.5", recalculating && "animate-spin")} />
+                                    {recalculating ? "Recalculating..." : "Recalculate"}
                                   </button>
                                 ) : (
                                   <button
@@ -826,8 +958,8 @@ export function PayrollBatchWorkspace({ role }: Props) {
                                     onClick={() => void runEmployeeCutoffAction("calculate", item)}
                                     className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-300 disabled:text-white"
                                   >
-                                    <Calculator className="h-3.5 w-3.5" />
-                                    Calculate
+                                    <Calculator className={cn("h-3.5 w-3.5", calculating && "animate-pulse")} />
+                                    {calculating ? "Calculating..." : "Calculate"}
                                   </button>
                                 )
                               ) : null}
@@ -835,21 +967,13 @@ export function PayrollBatchWorkspace({ role }: Props) {
                           </Cell>
                         </tr>
                         {previewOpen ? (
-                          <tr className="bg-slate-50/60">
+                          <tr className="ui-table-row-expanded">
                             <td colSpan={10} className="border-b border-slate-200/70 px-4 py-5">
                               {loadingEmployeePreview ? (
                                 <ResourceTableSkeleton rowCount={3} />
                               ) : item.is_calculated && employeePreview ? (
-                                <div className="space-y-4">
+                                <div className="ui-expanded-panel space-y-4">
                                   <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div>
-                                      <p className="text-sm font-semibold text-slate-950">
-                                        {item.employee_name}
-                                      </p>
-                                      <p className="mt-1 text-xs text-slate-500">
-                                        Saved payroll result for this employee and cutoff.
-                                      </p>
-                                    </div>
                                     <ReadinessBadge status={item.readiness_status} />
                                   </div>
                                   <EmployeeCutoffStatusNotes statusRecord={item} />
@@ -863,7 +987,9 @@ export function PayrollBatchWorkspace({ role }: Props) {
                                   />
                                 </div>
                               ) : (
-                                <EmployeeCutoffPreviewEmptyState statusRecord={item} />
+                                <div className="ui-expanded-panel">
+                                  <EmployeeCutoffPreviewEmptyState statusRecord={item} />
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -878,12 +1004,12 @@ export function PayrollBatchWorkspace({ role }: Props) {
         </div>
       </section>
 
-      <div ref={batchDetailRef} className="panel p-5 sm:p-6">
+      <div ref={batchDetailRef} className="panel-strong p-5 sm:p-6">
         {loadingBatch ? <ResourceTableSkeleton rowCount={5} /> : !batch ? (
           <ResourceEmptyState title="Select a payroll batch" description="Choose a batch to inspect the employee-level payroll breakdown." />
         ) : (
           <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="ui-section-header flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="text-xl font-semibold text-slate-950">{label(batch.cutoff.cutoff_start, batch.cutoff.cutoff_end)}</h2>
@@ -891,7 +1017,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                 </div>
                 <p className="mt-2 text-sm text-slate-600">{batch.records_using_system_defaults} records used system-computed attendance defaults.</p>
               </div>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="ui-action-bar ui-sticky-band grid gap-2 sm:grid-cols-3">
                 {canManage && batch.status !== "posted" && batch.status !== "locked" ? <Action icon={RefreshCw} label="Recalculate" disabled={submitting} onClick={() => void runAction("recalculate")} /> : null}
                 {canManage && batch.status === "under_finance_review" ? <Action icon={CheckCircle2} label="Approve" disabled={submitting} onClick={() => void runAction("approve")} /> : null}
                 {canManage && batch.status === "approved" ? <Action icon={Send} label="Post payroll" disabled={submitting} onClick={() => void runAction("post")} /> : null}
@@ -904,11 +1030,11 @@ export function PayrollBatchWorkspace({ role }: Props) {
               onChange={(event) => setRemarks(event.target.value)}
               rows={3}
               disabled={!canManage || submitting}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+              className="ui-textarea min-h-24 bg-slate-50/70"
               placeholder="Finance remarks"
             />
 
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80">
+            <div className="ui-table-shell">
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-0">
                   <thead className="bg-slate-50/80">
@@ -931,7 +1057,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                       return (
                         <Fragment key={item.id}>
                           <tr
-                            className="transition hover:bg-slate-50"
+                            className={cn("ui-table-row", expanded && "ui-table-row-selected")}
                           >
                             <Cell>
                               <div className="flex flex-col items-start gap-2">
@@ -941,7 +1067,12 @@ export function PayrollBatchWorkspace({ role }: Props) {
                                     event.stopPropagation();
                                     toggleRecordExpansion(item.id);
                                   }}
-                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                  className={cn(
+                                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                                    expanded
+                                      ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                                      : "border-slate-200 text-slate-700 hover:bg-slate-50",
+                                  )}
                                 >
                                   {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                                   {expanded ? "Hide" : "Expand"}
@@ -961,21 +1092,23 @@ export function PayrollBatchWorkspace({ role }: Props) {
                             <Cell><span className={cn("font-semibold", Number(item.net_pay) < 0 ? "text-rose-700" : "text-slate-900")}>{formatCurrency(item.net_pay)}</span></Cell>
                           </tr>
                           {expanded ? (
-                            <tr className="bg-slate-50/60">
+                            <tr className="ui-table-row-expanded">
                               <td colSpan={7} className="border-b border-slate-200/70 px-4 py-5">
-                                <ExpandedPayrollRecord
-                                  record={item}
-                                  canRecalculate={canRecalculateRecord}
-                                  submitting={submitting}
-                                  reviewRemarks={recordReviewRemarks[item.id] ?? ""}
-                                  onReviewRemarksChange={(value) =>
-                                    setRecordReviewRemarks((currentValue) => ({
-                                      ...currentValue,
-                                      [item.id]: value,
-                                    }))
-                                  }
-                                  onRecalculate={() => void runRecordRecalculation(item)}
-                                />
+                                <div className="ui-expanded-panel">
+                                  <ExpandedPayrollRecord
+                                    record={item}
+                                    canRecalculate={canRecalculateRecord}
+                                    submitting={submitting}
+                                    reviewRemarks={recordReviewRemarks[item.id] ?? ""}
+                                    onReviewRemarksChange={(value) =>
+                                      setRecordReviewRemarks((currentValue) => ({
+                                        ...currentValue,
+                                        [item.id]: value,
+                                      }))
+                                    }
+                                    onRecalculate={() => void runRecordRecalculation(item)}
+                                  />
+                                </div>
                               </td>
                             </tr>
                           ) : null}
@@ -1034,6 +1167,13 @@ function ExpandedPayrollRecord({
     record.other_deductions,
     loanDeductionTotal,
   );
+  const allowanceRows = record.adjustments
+    .filter((item) => item.category === "earning" && !coreEarningTypes.has(item.adjustment_type))
+    .map((item) => ({
+      label: item.adjustment_type === "other_earnings" ? "Allowance pool" : pretty(item.adjustment_type),
+      amount: item.amount,
+      note: item.description,
+    }));
   const earningRows = [
     {
       label: "Basic pay",
@@ -1055,13 +1195,6 @@ function ExpandedPayrollRecord({
       amount: record.night_differential_pay,
       note: `${record.total_night_differential_minutes} night differential minutes were included.`,
     },
-    ...record.adjustments
-      .filter((item) => item.category === "earning" && !coreEarningTypes.has(item.adjustment_type))
-      .map((item) => ({
-        label: item.adjustment_type === "other_earnings" ? "Allowances" : pretty(item.adjustment_type),
-        amount: item.amount,
-        note: item.description,
-      })),
   ];
   const deductionRows = [
     {
@@ -1078,14 +1211,6 @@ function ExpandedPayrollRecord({
       label: "Absence deduction",
       amount: record.absence_deduction,
       note: `${record.total_absences} absence day${record.total_absences === 1 ? "" : "s"}.`,
-    },
-    {
-      label: "Loan deductions",
-      amount: loanDeductionTotal,
-      note:
-        loanRows.length > 0
-          ? `${loanRows.length} scheduled employee loan deduction${loanRows.length === 1 ? "" : "s"} were applied.`
-          : "No employee loan deductions were applied in this cutoff.",
     },
     ...(Number(residualOtherDeductions) > 0
       ? [
@@ -1111,6 +1236,74 @@ function ExpandedPayrollRecord({
     record.absence_deduction,
     record.other_deductions,
   ]);
+  const totalDeductions = sumAmountStrings([
+    operationsDeductionTotal,
+    record.government_deductions_total,
+  ]);
+  const visibleEarningRows = filterRowsWithAmounts(earningRows);
+  const visibleAllowanceRows = filterRowsWithAmounts(allowanceRows);
+  const visibleDeductionRows = filterRowsWithAmounts(deductionRows);
+  const visibleGovernmentRows = filterRowsWithAmounts(governmentRows);
+  const earningSections: BreakdownSection[] = [
+    ...(visibleEarningRows.length > 0
+      ? [
+          {
+            eyebrow: "Salary components",
+            title: "Salary and time-based earnings",
+            description: "Included base pay plus approved time-based earnings for this cutoff.",
+            summaryLabel: "Earnings total",
+            summaryValue: sumAmountStrings(visibleEarningRows.map((item) => item.amount)),
+            rows: visibleEarningRows,
+            tone: "positive" as const,
+          },
+        ]
+      : []),
+    ...(visibleAllowanceRows.length > 0
+      ? [
+          {
+            eyebrow: "Allowances",
+            title:
+              visibleAllowanceRows.length === 1
+                ? "1 allowance added to gross pay"
+                : `${visibleAllowanceRows.length} allowances added to gross pay`,
+            description: "Recurring and manual extras that were added to this cutoff.",
+            summaryLabel: "Allowance total",
+            summaryValue: sumAmountStrings(visibleAllowanceRows.map((item) => item.amount)),
+            rows: visibleAllowanceRows,
+            tone: "positive" as const,
+          },
+        ]
+      : []),
+  ];
+  const deductionSections: BreakdownSection[] = [
+    ...(visibleDeductionRows.length > 0
+      ? [
+          {
+            eyebrow: "Attendance / loans",
+            title: "Operational deductions",
+            description: "Attendance, absence, undertime, and employee loan deductions for this cutoff.",
+            summaryLabel: "Deduction total",
+            summaryValue: sumAmountStrings(visibleDeductionRows.map((item) => item.amount)),
+            rows: visibleDeductionRows,
+            tone: "negative" as const,
+          },
+        ]
+      : []),
+    ...(visibleGovernmentRows.length > 0
+      ? [
+          {
+            eyebrow: "Government / tax",
+            title: "Statutory deductions",
+            description: "Government shares and withholding items charged to the employee.",
+            summaryLabel: "Deduction total",
+            summaryValue: sumAmountStrings(visibleGovernmentRows.map((item) => item.amount)),
+            rows: visibleGovernmentRows,
+            tone: "neutral" as const,
+            footerNote: `Taxable income ${formatCurrency(record.taxable_income)} • Employer contribution ${formatCurrency(record.total_employer_contributions)}`,
+          },
+        ]
+      : []),
+  ];
   const computationNotes = [
     `Source ${pretty(record.calculation_source_status)}`,
     `Attendance review ${pretty(record.attendance_review_status)}`,
@@ -1120,43 +1313,48 @@ function ExpandedPayrollRecord({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h4 className="text-sm font-semibold text-slate-950">{record.employee_name_snapshot}</h4>
-          <p className="mt-1 text-xs text-slate-500">
-            Review how the gross pay, deductions, and net pay were built for approval.
-          </p>
-        </div>
-        <div className="rounded-2xl bg-white px-4 py-3 text-right shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Net pay</p>
-          <p className={cn("mt-1 text-lg font-semibold", Number(record.net_pay) < 0 ? "text-rose-700" : "text-slate-900")}>
-            {formatCurrency(record.net_pay)}
-          </p>
+      <div className="rounded-[28px] border border-slate-200/80 bg-linear-to-r from-white via-slate-50 to-emerald-50/60 p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Sahod</p>
+            <p className="mt-1 text-lg font-semibold text-slate-950">{formatCurrency(record.gross_pay)}</p>
+            <p className="mt-1 text-xs text-slate-500">Kabuuang earnings bago kaltas.</p>
+          </div>
+          <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+              Total deduction
+            </p>
+            <p className="mt-1 text-lg font-semibold text-rose-700">{formatCurrency(totalDeductions)}</p>
+            <p className="mt-1 text-xs text-rose-600">Kasama ang attendance, loans, government, at tax deductions.</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+              Take-home pay
+            </p>
+            <p className={cn("mt-1 text-lg font-semibold", Number(record.net_pay) < 0 ? "text-rose-700" : "text-emerald-700")}>
+              {formatCurrency(record.net_pay)}
+            </p>
+            <p className="mt-1 text-xs text-emerald-700/80">Final net pay for this employee in the selected cutoff.</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-2">
         <BreakdownPanel
           title="Earnings"
-          summaryLabel="Gross pay"
+          summaryLabel="Total earnings"
           summaryValue={record.gross_pay}
           tone="positive"
-          rows={earningRows}
+          sections={earningSections}
+          emptyMessage="No earnings with a value were generated for this cutoff."
         />
         <BreakdownPanel
-          title="Attendance / Loans"
-          summaryLabel="Operational deductions"
-          summaryValue={operationsDeductionTotal}
+          title="Deductions"
+          summaryLabel="Total deductions"
+          summaryValue={totalDeductions}
           tone="negative"
-          rows={deductionRows}
-        />
-        <BreakdownPanel
-          title="Government / Tax"
-          summaryLabel="Employee deductions"
-          summaryValue={record.government_deductions_total}
-          tone="neutral"
-          rows={governmentRows}
-          footerNote={`Taxable income ${formatCurrency(record.taxable_income)} • Employer contribution ${formatCurrency(record.total_employer_contributions)}`}
+          sections={deductionSections}
+          emptyMessage="No deductions with a value were applied for this cutoff."
         />
       </div>
 
@@ -1210,18 +1408,13 @@ function EmployeeCutoffPreviewEmptyState({
   return (
     <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-amber-900">
-            {statusRecord.employee_name}
-          </p>
-          <p className="mt-1 text-xs text-amber-800">
-            {statusRecord.is_calculated
-              ? "Calculated payroll details could not be loaded yet. Refresh the cutoff row and try again."
-              : statusRecord.is_locked
-              ? "Not yet calculated. Run Calculate for this employee to show the payroll breakdown here."
-              : "This employee is not yet locked for payroll. Lock the row first, then calculate to see the result here."}
-          </p>
-        </div>
+        <p className="text-xs text-amber-800">
+          {statusRecord.is_calculated
+            ? "Calculated payroll details could not be loaded yet. Refresh the cutoff row and try again."
+            : statusRecord.is_locked
+            ? "Not yet calculated. Run Calculate for this employee to show the payroll breakdown here."
+            : "This employee is not yet locked for payroll. Lock the row first, then calculate to see the result here."}
+        </p>
         <ReadinessBadge status={statusRecord.readiness_status} />
       </div>
       <EmployeeCutoffStatusNotes statusRecord={statusRecord} />
@@ -1245,17 +1438,17 @@ function EmployeeCutoffStatusNotes({
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       {statusRecord.blocking_issues.length > 0 ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        <div className="ui-state-banner ui-state-banner-error">
           {statusRecord.blocking_issues.join(" ")}
         </div>
       ) : null}
       {statusRecord.warnings.length > 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="ui-state-banner ui-state-banner-warning">
           {statusRecord.warnings.join(" ")}
         </div>
       ) : null}
       {statusRecord.notes ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 lg:col-span-2">
+        <div className="ui-state-banner ui-state-banner-info lg:col-span-2">
           {statusRecord.notes}
         </div>
       ) : null}
@@ -1268,50 +1461,138 @@ function BreakdownPanel({
   summaryLabel,
   summaryValue,
   tone,
-  rows,
-  footerNote,
+  sections,
+  emptyMessage,
 }: {
   title: string;
   summaryLabel: string;
   summaryValue: string;
   tone: "positive" | "negative" | "neutral";
-  rows: Array<{ label: string; amount: string; note: string }>;
-  footerNote?: string;
+  sections: BreakdownSection[];
+  emptyMessage: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const itemCount = sections.reduce((count, section) => count + section.rows.length, 0);
+
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-[24px] border border-slate-200/80 bg-white/88 p-4 shadow-sm">
+      <button
+        type="button"
+        onClick={() => setExpanded((currentValue) => !currentValue)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
         <div>
           <p className="text-sm font-semibold text-slate-950">{title}</p>
           <p className="mt-1 text-xs text-slate-500">{summaryLabel}</p>
+          <p className="mt-2 text-xs text-slate-400">
+            {itemCount === 0 ? "No items with value" : `${itemCount} item${itemCount === 1 ? "" : "s"} with value`}
+          </p>
         </div>
-        <span
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
-            tone === "positive"
-              ? "bg-emerald-100 text-emerald-700"
-              : tone === "negative"
-                ? "bg-rose-100 text-rose-700"
-                : "bg-amber-100 text-amber-700",
-          )}
-        >
-          {formatCurrency(summaryValue)}
-        </span>
-      </div>
-      <div className="mt-4 space-y-3">
-        {rows.map((row) => (
-          <div key={row.label} className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-slate-900">{row.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{row.note}</p>
-              </div>
-              <span className="text-sm font-semibold text-slate-900">{formatCurrency(row.amount)}</span>
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
+              tone === "positive"
+                ? "bg-emerald-100 text-emerald-700"
+                : tone === "negative"
+                  ? "bg-rose-100 text-rose-700"
+                  : "bg-amber-100 text-amber-700",
+            )}
+          >
+            {formatCurrency(summaryValue)}
+          </span>
+          <span className="mt-1 text-slate-400">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </span>
+        </div>
+      </button>
+      {expanded ? (
+        <div className="mt-4 space-y-4">
+          {sections.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-5 text-sm text-slate-500">
+              {emptyMessage}
             </div>
-          </div>
-        ))}
-      </div>
-      {footerNote ? <p className="mt-3 text-xs text-amber-700">{footerNote}</p> : null}
+          ) : (
+            sections.map((section, sectionIndex) => (
+              <div
+                key={`${section.title}-${sectionIndex}`}
+                className={cn(
+                  "rounded-[28px] border p-4 shadow-sm",
+                  section.tone === "positive"
+                    ? "border-emerald-200/80 bg-linear-to-br from-emerald-50 via-white to-teal-50"
+                    : section.tone === "negative"
+                      ? "border-rose-200/80 bg-linear-to-br from-rose-50 via-white to-orange-50"
+                      : "border-amber-200/80 bg-linear-to-br from-amber-50 via-white to-yellow-50",
+                )}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p
+                      className={cn(
+                        "text-[11px] font-semibold uppercase tracking-[0.18em]",
+                        section.tone === "positive"
+                          ? "text-emerald-700"
+                          : section.tone === "negative"
+                            ? "text-rose-700"
+                            : "text-amber-700",
+                      )}
+                    >
+                      {section.eyebrow}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-slate-950">{section.title}</p>
+                    <p className="mt-1 text-xs text-slate-600">{section.description}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/90 bg-white/90 px-3 py-2 text-right shadow-sm">
+                    <p
+                      className={cn(
+                        "text-[11px] font-semibold uppercase tracking-[0.16em]",
+                        section.tone === "positive"
+                          ? "text-emerald-700"
+                          : section.tone === "negative"
+                            ? "text-rose-700"
+                            : "text-amber-700",
+                      )}
+                    >
+                      {section.summaryLabel}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">
+                      {formatCurrency(section.summaryValue)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2">
+                  {section.rows.map((row, index) => (
+                    <div
+                      key={`${row.label}-${row.amount}-${index}`}
+                      className="rounded-2xl border border-white/90 bg-white/85 px-4 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-950">{row.label}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">{row.note}</p>
+                        </div>
+                        <span
+                          className={cn(
+                            "whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
+                            section.tone === "positive"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : section.tone === "negative"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-amber-100 text-amber-800",
+                          )}
+                        >
+                          {formatCurrency(row.amount)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {section.footerNote ? <p className="mt-3 text-xs text-amber-700">{section.footerNote}</p> : null}
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1364,16 +1645,16 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
+        "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ring-1 ring-inset",
         tone === "success"
-          ? "bg-emerald-100 text-emerald-800"
+          ? "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
           : tone === "warning"
-            ? "bg-amber-100 text-amber-800"
+            ? "bg-amber-100 text-amber-800 ring-amber-200/80"
             : tone === "danger"
-              ? "bg-rose-100 text-rose-800"
+              ? "bg-rose-100 text-rose-800 ring-rose-200/80"
               : tone === "info"
-                ? "bg-sky-100 text-sky-800"
-                : "bg-slate-100 text-slate-700",
+                ? "bg-sky-100 text-sky-800 ring-sky-200/80"
+                : "bg-slate-100 text-slate-700 ring-slate-200/90",
       )}
     >
       {label}
@@ -1383,11 +1664,11 @@ function StatusPill({
 
 
 function Card({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-3xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p><p className="mt-2 text-sm text-slate-600">{detail}</p></div>;
+  return <div className="ui-metric-card"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p><p className="mt-2 text-sm text-slate-600">{detail}</p></div>;
 }
 
 function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "success" }) {
-  return <div className={cn("rounded-2xl px-4 py-4 text-sm", tone === "error" ? "border border-rose-200 bg-rose-50 text-rose-800" : "border border-emerald-200 bg-emerald-50 text-emerald-800")}>{children}</div>;
+  return <div className={cn("ui-state-banner", tone === "error" ? "ui-state-banner-error" : "ui-state-banner-success")}>{children}</div>;
 }
 
 function Action({
@@ -1422,15 +1703,15 @@ function Action({
 }
 
 function Head({ children }: { children: React.ReactNode }) {
-  return <th className="border-b border-slate-200/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{children}</th>;
+  return <th className="ui-table-head-cell">{children}</th>;
 }
 
 function Cell({ children }: { children: React.ReactNode }) {
-  return <td className="border-b border-slate-200/70 px-4 py-4 text-sm text-slate-600">{children}</td>;
+  return <td className="ui-table-body-cell">{children}</td>;
 }
 
 function Mini({ label, value, active }: { label: string; value: string; active: boolean }) {
-  return <div><p className={cn("text-[11px] font-semibold uppercase tracking-[0.16em]", active ? "text-slate-300" : "text-slate-500")}>{label}</p><p className={cn("mt-1", active ? "text-white" : "text-slate-900")}>{value}</p></div>;
+  return <div><p className={cn("text-[11px] font-semibold uppercase tracking-[0.16em]", active ? "text-sky-700" : "text-slate-500")}>{label}</p><p className={cn("mt-1", active ? "text-slate-950" : "text-slate-900")}>{value}</p></div>;
 }
 
 function label(start: string, end: string) {
@@ -1466,6 +1747,10 @@ function sumAmountStrings(amounts: string[]) {
   return (totalCents / 100).toFixed(2);
 }
 
+function filterRowsWithAmounts(rows: BreakdownRow[]) {
+  return rows.filter((row) => Math.abs(Number(row.amount || "0")) > 0);
+}
+
 function subtractAmountStrings(total: string, value: string) {
   const differenceInCents =
     Math.round(Number(total || "0") * 100) - Math.round(Number(value || "0") * 100);
@@ -1480,4 +1765,11 @@ function flags(record: PayrollRecordRecord) {
     record.has_unresolved_requests ? "Pending request" : null,
     record.has_unusual_adjustments ? "Needs review" : null,
   ].filter((item): item is string => item != null);
+}
+
+function getEmployeeActionKey(
+  action: "calculate" | "recalculate",
+  statusRecord: EmployeePayrollCutoffStatusRecord,
+) {
+  return `${action}:${statusRecord.cutoff_id}:${statusRecord.employee_id}`;
 }
