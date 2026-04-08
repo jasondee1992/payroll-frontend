@@ -1,7 +1,17 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calculator, CheckCircle2, ChevronDown, ChevronUp, RefreshCw, Send, Trash2 } from "lucide-react";
+import {
+  Calculator,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  LockOpen,
+  RefreshCw,
+  Send,
+  Trash2,
+} from "lucide-react";
 import { PayrollStatusBadge } from "@/components/payroll/payroll-status-badge";
 import {
   ResourceEmptyState,
@@ -10,20 +20,29 @@ import {
 } from "@/components/shared/resource-state";
 import {
   approvePayrollBatch,
+  calculateEmployeePayrollCutoff,
   calculatePayrollBatch,
   discardPayrollBatch,
+  evaluateEmployeePayrollCutoffStatuses,
+  getEmployeePayrollCutoffPreview,
+  getEmployeePayrollCutoffStatuses,
   getPayrollBatchDetail,
   getPayrollBatches,
   getPayrollCutoffPreviews,
+  lockEmployeePayrollCutoff,
   normalizePayrollStatus,
   postPayrollBatch,
+  recalculateEmployeePayrollCutoff,
   recalculatePayrollBatch,
   recalculatePayrollRecord,
+  unlockEmployeePayrollCutoff,
 } from "@/lib/api/payroll";
 import { canManagePayroll, type AppRole } from "@/lib/auth/session";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
+  EmployeePayrollCutoffPreviewRecord,
+  EmployeePayrollCutoffStatusRecord,
   PayrollBatchDetailRecord,
   PayrollBatchSummaryRecord,
   PayrollCutoffPreviewRecord,
@@ -41,15 +60,27 @@ export function PayrollBatchWorkspace({ role }: Props) {
   const batchListRef = useRef<HTMLDivElement | null>(null);
   const batchDetailRef = useRef<HTMLDivElement | null>(null);
   const [cutoffs, setCutoffs] = useState<PayrollCutoffPreviewRecord[]>([]);
+  const [cutoffEmployeeStatuses, setCutoffEmployeeStatuses] = useState<
+    EmployeePayrollCutoffStatusRecord[]
+  >([]);
   const [batches, setBatches] = useState<PayrollBatchSummaryRecord[]>([]);
   const [batch, setBatch] = useState<PayrollBatchDetailRecord | null>(null);
   const [cutoffId, setCutoffId] = useState<number | null>(null);
   const [batchId, setBatchId] = useState<number | null>(null);
   const [expandedRecordIds, setExpandedRecordIds] = useState<number[]>([]);
   const [recordReviewRemarks, setRecordReviewRemarks] = useState<Record<number, string>>({});
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<
+    "all" | "not_ready" | "ready_to_lock" | "locked" | "calculated" | "finalized" | "issues"
+  >("all");
+  const [employeePreview, setEmployeePreview] =
+    useState<EmployeePayrollCutoffPreviewRecord | null>(null);
+  const [employeePreviewStatus, setEmployeePreviewStatus] =
+    useState<EmployeePayrollCutoffStatusRecord | null>(null);
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingBatch, setLoadingBatch] = useState(false);
+  const [loadingCutoffEmployees, setLoadingCutoffEmployees] = useState(false);
+  const [loadingEmployeePreview, setLoadingEmployeePreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -92,13 +123,62 @@ export function PayrollBatchWorkspace({ role }: Props) {
     }
   }, [batchId, cutoffId]);
 
+  const loadCutoffEmployees = useCallback(async (
+    nextCutoffId: number | null,
+    options?: { background?: boolean; forceEvaluate?: boolean },
+  ) => {
+    if (nextCutoffId == null) {
+      setCutoffEmployeeStatuses([]);
+      setEmployeePreview(null);
+      setEmployeePreviewStatus(null);
+      return;
+    }
+
+    const showLoader = !options?.background;
+    if (showLoader) {
+      setLoadingCutoffEmployees(true);
+    }
+
+    try {
+      const nextStatuses = options?.forceEvaluate
+        ? await evaluateEmployeePayrollCutoffStatuses(nextCutoffId)
+        : await getEmployeePayrollCutoffStatuses(nextCutoffId);
+      setCutoffEmployeeStatuses(nextStatuses);
+      setEmployeePreviewStatus((currentValue) =>
+        currentValue == null
+          ? null
+          : nextStatuses.find((item) => item.employee_id === currentValue.employee_id) ?? null,
+      );
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to load employee payroll cutoff statuses.",
+      );
+    } finally {
+      if (showLoader) {
+        setLoadingCutoffEmployees(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     void loadOverview();
   }, [loadOverview]);
 
   useEffect(() => {
+    void loadCutoffEmployees(cutoffId);
+  }, [cutoffId, loadCutoffEmployees]);
+
+  useEffect(() => {
+    setEmployeePreview(null);
+    setEmployeePreviewStatus(null);
+  }, [cutoffId]);
+
+  useEffect(() => {
     const refreshInBackground = () => {
       void loadOverview(batchId, { background: true });
+      void loadCutoffEmployees(cutoffId, { background: true });
     };
 
     const intervalId = window.setInterval(
@@ -111,7 +191,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshInBackground);
     };
-  }, [batchId, loadOverview]);
+  }, [batchId, cutoffId, loadCutoffEmployees, loadOverview]);
 
   useEffect(() => {
     if (batchId == null) {
@@ -161,6 +241,19 @@ export function PayrollBatchWorkspace({ role }: Props) {
   const readyCutoffCount = useMemo(
     () => cutoffs.filter((item) => item.can_calculate && item.existing_batch_id == null).length,
     [cutoffs],
+  );
+  const filteredCutoffEmployeeStatuses = useMemo(
+    () =>
+      cutoffEmployeeStatuses.filter((item) => {
+        if (employeeStatusFilter === "all") {
+          return true;
+        }
+        if (employeeStatusFilter === "issues") {
+          return item.blocking_issues.length > 0 || item.warnings.length > 0;
+        }
+        return item.readiness_status === employeeStatusFilter;
+      }),
+    [cutoffEmployeeStatuses, employeeStatusFilter],
   );
   const selectedCutoffHasExistingBatch = selectedCutoff?.existing_batch_id != null;
   const selectedCutoffActionHint = selectedCutoffHasExistingBatch
@@ -222,6 +315,137 @@ export function PayrollBatchWorkspace({ role }: Props) {
         nextError instanceof Error
           ? nextError.message
           : "Unable to recalculate the selected payroll record.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function loadEmployeePreview(statusRecord: EmployeePayrollCutoffStatusRecord) {
+    const alreadyOpen = employeePreviewStatus?.employee_id === statusRecord.employee_id;
+
+    if (alreadyOpen) {
+      setEmployeePreviewStatus(null);
+      setEmployeePreview(null);
+      setLoadingEmployeePreview(false);
+      return;
+    }
+
+    setEmployeePreviewStatus(statusRecord);
+    setEmployeePreview(null);
+
+    if (!statusRecord.is_calculated || !statusRecord.preview_available) {
+      return;
+    }
+
+    setLoadingEmployeePreview(true);
+    setError(null);
+    try {
+      const nextPreview = await getEmployeePayrollCutoffPreview(
+        statusRecord.cutoff_id,
+        statusRecord.employee_id,
+      );
+      setEmployeePreview(nextPreview);
+      setEmployeePreviewStatus(statusRecord);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to load the employee payroll preview.",
+      );
+    } finally {
+      setLoadingEmployeePreview(false);
+    }
+  }
+
+  async function runEmployeeCutoffAction(
+    action: "evaluate" | "lock" | "unlock" | "calculate" | "recalculate" | "review",
+    statusRecord?: EmployeePayrollCutoffStatusRecord,
+  ) {
+    const activeCutoffId = selectedCutoff?.cutoff.id ?? null;
+    if (!canManage && action !== "review") {
+      return;
+    }
+    if (action !== "evaluate" && !statusRecord) {
+      return;
+    }
+    if (action === "review" && statusRecord) {
+      await loadEmployeePreview(statusRecord);
+      return;
+    }
+    if (activeCutoffId == null) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      let preferredBatchId = batchId;
+      if (action === "evaluate") {
+        const nextStatuses = await evaluateEmployeePayrollCutoffStatuses(activeCutoffId);
+        setCutoffEmployeeStatuses(nextStatuses);
+        setMessage("Employee payroll readiness was re-evaluated for this cutoff.");
+        await loadOverview(preferredBatchId, { background: true });
+        return;
+      }
+
+      if (statusRecord == null) {
+        return;
+      }
+
+      if (action === "lock") {
+        await lockEmployeePayrollCutoff(statusRecord.cutoff_id, statusRecord.employee_id);
+        setMessage(`Locked ${statusRecord.employee_name} for payroll.`);
+      } else if (action === "unlock") {
+        await unlockEmployeePayrollCutoff(statusRecord.cutoff_id, statusRecord.employee_id);
+        setMessage(`Unlocked ${statusRecord.employee_name} from payroll.`);
+      } else {
+        const nextBatch =
+          action === "calculate"
+            ? await calculateEmployeePayrollCutoff(statusRecord.cutoff_id, statusRecord.employee_id, {
+                remarks,
+              })
+            : await recalculateEmployeePayrollCutoff(
+                statusRecord.cutoff_id,
+                statusRecord.employee_id,
+                {
+                  remarks,
+                },
+              );
+        setBatch(nextBatch);
+        setBatchId(nextBatch.id);
+        setRemarks(nextBatch.remarks ?? remarks);
+        preferredBatchId = nextBatch.id;
+        setMessage(
+          action === "calculate"
+            ? `Calculated payroll for ${statusRecord.employee_name}.`
+            : `Recalculated payroll for ${statusRecord.employee_name}.`,
+        );
+      }
+
+      await loadOverview(preferredBatchId, { background: true });
+      await loadCutoffEmployees(activeCutoffId, { background: true });
+      if (statusRecord.preview_available || action === "calculate" || action === "recalculate") {
+        const refreshedStatuses =
+          action === "calculate" || action === "recalculate"
+            ? await getEmployeePayrollCutoffStatuses(activeCutoffId)
+            : null;
+        if (refreshedStatuses != null) {
+          setCutoffEmployeeStatuses(refreshedStatuses);
+          const refreshedStatus = refreshedStatuses.find(
+            (item) => item.employee_id === statusRecord.employee_id,
+          );
+          if (refreshedStatus) {
+            await loadEmployeePreview(refreshedStatus);
+          }
+        }
+      }
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to update the employee payroll cutoff status.",
       );
     } finally {
       setSubmitting(false);
@@ -326,7 +550,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">Cutoff readiness</h2>
-              <p className="mt-1 text-sm text-slate-600">Payroll can proceed after the review window closes, even with no employee response.</p>
+              <p className="mt-1 text-sm text-slate-600">Select a cutoff, review the employee readiness rows below, and calculate batch payroll from the locked employees.</p>
             </div>
             <button type="button" onClick={() => void loadOverview(batchId)} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
               <RefreshCw className="h-4 w-4" />
@@ -433,6 +657,224 @@ export function PayrollBatchWorkspace({ role }: Props) {
               );
             }) : <ResourceEmptyState title="No payroll batches yet" description="Calculated payroll batches will appear here for finance review." />}
           </div>
+        </div>
+      </section>
+
+      <section className="panel p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Cutoff employee payroll control</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Review readiness per employee, lock eligible rows, then calculate payroll without waiting for the whole cutoff.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void loadCutoffEmployees(cutoffId)}
+              className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+            {canManage ? (
+              <button
+                type="button"
+                disabled={submitting || cutoffId == null}
+                onClick={() => void runEmployeeCutoffAction("evaluate")}
+                className="inline-flex h-10 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Re-evaluate
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {([
+            ["all", "All"],
+            ["not_ready", "Not ready"],
+            ["ready_to_lock", "Ready to lock"],
+            ["locked", "Locked"],
+            ["calculated", "Calculated"],
+            ["finalized", "Finalized"],
+            ["issues", "Issues / pending"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setEmployeeStatusFilter(value)}
+              className={cn(
+                "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition",
+                employeeStatusFilter === value
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/80">
+          {loadingCutoffEmployees ? (
+            <ResourceTableSkeleton rowCount={6} />
+          ) : filteredCutoffEmployeeStatuses.length === 0 ? (
+            <div className="p-6">
+              <ResourceEmptyState
+                title="No employee payroll rows for this cutoff"
+                description="Upload attendance for the cutoff to populate employee payroll readiness rows."
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-separate border-spacing-0">
+                <thead className="bg-slate-50/80">
+                  <tr className="text-left">
+                    <Head>Review</Head>
+                    <Head>Employee</Head>
+                    <Head>Attendance</Head>
+                    <Head>Leave</Head>
+                    <Head>Overtime</Head>
+                    <Head>Readiness</Head>
+                    <Head>Locked</Head>
+                    <Head>Calculated</Head>
+                    <Head>Finalized</Head>
+                    <Head>Actions</Head>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {filteredCutoffEmployeeStatuses.map((item) => {
+                    const previewOpen = employeePreviewStatus?.employee_id === item.employee_id;
+                    const calculateDisabled = !item.is_locked || item.is_finalized;
+                    const showIssues = item.blocking_issues[0] ?? item.warnings[0] ?? item.notes ?? "Clear";
+
+                    return (
+                      <Fragment key={item.id}>
+                        <tr className="transition hover:bg-slate-50">
+                          <Cell>
+                            <button
+                              type="button"
+                              disabled={submitting}
+                              onClick={() => void runEmployeeCutoffAction("review", item)}
+                              className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                            >
+                              {previewOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                              {previewOpen ? "Collapse" : "Expand"}
+                            </button>
+                          </Cell>
+                          <Cell>
+                            <div>
+                              <p className="font-medium text-slate-900">{item.employee_name}</p>
+                              <p className="mt-1 text-xs text-slate-500">{item.employee_code}</p>
+                              <p className="mt-2 text-xs text-slate-500">{showIssues}</p>
+                            </div>
+                          </Cell>
+                          <Cell>
+                            <StatusPill
+                              label={item.attendance_validated ? "Validated" : item.attendance_uploaded ? "For review" : "Missing"}
+                              tone={item.attendance_validated ? "success" : item.attendance_uploaded ? "warning" : "danger"}
+                            />
+                          </Cell>
+                          <Cell><InlineStatusBadge value={item.leave_status} /></Cell>
+                          <Cell><InlineStatusBadge value={item.overtime_status} /></Cell>
+                          <Cell><ReadinessBadge status={item.readiness_status} /></Cell>
+                          <Cell>{item.is_locked ? <FlagMark label="Locked" tone="success" /> : <FlagMark label="Open" tone="neutral" />}</Cell>
+                          <Cell>{item.is_calculated ? <FlagMark label="Calculated" tone="success" /> : <FlagMark label="Pending" tone="warning" />}</Cell>
+                          <Cell>{item.is_finalized ? <FlagMark label="Finalized" tone="success" /> : <FlagMark label="Not final" tone="neutral" />}</Cell>
+                          <Cell>
+                            <div className="flex flex-wrap gap-2">
+                              {canManage ? (
+                                item.is_locked ? (
+                                  <button
+                                    type="button"
+                                    disabled={submitting || item.is_finalized}
+                                    onClick={() => void runEmployeeCutoffAction("unlock", item)}
+                                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                                  >
+                                    <LockOpen className="h-3.5 w-3.5" />
+                                    Unlock
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={submitting || item.readiness_status !== "ready_to_lock"}
+                                    onClick={() => void runEmployeeCutoffAction("lock", item)}
+                                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                                  >
+                                    <Lock className="h-3.5 w-3.5" />
+                                    Lock for payroll
+                                  </button>
+                                )
+                              ) : null}
+                              {canManage ? (
+                                item.is_calculated ? (
+                                  <button
+                                    type="button"
+                                    disabled={submitting || calculateDisabled}
+                                    onClick={() => void runEmployeeCutoffAction("recalculate", item)}
+                                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                                  >
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                    Recalculate
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={submitting || calculateDisabled}
+                                    onClick={() => void runEmployeeCutoffAction("calculate", item)}
+                                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-300 disabled:text-white"
+                                  >
+                                    <Calculator className="h-3.5 w-3.5" />
+                                    Calculate
+                                  </button>
+                                )
+                              ) : null}
+                            </div>
+                          </Cell>
+                        </tr>
+                        {previewOpen ? (
+                          <tr className="bg-slate-50/60">
+                            <td colSpan={10} className="border-b border-slate-200/70 px-4 py-5">
+                              {loadingEmployeePreview ? (
+                                <ResourceTableSkeleton rowCount={3} />
+                              ) : item.is_calculated && employeePreview ? (
+                                <div className="space-y-4">
+                                  <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-semibold text-slate-950">
+                                        {item.employee_name}
+                                      </p>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        Saved payroll result for this employee and cutoff.
+                                      </p>
+                                    </div>
+                                    <ReadinessBadge status={item.readiness_status} />
+                                  </div>
+                                  <EmployeeCutoffStatusNotes statusRecord={item} />
+                                  <ExpandedPayrollRecord
+                                    record={employeePreview.record}
+                                    canRecalculate={false}
+                                    submitting={submitting}
+                                    reviewRemarks={employeePreview.record.review_remarks ?? ""}
+                                    onReviewRemarksChange={() => undefined}
+                                    onRecalculate={() => undefined}
+                                  />
+                                </div>
+                              ) : (
+                                <EmployeeCutoffPreviewEmptyState statusRecord={item} />
+                              )}
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
 
@@ -573,6 +1015,25 @@ function ExpandedPayrollRecord({
     "overtime_pay",
     "night_differential_pay",
   ]);
+  const deductionBreakdowns = record.deduction_breakdowns.map((item) => ({
+    ...item,
+    snapshot: parseBreakdownSnapshot(item.config_snapshot_json),
+  }));
+  const loanRows = deductionBreakdowns
+    .filter((item) => isEmployeeLoanBreakdown(item.snapshot))
+    .map((item) => ({
+      label: item.deduction_name,
+      amount: item.employee_share,
+      note:
+        typeof item.snapshot?.installment_number === "number"
+          ? `Employee loan installment #${item.snapshot.installment_number}.`
+          : "Employee loan deduction for this cutoff.",
+    }));
+  const loanDeductionTotal = sumAmountStrings(loanRows.map((item) => item.amount));
+  const residualOtherDeductions = subtractAmountStrings(
+    record.other_deductions,
+    loanDeductionTotal,
+  );
   const earningRows = [
     {
       label: "Basic pay",
@@ -597,7 +1058,7 @@ function ExpandedPayrollRecord({
     ...record.adjustments
       .filter((item) => item.category === "earning" && !coreEarningTypes.has(item.adjustment_type))
       .map((item) => ({
-        label: pretty(item.adjustment_type),
+        label: item.adjustment_type === "other_earnings" ? "Allowances" : pretty(item.adjustment_type),
         amount: item.amount,
         note: item.description,
       })),
@@ -619,17 +1080,42 @@ function ExpandedPayrollRecord({
       note: `${record.total_absences} absence day${record.total_absences === 1 ? "" : "s"}.`,
     },
     {
-      label: "Other deductions",
-      amount: record.other_deductions,
-      note: "Manual or stored payroll deductions.",
+      label: "Loan deductions",
+      amount: loanDeductionTotal,
+      note:
+        loanRows.length > 0
+          ? `${loanRows.length} scheduled employee loan deduction${loanRows.length === 1 ? "" : "s"} were applied.`
+          : "No employee loan deductions were applied in this cutoff.",
     },
+    ...(Number(residualOtherDeductions) > 0
+      ? [
+          {
+            label: "Other deductions",
+            amount: residualOtherDeductions,
+            note: "Stored deductions outside the employee loan plan.",
+          },
+        ]
+      : []),
+    ...loanRows,
   ];
-  const governmentRows = [
-    ...record.deduction_breakdowns.map((item) => ({
+  const governmentRows = deductionBreakdowns
+    .filter((item) => !isEmployeeLoanBreakdown(item.snapshot))
+    .map((item) => ({
       label: item.deduction_name,
       amount: item.employee_share,
       note: `Basis ${formatCurrency(item.basis_amount)}${Number(item.employer_share) > 0 ? ` • Employer share ${formatCurrency(item.employer_share)}` : ""}`,
-    })),
+    }));
+  const operationsDeductionTotal = sumAmountStrings([
+    record.late_deduction,
+    record.undertime_deduction,
+    record.absence_deduction,
+    record.other_deductions,
+  ]);
+  const computationNotes = [
+    `Source ${pretty(record.calculation_source_status)}`,
+    `Attendance review ${pretty(record.attendance_review_status)}`,
+    ...flags(record),
+    ...(record.review_remarks ? [`Review remarks: ${record.review_remarks}`] : []),
   ];
 
   return (
@@ -658,9 +1144,9 @@ function ExpandedPayrollRecord({
           rows={earningRows}
         />
         <BreakdownPanel
-          title="Attendance Deductions"
-          summaryLabel="Attendance deductions"
-          summaryValue={record.total_deductions}
+          title="Attendance / Loans"
+          summaryLabel="Operational deductions"
+          summaryValue={operationsDeductionTotal}
           tone="negative"
           rows={deductionRows}
         />
@@ -672,6 +1158,15 @@ function ExpandedPayrollRecord({
           rows={governmentRows}
           footerNote={`Taxable income ${formatCurrency(record.taxable_income)} • Employer contribution ${formatCurrency(record.total_employer_contributions)}`}
         />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
+        <p className="text-sm font-semibold text-slate-950">Computation notes</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {computationNotes.map((item) => (
+            <StatusPill key={item} label={item} tone="neutral" />
+          ))}
+        </div>
       </div>
 
       {canRecalculate ? (
@@ -701,6 +1196,67 @@ function ExpandedPayrollRecord({
               Recalculate employee
             </button>
           </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function EmployeeCutoffPreviewEmptyState({
+  statusRecord,
+}: {
+  statusRecord: EmployeePayrollCutoffStatusRecord;
+}) {
+  return (
+    <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-amber-900">
+            {statusRecord.employee_name}
+          </p>
+          <p className="mt-1 text-xs text-amber-800">
+            {statusRecord.is_calculated
+              ? "Calculated payroll details could not be loaded yet. Refresh the cutoff row and try again."
+              : statusRecord.is_locked
+              ? "Not yet calculated. Run Calculate for this employee to show the payroll breakdown here."
+              : "This employee is not yet locked for payroll. Lock the row first, then calculate to see the result here."}
+          </p>
+        </div>
+        <ReadinessBadge status={statusRecord.readiness_status} />
+      </div>
+      <EmployeeCutoffStatusNotes statusRecord={statusRecord} />
+    </div>
+  );
+}
+
+function EmployeeCutoffStatusNotes({
+  statusRecord,
+}: {
+  statusRecord: EmployeePayrollCutoffStatusRecord;
+}) {
+  if (
+    statusRecord.blocking_issues.length === 0 &&
+    statusRecord.warnings.length === 0 &&
+    !statusRecord.notes
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      {statusRecord.blocking_issues.length > 0 ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {statusRecord.blocking_issues.join(" ")}
+        </div>
+      ) : null}
+      {statusRecord.warnings.length > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {statusRecord.warnings.join(" ")}
+        </div>
+      ) : null}
+      {statusRecord.notes ? (
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 lg:col-span-2">
+          {statusRecord.notes}
         </div>
       ) : null}
     </div>
@@ -757,6 +1313,71 @@ function BreakdownPanel({
       </div>
       {footerNote ? <p className="mt-3 text-xs text-amber-700">{footerNote}</p> : null}
     </div>
+  );
+}
+
+function ReadinessBadge({ status }: { status: string }) {
+  const normalized = status.trim().toLowerCase();
+  const tone =
+    normalized === "ready_to_lock"
+      ? "success"
+      : normalized === "locked" || normalized === "calculated" || normalized === "finalized"
+        ? "info"
+        : normalized === "for_review"
+          ? "warning"
+          : "danger";
+
+  return <StatusPill label={pretty(status)} tone={tone} />;
+}
+
+function InlineStatusBadge({ value }: { value: string }) {
+  const normalized = value.trim().toLowerCase();
+  const tone =
+    normalized === "approved" || normalized === "clear" || normalized === "not_required"
+      ? "success"
+      : normalized === "pending"
+        ? "warning"
+        : normalized === "issue"
+          ? "danger"
+          : "neutral";
+
+  return <StatusPill label={pretty(value)} tone={tone} />;
+}
+
+function FlagMark({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "success" | "warning" | "neutral";
+}) {
+  return <StatusPill label={label} tone={tone} />;
+}
+
+function StatusPill({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "success" | "warning" | "danger" | "info" | "neutral";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
+        tone === "success"
+          ? "bg-emerald-100 text-emerald-800"
+          : tone === "warning"
+            ? "bg-amber-100 text-amber-800"
+            : tone === "danger"
+              ? "bg-rose-100 text-rose-800"
+              : tone === "info"
+                ? "bg-sky-100 text-sky-800"
+                : "bg-slate-100 text-slate-700",
+      )}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -818,6 +1439,37 @@ function label(start: string, end: string) {
 
 function pretty(value: string) {
   return value.replaceAll("-", " ").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function parseBreakdownSnapshot(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function isEmployeeLoanBreakdown(snapshot: Record<string, unknown> | null) {
+  return snapshot?.source === "employee_loan";
+}
+
+function sumAmountStrings(amounts: string[]) {
+  const totalCents = amounts.reduce(
+    (currentValue, amount) => currentValue + Math.round(Number(amount || "0") * 100),
+    0,
+  );
+  return (totalCents / 100).toFixed(2);
+}
+
+function subtractAmountStrings(total: string, value: string) {
+  const differenceInCents =
+    Math.round(Number(total || "0") * 100) - Math.round(Number(value || "0") * 100);
+  return (Math.max(differenceInCents, 0) / 100).toFixed(2);
 }
 
 function flags(record: PayrollRecordRecord) {

@@ -15,6 +15,8 @@ import {
   parseString,
 } from "@/lib/api/parsers";
 import type {
+  EmployeePayrollCutoffPreviewRecord,
+  EmployeePayrollCutoffStatusRecord,
   EmployeeEffectivePayrollRulesRecord,
   GovernmentDeductionBracketRecord,
   GovernmentDeductionRuleSetDetailRecord,
@@ -480,6 +482,135 @@ export function parsePayrollCutoffPreviewRecord(value: unknown): PayrollCutoffPr
       record.blocked_reason,
       "payrollCutoffPreview.blocked_reason",
     ),
+  };
+}
+
+export function parseEmployeePayrollCutoffStatusRecord(
+  value: unknown,
+): EmployeePayrollCutoffStatusRecord {
+  const record = parseRecord(value, "employee payroll cutoff status");
+
+  return {
+    id: parseNumber(record.id, "employeePayrollCutoffStatus.id"),
+    cutoff_id: parseNumber(record.cutoff_id, "employeePayrollCutoffStatus.cutoff_id"),
+    employee_id: parseNumber(record.employee_id, "employeePayrollCutoffStatus.employee_id"),
+    attendance_uploaded: parseBoolean(
+      record.attendance_uploaded,
+      "employeePayrollCutoffStatus.attendance_uploaded",
+    ),
+    attendance_validated: parseBoolean(
+      record.attendance_validated,
+      "employeePayrollCutoffStatus.attendance_validated",
+    ),
+    leave_status: parseString(record.leave_status, "employeePayrollCutoffStatus.leave_status"),
+    overtime_status: parseString(
+      record.overtime_status,
+      "employeePayrollCutoffStatus.overtime_status",
+    ),
+    adjustment_status: parseString(
+      record.adjustment_status,
+      "employeePayrollCutoffStatus.adjustment_status",
+    ),
+    loan_check_status: parseString(
+      record.loan_check_status,
+      "employeePayrollCutoffStatus.loan_check_status",
+    ),
+    readiness_status: parseString(
+      record.readiness_status,
+      "employeePayrollCutoffStatus.readiness_status",
+    ),
+    is_locked: parseBoolean(record.is_locked, "employeePayrollCutoffStatus.is_locked"),
+    locked_at: parseOptionalString(record.locked_at, "employeePayrollCutoffStatus.locked_at"),
+    locked_by_user_id: parseOptionalNumber(
+      record.locked_by_user_id,
+      "employeePayrollCutoffStatus.locked_by_user_id",
+    ),
+    is_calculated: parseBoolean(
+      record.is_calculated,
+      "employeePayrollCutoffStatus.is_calculated",
+    ),
+    calculated_at: parseOptionalString(
+      record.calculated_at,
+      "employeePayrollCutoffStatus.calculated_at",
+    ),
+    calculated_by_user_id: parseOptionalNumber(
+      record.calculated_by_user_id,
+      "employeePayrollCutoffStatus.calculated_by_user_id",
+    ),
+    is_finalized: parseBoolean(
+      record.is_finalized,
+      "employeePayrollCutoffStatus.is_finalized",
+    ),
+    finalized_at: parseOptionalString(
+      record.finalized_at,
+      "employeePayrollCutoffStatus.finalized_at",
+    ),
+    finalized_by_user_id: parseOptionalNumber(
+      record.finalized_by_user_id,
+      "employeePayrollCutoffStatus.finalized_by_user_id",
+    ),
+    notes: parseOptionalString(record.notes, "employeePayrollCutoffStatus.notes"),
+    employee_code: parseString(
+      record.employee_code,
+      "employeePayrollCutoffStatus.employee_code",
+    ),
+    employee_name: parseString(
+      record.employee_name,
+      "employeePayrollCutoffStatus.employee_name",
+    ),
+    blocking_issues: parseCollection(
+      record.blocking_issues ?? [],
+      (item, index) =>
+        parseString(item, `employeePayrollCutoffStatus.blocking_issues[${index}]`),
+      "employeePayrollCutoffStatus.blocking_issues",
+    ),
+    warnings: parseCollection(
+      record.warnings ?? [],
+      (item, index) => parseString(item, `employeePayrollCutoffStatus.warnings[${index}]`),
+      "employeePayrollCutoffStatus.warnings",
+    ),
+    payroll_batch_id: parseOptionalNumber(
+      record.payroll_batch_id,
+      "employeePayrollCutoffStatus.payroll_batch_id",
+    ),
+    payroll_record_id: parseOptionalNumber(
+      record.payroll_record_id,
+      "employeePayrollCutoffStatus.payroll_record_id",
+    ),
+    preview_available: parseBoolean(
+      record.preview_available,
+      "employeePayrollCutoffStatus.preview_available",
+    ),
+    created_at: parseString(record.created_at, "employeePayrollCutoffStatus.created_at"),
+    updated_at: parseString(record.updated_at, "employeePayrollCutoffStatus.updated_at"),
+  };
+}
+
+export function parseEmployeePayrollCutoffPreviewRecord(
+  value: unknown,
+): EmployeePayrollCutoffPreviewRecord {
+  const record = parseRecord(value, "employee payroll cutoff preview");
+
+  return {
+    cutoff_id: parseNumber(record.cutoff_id, "employeePayrollCutoffPreview.cutoff_id"),
+    employee_id: parseNumber(record.employee_id, "employeePayrollCutoffPreview.employee_id"),
+    readiness_status: parseString(
+      record.readiness_status,
+      "employeePayrollCutoffPreview.readiness_status",
+    ),
+    is_persisted: parseBoolean(
+      record.is_persisted,
+      "employeePayrollCutoffPreview.is_persisted",
+    ),
+    payroll_batch_id: parseOptionalNumber(
+      record.payroll_batch_id,
+      "employeePayrollCutoffPreview.payroll_batch_id",
+    ),
+    payroll_record_id: parseOptionalNumber(
+      record.payroll_record_id,
+      "employeePayrollCutoffPreview.payroll_record_id",
+    ),
+    record: parsePayrollRecordRecord(record.record),
   };
 }
 
@@ -1148,6 +1279,93 @@ async function requestPayrollCollection<T>(
 
 export async function getPayrollCutoffPreviews() {
   return requestPayrollCollection("/cutoffs", parsePayrollCutoffPreviewRecord);
+}
+
+export async function getEmployeePayrollCutoffStatuses(cutoffId: number) {
+  return requestPayrollCollection(
+    `/cutoffs/${cutoffId}/employees`,
+    parseEmployeePayrollCutoffStatusRecord,
+  );
+}
+
+export async function evaluateEmployeePayrollCutoffStatuses(cutoffId: number) {
+  return requestPayrollProxy(`/cutoffs/${cutoffId}/employees/evaluate`, {
+    method: "POST",
+    body: {},
+    parser: (value) =>
+      parseCollection(
+        value,
+        (item) => parseEmployeePayrollCutoffStatusRecord(item),
+        "employee payroll cutoff statuses",
+      ),
+  });
+}
+
+export async function lockEmployeePayrollCutoff(
+  cutoffId: number,
+  employeeId: number,
+  payload: { notes?: string } = {},
+) {
+  return requestPayrollProxy(`/cutoffs/${cutoffId}/employees/${employeeId}/lock`, {
+    method: "POST",
+    body: {
+      notes: payload.notes?.trim() || undefined,
+    },
+    parser: parseEmployeePayrollCutoffStatusRecord,
+  });
+}
+
+export async function unlockEmployeePayrollCutoff(
+  cutoffId: number,
+  employeeId: number,
+  payload: { notes?: string } = {},
+) {
+  return requestPayrollProxy(`/cutoffs/${cutoffId}/employees/${employeeId}/unlock`, {
+    method: "POST",
+    body: {
+      notes: payload.notes?.trim() || undefined,
+    },
+    parser: parseEmployeePayrollCutoffStatusRecord,
+  });
+}
+
+export async function getEmployeePayrollCutoffPreview(
+  cutoffId: number,
+  employeeId: number,
+) {
+  return requestPayrollProxy(`/cutoffs/${cutoffId}/employees/${employeeId}/preview`, {
+    parser: parseEmployeePayrollCutoffPreviewRecord,
+  });
+}
+
+export async function calculateEmployeePayrollCutoff(
+  cutoffId: number,
+  employeeId: number,
+  payload: PayrollRecordRecalculatePayload = {},
+) {
+  return requestPayrollProxy(`/cutoffs/${cutoffId}/employees/${employeeId}/calculate`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+      review_remarks: payload.reviewRemarks?.trim() || undefined,
+    },
+    parser: parsePayrollBatchDetailRecord,
+  });
+}
+
+export async function recalculateEmployeePayrollCutoff(
+  cutoffId: number,
+  employeeId: number,
+  payload: PayrollRecordRecalculatePayload = {},
+) {
+  return requestPayrollProxy(`/cutoffs/${cutoffId}/employees/${employeeId}/recalculate`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+      review_remarks: payload.reviewRemarks?.trim() || undefined,
+    },
+    parser: parsePayrollBatchDetailRecord,
+  });
 }
 
 export async function getPayrollBatches() {

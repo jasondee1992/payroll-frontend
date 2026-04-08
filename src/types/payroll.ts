@@ -76,6 +76,48 @@ export interface PayrollCutoffPreviewRecord {
   blocked_reason?: string | null;
 }
 
+export interface EmployeePayrollCutoffStatusRecord {
+  id: number;
+  cutoff_id: number;
+  employee_id: number;
+  attendance_uploaded: boolean;
+  attendance_validated: boolean;
+  leave_status: string;
+  overtime_status: string;
+  adjustment_status: string;
+  loan_check_status: string;
+  readiness_status: string;
+  is_locked: boolean;
+  locked_at?: string | null;
+  locked_by_user_id?: number | null;
+  is_calculated: boolean;
+  calculated_at?: string | null;
+  calculated_by_user_id?: number | null;
+  is_finalized: boolean;
+  finalized_at?: string | null;
+  finalized_by_user_id?: number | null;
+  notes?: string | null;
+  employee_code: string;
+  employee_name: string;
+  blocking_issues: string[];
+  warnings: string[];
+  payroll_batch_id?: number | null;
+  payroll_record_id?: number | null;
+  preview_available: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeePayrollCutoffPreviewRecord {
+  cutoff_id: number;
+  employee_id: number;
+  readiness_status: string;
+  is_persisted: boolean;
+  payroll_batch_id?: number | null;
+  payroll_record_id?: number | null;
+  record: PayrollRecordRecord;
+}
+
 export interface PayrollAdjustmentRecord {
   id: number;
   payroll_record_id: number;

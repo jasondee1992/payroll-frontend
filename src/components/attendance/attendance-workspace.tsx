@@ -538,9 +538,7 @@ export function AttendanceWorkspace({
       setMyReview(nextMyReview);
       setSuccessMessage("Attendance cutoff unlocked and reopened for attendance updates.");
     } catch (error) {
-      setInlineError(
-        error instanceof Error ? error.message : "Unable to unlock the attendance cutoff.",
-      );
+      setInlineError(getAttendanceUnlockErrorMessage(error));
     } finally {
       setLockingCutoff(false);
     }
@@ -678,6 +676,25 @@ export function AttendanceWorkspace({
       />
     </div>
   );
+}
+
+function getAttendanceUnlockErrorMessage(error: unknown) {
+  const fallbackMessage = "Unable to unlock the attendance cutoff.";
+  const message = error instanceof Error ? error.message : fallbackMessage;
+
+  if (message.includes("employee payroll has already been calculated")) {
+    return "This cutoff already has payroll calculations. Open /payroll and unlock or discard the affected employee payroll entries before unlocking this attendance cutoff.";
+  }
+
+  if (message.includes("cannot be unlocked after payroll is posted")) {
+    return "This cutoff is already part of a locked or posted payroll batch and can no longer be unlocked from Attendance.";
+  }
+
+  if (message.includes("Only locked attendance cutoffs can be unlocked")) {
+    return "This cutoff is no longer locked. Refresh Attendance to load the latest cutoff status.";
+  }
+
+  return message;
 }
 
 function TeamAttendancePanel(props: {

@@ -1,10 +1,30 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Calculator, Upload } from "lucide-react";
-import { AttendanceCutoffManager } from "@/components/settings/attendance-cutoff-manager";
-import { GovernmentDeductionSettings } from "@/components/settings/government-deduction-settings";
+import { ResourceTableSkeleton } from "@/components/shared/resource-state";
 import { cn } from "@/lib/utils";
+
+const GovernmentDeductionSettings = dynamic(
+  () =>
+    import("@/components/settings/government-deduction-settings").then(
+      (module) => module.GovernmentDeductionSettings,
+    ),
+  {
+    loading: () => <SettingsPanelSkeleton />,
+  },
+);
+
+const AttendanceCutoffManager = dynamic(
+  () =>
+    import("@/components/settings/attendance-cutoff-manager").then(
+      (module) => module.AttendanceCutoffManager,
+    ),
+  {
+    loading: () => <SettingsPanelSkeleton />,
+  },
+);
 
 type SettingsTabId = "government-deductions" | "attendance-uploads";
 
@@ -67,6 +87,25 @@ export function AdminFinanceSettingsTabs() {
       ) : (
         <AttendanceCutoffManager />
       )}
+    </div>
+  );
+}
+
+function SettingsPanelSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section className="grid gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className="panel h-[140px] animate-pulse bg-slate-100/70"
+          />
+        ))}
+      </section>
+
+      <div className="panel p-6">
+        <ResourceTableSkeleton filterCount={3} rowCount={6} />
+      </div>
     </div>
   );
 }

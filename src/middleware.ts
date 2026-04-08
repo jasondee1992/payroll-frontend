@@ -40,6 +40,7 @@ const ADMIN_FINANCE_ALLOWED_PATHS = new Set<string>([
   "/leave-requests",
   "/payroll",
   "/payslips",
+  "/settings",
 ]);
 
 export function middleware(request: NextRequest) {
