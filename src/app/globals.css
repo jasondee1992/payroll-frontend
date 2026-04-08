@@ -207,6 +207,38 @@ button {
     @apply rounded-[26px] border border-slate-200/80 bg-white/96 px-5 py-5 shadow-sm;
   }
 
+  .ui-report-card-primary {
+    @apply rounded-[28px] border border-slate-200/90 bg-linear-to-br from-white via-white to-slate-50/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.26)];
+  }
+
+  .ui-report-card-secondary {
+    @apply rounded-[24px] border border-slate-200/80 bg-white/94 p-4 shadow-sm;
+  }
+
+  .ui-report-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500;
+  }
+
+  .ui-report-table {
+    @apply overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/96 shadow-[0_14px_34px_-26px_rgba(15,23,42,0.28)];
+  }
+
+  .ui-report-table-row {
+    @apply transition duration-150 hover:bg-slate-50/90;
+  }
+
+  .ui-report-table-row-active {
+    @apply bg-linear-to-r from-slate-900 via-slate-900 to-slate-800 text-white shadow-[inset_4px_0_0_0_rgba(255,255,255,0.72)];
+  }
+
+  .ui-report-section-soft {
+    @apply rounded-[24px] border border-slate-200/80 bg-linear-to-br from-white via-slate-50/70 to-slate-100/70 p-4;
+  }
+
+  .ui-report-stat-strip {
+    @apply rounded-[22px] border border-slate-200/80 bg-slate-50/90 px-4 py-3;
+  }
+
   .text-muted {
     color: var(--text-muted);
   }

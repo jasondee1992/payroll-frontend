@@ -28,9 +28,18 @@ import type {
   PayslipRecord,
   PayrollAdjustmentRecord,
   PayrollBatchDetailRecord,
+  PayrollReportingSnapshotRecord,
   PayrollBatchSummaryRecord,
   PayrollCutoffPreviewRecord,
   PayrollDeductionBreakdownRecord,
+  PayrollReportCutoffDetailRecord,
+  PayrollReportCutoffSummaryRecord,
+  PayrollReportEmployerContributionSummaryRecord,
+  PayrollReportGovernmentSummaryRecord,
+  PayrollReportMonthlySummaryRecord,
+  PayrollReportStatusOptionRecord,
+  PayrollReportTrendPointRecord,
+  PayrollReportYtdSummaryRecord,
   PayrollPeriod,
   PayrollPeriodApiRecord,
   PayrollPolicyProfileRecord,
@@ -449,6 +458,473 @@ export function parsePayrollBatchDetailRecord(value: unknown): PayrollBatchDetai
       record.records ?? [],
       (item) => parsePayrollRecordRecord(item),
       "payroll batch records",
+    ),
+  };
+}
+
+export function parsePayrollReportStatusOptionRecord(
+  value: unknown,
+): PayrollReportStatusOptionRecord {
+  const record = parseRecord(value, "payroll report status option");
+
+  return {
+    value: parseString(record.value, "payrollReportStatusOption.value"),
+    label: parseString(record.label, "payrollReportStatusOption.label"),
+    count: parseNumber(record.count, "payrollReportStatusOption.count"),
+  };
+}
+
+export function parsePayrollReportYtdSummaryRecord(
+  value: unknown,
+): PayrollReportYtdSummaryRecord {
+  const record = parseRecord(value, "payroll year to date summary");
+
+  return {
+    year: parseNumber(record.year, "payrollReportYtd.year"),
+    total_basic_pay: parseNumericString(
+      record.total_basic_pay,
+      "payrollReportYtd.total_basic_pay",
+    ),
+    total_gross_pay: parseNumericString(
+      record.total_gross_pay,
+      "payrollReportYtd.total_gross_pay",
+    ),
+    total_net_pay: parseNumericString(
+      record.total_net_pay,
+      "payrollReportYtd.total_net_pay",
+    ),
+    total_employee_deductions: parseNumericString(
+      record.total_employee_deductions,
+      "payrollReportYtd.total_employee_deductions",
+    ),
+    total_government_deductions: parseNumericString(
+      record.total_government_deductions,
+      "payrollReportYtd.total_government_deductions",
+    ),
+    total_government_remittances: parseNumericString(
+      record.total_government_remittances,
+      "payrollReportYtd.total_government_remittances",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "payrollReportYtd.total_employer_contributions",
+    ),
+    total_cutoff_runs: parseNumber(
+      record.total_cutoff_runs,
+      "payrollReportYtd.total_cutoff_runs",
+    ),
+    total_employees_processed: parseNumber(
+      record.total_employees_processed,
+      "payrollReportYtd.total_employees_processed",
+    ),
+    total_records_processed: parseNumber(
+      record.total_records_processed,
+      "payrollReportYtd.total_records_processed",
+    ),
+  };
+}
+
+export function parsePayrollReportMonthlySummaryRecord(
+  value: unknown,
+): PayrollReportMonthlySummaryRecord {
+  const record = parseRecord(value, "payroll monthly summary");
+
+  return {
+    month: parseNumber(record.month, "payrollReportMonthly.month"),
+    label: parseString(record.label, "payrollReportMonthly.label"),
+    total_basic_pay: parseNumericString(
+      record.total_basic_pay,
+      "payrollReportMonthly.total_basic_pay",
+    ),
+    total_gross_pay: parseNumericString(
+      record.total_gross_pay,
+      "payrollReportMonthly.total_gross_pay",
+    ),
+    total_net_pay: parseNumericString(
+      record.total_net_pay,
+      "payrollReportMonthly.total_net_pay",
+    ),
+    total_employee_deductions: parseNumericString(
+      record.total_employee_deductions,
+      "payrollReportMonthly.total_employee_deductions",
+    ),
+    total_government_deductions: parseNumericString(
+      record.total_government_deductions,
+      "payrollReportMonthly.total_government_deductions",
+    ),
+    total_government_remittances: parseNumericString(
+      record.total_government_remittances,
+      "payrollReportMonthly.total_government_remittances",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "payrollReportMonthly.total_employer_contributions",
+    ),
+    cutoff_count: parseNumber(record.cutoff_count, "payrollReportMonthly.cutoff_count"),
+    processed_cutoff_count: parseNumber(
+      record.processed_cutoff_count,
+      "payrollReportMonthly.processed_cutoff_count",
+    ),
+    employee_count: parseNumber(record.employee_count, "payrollReportMonthly.employee_count"),
+  };
+}
+
+export function parsePayrollReportTrendPointRecord(
+  value: unknown,
+): PayrollReportTrendPointRecord {
+  const record = parseRecord(value, "payroll trend point");
+
+  return {
+    month: parseNumber(record.month, "payrollReportTrend.month"),
+    label: parseString(record.label, "payrollReportTrend.label"),
+    total_gross_pay: parseNumericString(
+      record.total_gross_pay,
+      "payrollReportTrend.total_gross_pay",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "payrollReportTrend.total_employer_contributions",
+    ),
+    total_deductions: parseNumericString(
+      record.total_deductions,
+      "payrollReportTrend.total_deductions",
+    ),
+    gross_pay_delta: parseNumericString(
+      record.gross_pay_delta,
+      "payrollReportTrend.gross_pay_delta",
+    ),
+    employer_contributions_delta: parseNumericString(
+      record.employer_contributions_delta,
+      "payrollReportTrend.employer_contributions_delta",
+    ),
+    deductions_delta: parseNumericString(
+      record.deductions_delta,
+      "payrollReportTrend.deductions_delta",
+    ),
+  };
+}
+
+export function parsePayrollReportGovernmentSummaryRecord(
+  value: unknown,
+): PayrollReportGovernmentSummaryRecord {
+  const record = parseRecord(value, "payroll government summary");
+
+  return {
+    sss_employee: parseNumericString(
+      record.sss_employee,
+      "payrollReportGovernment.sss_employee",
+    ),
+    sss_employer: parseNumericString(
+      record.sss_employer,
+      "payrollReportGovernment.sss_employer",
+    ),
+    philhealth_employee: parseNumericString(
+      record.philhealth_employee,
+      "payrollReportGovernment.philhealth_employee",
+    ),
+    philhealth_employer: parseNumericString(
+      record.philhealth_employer,
+      "payrollReportGovernment.philhealth_employer",
+    ),
+    pagibig_employee: parseNumericString(
+      record.pagibig_employee,
+      "payrollReportGovernment.pagibig_employee",
+    ),
+    pagibig_employer: parseNumericString(
+      record.pagibig_employer,
+      "payrollReportGovernment.pagibig_employer",
+    ),
+    withholding_tax: parseNumericString(
+      record.withholding_tax,
+      "payrollReportGovernment.withholding_tax",
+    ),
+    total_employee_contributions: parseNumericString(
+      record.total_employee_contributions,
+      "payrollReportGovernment.total_employee_contributions",
+    ),
+    total_employer_shares: parseNumericString(
+      record.total_employer_shares,
+      "payrollReportGovernment.total_employer_shares",
+    ),
+    total_government_remittances: parseNumericString(
+      record.total_government_remittances,
+      "payrollReportGovernment.total_government_remittances",
+    ),
+  };
+}
+
+export function parsePayrollReportEmployerContributionSummaryRecord(
+  value: unknown,
+): PayrollReportEmployerContributionSummaryRecord {
+  const record = parseRecord(value, "payroll employer contribution summary");
+
+  return {
+    sss_employer: parseNumericString(
+      record.sss_employer,
+      "payrollReportEmployerContribution.sss_employer",
+    ),
+    philhealth_employer: parseNumericString(
+      record.philhealth_employer,
+      "payrollReportEmployerContribution.philhealth_employer",
+    ),
+    pagibig_employer: parseNumericString(
+      record.pagibig_employer,
+      "payrollReportEmployerContribution.pagibig_employer",
+    ),
+    total_employer_shares: parseNumericString(
+      record.total_employer_shares,
+      "payrollReportEmployerContribution.total_employer_shares",
+    ),
+    total_employer_contribution_cost: parseNumericString(
+      record.total_employer_contribution_cost,
+      "payrollReportEmployerContribution.total_employer_contribution_cost",
+    ),
+  };
+}
+
+export function parsePayrollReportCutoffSummaryRecord(
+  value: unknown,
+): PayrollReportCutoffSummaryRecord {
+  const record = parseRecord(value, "payroll cutoff summary");
+
+  return {
+    cutoff_id: parseNumber(record.cutoff_id, "payrollReportCutoffSummary.cutoff_id"),
+    batch_id: parseOptionalNumber(record.batch_id, "payrollReportCutoffSummary.batch_id"),
+    label: parseString(record.label, "payrollReportCutoffSummary.label"),
+    cutoff_start: parseString(
+      record.cutoff_start,
+      "payrollReportCutoffSummary.cutoff_start",
+    ),
+    cutoff_end: parseString(record.cutoff_end, "payrollReportCutoffSummary.cutoff_end"),
+    cutoff_status: parseString(
+      record.cutoff_status,
+      "payrollReportCutoffSummary.cutoff_status",
+    ),
+    batch_status: parseOptionalString(
+      record.batch_status,
+      "payrollReportCutoffSummary.batch_status",
+    ),
+    status: parseString(record.status, "payrollReportCutoffSummary.status"),
+    status_label: parseString(
+      record.status_label,
+      "payrollReportCutoffSummary.status_label",
+    ),
+    status_tone: parseString(
+      record.status_tone,
+      "payrollReportCutoffSummary.status_tone",
+    ),
+    is_live: parseBoolean(record.is_live, "payrollReportCutoffSummary.is_live"),
+    is_finalized: parseBoolean(
+      record.is_finalized,
+      "payrollReportCutoffSummary.is_finalized",
+    ),
+    has_payroll_data: parseBoolean(
+      record.has_payroll_data,
+      "payrollReportCutoffSummary.has_payroll_data",
+    ),
+    record_count: parseNumber(
+      record.record_count,
+      "payrollReportCutoffSummary.record_count",
+    ),
+    employee_count: parseNumber(
+      record.employee_count,
+      "payrollReportCutoffSummary.employee_count",
+    ),
+    total_gross_pay: parseNumericString(
+      record.total_gross_pay,
+      "payrollReportCutoffSummary.total_gross_pay",
+    ),
+    total_net_pay: parseNumericString(
+      record.total_net_pay,
+      "payrollReportCutoffSummary.total_net_pay",
+    ),
+    total_deductions: parseNumericString(
+      record.total_deductions,
+      "payrollReportCutoffSummary.total_deductions",
+    ),
+    total_employee_contributions: parseNumericString(
+      record.total_employee_contributions,
+      "payrollReportCutoffSummary.total_employee_contributions",
+    ),
+    total_government_deductions: parseNumericString(
+      record.total_government_deductions,
+      "payrollReportCutoffSummary.total_government_deductions",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "payrollReportCutoffSummary.total_employer_contributions",
+    ),
+    last_updated_at: parseString(
+      record.last_updated_at,
+      "payrollReportCutoffSummary.last_updated_at",
+    ),
+  };
+}
+
+export function parsePayrollReportCutoffDetailRecord(
+  value: unknown,
+): PayrollReportCutoffDetailRecord {
+  const record = parseRecord(value, "payroll cutoff detail");
+
+  return {
+    cutoff_id: parseNumber(record.cutoff_id, "payrollReportCutoffDetail.cutoff_id"),
+    batch_id: parseOptionalNumber(record.batch_id, "payrollReportCutoffDetail.batch_id"),
+    label: parseString(record.label, "payrollReportCutoffDetail.label"),
+    cutoff_start: parseString(record.cutoff_start, "payrollReportCutoffDetail.cutoff_start"),
+    cutoff_end: parseString(record.cutoff_end, "payrollReportCutoffDetail.cutoff_end"),
+    cutoff_status: parseString(
+      record.cutoff_status,
+      "payrollReportCutoffDetail.cutoff_status",
+    ),
+    batch_status: parseOptionalString(
+      record.batch_status,
+      "payrollReportCutoffDetail.batch_status",
+    ),
+    status: parseString(record.status, "payrollReportCutoffDetail.status"),
+    status_label: parseString(record.status_label, "payrollReportCutoffDetail.status_label"),
+    status_tone: parseString(record.status_tone, "payrollReportCutoffDetail.status_tone"),
+    is_live: parseBoolean(record.is_live, "payrollReportCutoffDetail.is_live"),
+    is_finalized: parseBoolean(
+      record.is_finalized,
+      "payrollReportCutoffDetail.is_finalized",
+    ),
+    has_payroll_data: parseBoolean(
+      record.has_payroll_data,
+      "payrollReportCutoffDetail.has_payroll_data",
+    ),
+    record_count: parseNumber(record.record_count, "payrollReportCutoffDetail.record_count"),
+    employee_count: parseNumber(
+      record.employee_count,
+      "payrollReportCutoffDetail.employee_count",
+    ),
+    remarks: parseOptionalString(record.remarks, "payrollReportCutoffDetail.remarks"),
+    last_updated_at: parseString(
+      record.last_updated_at,
+      "payrollReportCutoffDetail.last_updated_at",
+    ),
+    total_basic_pay: parseNumericString(
+      record.total_basic_pay,
+      "payrollReportCutoffDetail.total_basic_pay",
+    ),
+    total_leave_pay: parseNumericString(
+      record.total_leave_pay,
+      "payrollReportCutoffDetail.total_leave_pay",
+    ),
+    total_allowances: parseNumericString(
+      record.total_allowances,
+      "payrollReportCutoffDetail.total_allowances",
+    ),
+    total_overtime_pay: parseNumericString(
+      record.total_overtime_pay,
+      "payrollReportCutoffDetail.total_overtime_pay",
+    ),
+    total_night_differential_pay: parseNumericString(
+      record.total_night_differential_pay,
+      "payrollReportCutoffDetail.total_night_differential_pay",
+    ),
+    total_gross_pay: parseNumericString(
+      record.total_gross_pay,
+      "payrollReportCutoffDetail.total_gross_pay",
+    ),
+    total_net_pay: parseNumericString(
+      record.total_net_pay,
+      "payrollReportCutoffDetail.total_net_pay",
+    ),
+    total_deductions: parseNumericString(
+      record.total_deductions,
+      "payrollReportCutoffDetail.total_deductions",
+    ),
+    total_late_deductions: parseNumericString(
+      record.total_late_deductions,
+      "payrollReportCutoffDetail.total_late_deductions",
+    ),
+    total_undertime_deductions: parseNumericString(
+      record.total_undertime_deductions,
+      "payrollReportCutoffDetail.total_undertime_deductions",
+    ),
+    total_absence_deductions: parseNumericString(
+      record.total_absence_deductions,
+      "payrollReportCutoffDetail.total_absence_deductions",
+    ),
+    total_loan_deductions: parseNumericString(
+      record.total_loan_deductions,
+      "payrollReportCutoffDetail.total_loan_deductions",
+    ),
+    total_employee_contributions: parseNumericString(
+      record.total_employee_contributions,
+      "payrollReportCutoffDetail.total_employee_contributions",
+    ),
+    total_government_deductions: parseNumericString(
+      record.total_government_deductions,
+      "payrollReportCutoffDetail.total_government_deductions",
+    ),
+    total_government_remittances: parseNumericString(
+      record.total_government_remittances,
+      "payrollReportCutoffDetail.total_government_remittances",
+    ),
+    total_employer_contributions: parseNumericString(
+      record.total_employer_contributions,
+      "payrollReportCutoffDetail.total_employer_contributions",
+    ),
+    government_summary: parsePayrollReportGovernmentSummaryRecord(
+      record.government_summary,
+    ),
+    employer_contribution_summary: parsePayrollReportEmployerContributionSummaryRecord(
+      record.employer_contribution_summary,
+    ),
+  };
+}
+
+export function parsePayrollReportingSnapshotRecord(
+  value: unknown,
+): PayrollReportingSnapshotRecord {
+  const record = parseRecord(value, "payroll reporting snapshot");
+
+  return {
+    available_years: parseCollection(
+      record.available_years ?? [],
+      (item) => parseNumber(item, "payrollReporting.available_years"),
+      "payroll reporting available years",
+    ),
+    available_statuses: parseCollection(
+      record.available_statuses ?? [],
+      (item) => parsePayrollReportStatusOptionRecord(item),
+      "payroll reporting available statuses",
+    ),
+    selected_year: parseNumber(record.selected_year, "payrollReporting.selected_year"),
+    selected_status: parseOptionalString(
+      record.selected_status,
+      "payrollReporting.selected_status",
+    ),
+    selected_cutoff_id: parseOptionalNumber(
+      record.selected_cutoff_id,
+      "payrollReporting.selected_cutoff_id",
+    ),
+    year_to_date: parsePayrollReportYtdSummaryRecord(record.year_to_date),
+    monthly_summaries: parseCollection(
+      record.monthly_summaries ?? [],
+      (item) => parsePayrollReportMonthlySummaryRecord(item),
+      "payroll reporting monthly summaries",
+    ),
+    cutoff_summaries: parseCollection(
+      record.cutoff_summaries ?? [],
+      (item) => parsePayrollReportCutoffSummaryRecord(item),
+      "payroll reporting cutoff summaries",
+    ),
+    selected_cutoff:
+      record.selected_cutoff == null
+        ? null
+        : parsePayrollReportCutoffDetailRecord(record.selected_cutoff),
+    government_summary: parsePayrollReportGovernmentSummaryRecord(
+      record.government_summary,
+    ),
+    employer_contribution_summary: parsePayrollReportEmployerContributionSummaryRecord(
+      record.employer_contribution_summary,
+    ),
+    monthly_trends: parseCollection(
+      record.monthly_trends ?? [],
+      (item) => parsePayrollReportTrendPointRecord(item),
+      "payroll reporting monthly trends",
     ),
   };
 }
@@ -1279,6 +1755,32 @@ async function requestPayrollCollection<T>(
 
 export async function getPayrollCutoffPreviews() {
   return requestPayrollCollection("/cutoffs", parsePayrollCutoffPreviewRecord);
+}
+
+export async function getPayrollReportingSnapshot(filters: {
+  year?: number;
+  status?: string | null;
+  cutoffId?: number | null;
+} = {}) {
+  const query = new URLSearchParams();
+
+  if (filters.year != null) {
+    query.set("year", String(filters.year));
+  }
+
+  if (filters.status) {
+    query.set("status", filters.status);
+  }
+
+  if (filters.cutoffId != null) {
+    query.set("cutoff_id", String(filters.cutoffId));
+  }
+
+  const suffix = query.toString();
+
+  return requestPayrollProxy(`/reports/summary${suffix ? `?${suffix}` : ""}`, {
+    parser: parsePayrollReportingSnapshotRecord,
+  });
 }
 
 export async function getEmployeePayrollCutoffStatuses(cutoffId: number) {

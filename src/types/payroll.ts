@@ -389,3 +389,148 @@ export interface EmployeeEffectivePayrollRulesRecord {
   use_daily_hour_requirement: boolean;
 }
 
+export interface PayrollReportStatusOptionRecord {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface PayrollReportYtdSummaryRecord {
+  year: number;
+  total_basic_pay: string;
+  total_gross_pay: string;
+  total_net_pay: string;
+  total_employee_deductions: string;
+  total_government_deductions: string;
+  total_government_remittances: string;
+  total_employer_contributions: string;
+  total_cutoff_runs: number;
+  total_employees_processed: number;
+  total_records_processed: number;
+}
+
+export interface PayrollReportMonthlySummaryRecord {
+  month: number;
+  label: string;
+  total_basic_pay: string;
+  total_gross_pay: string;
+  total_net_pay: string;
+  total_employee_deductions: string;
+  total_government_deductions: string;
+  total_government_remittances: string;
+  total_employer_contributions: string;
+  cutoff_count: number;
+  processed_cutoff_count: number;
+  employee_count: number;
+}
+
+export interface PayrollReportTrendPointRecord {
+  month: number;
+  label: string;
+  total_gross_pay: string;
+  total_employer_contributions: string;
+  total_deductions: string;
+  gross_pay_delta: string;
+  employer_contributions_delta: string;
+  deductions_delta: string;
+}
+
+export interface PayrollReportGovernmentSummaryRecord {
+  sss_employee: string;
+  sss_employer: string;
+  philhealth_employee: string;
+  philhealth_employer: string;
+  pagibig_employee: string;
+  pagibig_employer: string;
+  withholding_tax: string;
+  total_employee_contributions: string;
+  total_employer_shares: string;
+  total_government_remittances: string;
+}
+
+export interface PayrollReportEmployerContributionSummaryRecord {
+  sss_employer: string;
+  philhealth_employer: string;
+  pagibig_employer: string;
+  total_employer_shares: string;
+  total_employer_contribution_cost: string;
+}
+
+export interface PayrollReportCutoffSummaryRecord {
+  cutoff_id: number;
+  batch_id?: number | null;
+  label: string;
+  cutoff_start: string;
+  cutoff_end: string;
+  cutoff_status: string;
+  batch_status?: string | null;
+  status: string;
+  status_label: string;
+  status_tone: string;
+  is_live: boolean;
+  is_finalized: boolean;
+  has_payroll_data: boolean;
+  record_count: number;
+  employee_count: number;
+  total_gross_pay: string;
+  total_net_pay: string;
+  total_deductions: string;
+  total_employee_contributions: string;
+  total_government_deductions: string;
+  total_employer_contributions: string;
+  last_updated_at: string;
+}
+
+export interface PayrollReportCutoffDetailRecord {
+  cutoff_id: number;
+  batch_id?: number | null;
+  label: string;
+  cutoff_start: string;
+  cutoff_end: string;
+  cutoff_status: string;
+  batch_status?: string | null;
+  status: string;
+  status_label: string;
+  status_tone: string;
+  is_live: boolean;
+  is_finalized: boolean;
+  has_payroll_data: boolean;
+  record_count: number;
+  employee_count: number;
+  remarks?: string | null;
+  last_updated_at: string;
+  total_basic_pay: string;
+  total_leave_pay: string;
+  total_allowances: string;
+  total_overtime_pay: string;
+  total_night_differential_pay: string;
+  total_gross_pay: string;
+  total_net_pay: string;
+  total_deductions: string;
+  total_late_deductions: string;
+  total_undertime_deductions: string;
+  total_absence_deductions: string;
+  total_loan_deductions: string;
+  total_employee_contributions: string;
+  total_government_deductions: string;
+  total_government_remittances: string;
+  total_employer_contributions: string;
+  government_summary: PayrollReportGovernmentSummaryRecord;
+  employer_contribution_summary: PayrollReportEmployerContributionSummaryRecord;
+}
+
+export interface PayrollReportingSnapshotRecord {
+  available_years: number[];
+  available_statuses: PayrollReportStatusOptionRecord[];
+  selected_year: number;
+  selected_status?: string | null;
+  selected_cutoff_id?: number | null;
+  year_to_date: PayrollReportYtdSummaryRecord;
+  monthly_summaries: PayrollReportMonthlySummaryRecord[];
+  cutoff_summaries: PayrollReportCutoffSummaryRecord[];
+  selected_cutoff?: PayrollReportCutoffDetailRecord | null;
+  government_summary: PayrollReportGovernmentSummaryRecord;
+  employer_contribution_summary: PayrollReportEmployerContributionSummaryRecord;
+  monthly_trends: PayrollReportTrendPointRecord[];
+}
+

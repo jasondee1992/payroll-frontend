@@ -33,6 +33,7 @@ const FINANCE_ALLOWED_PATHS = new Set<string>([
   "/leave-requests",
   "/payroll",
   "/payslips",
+  "/reports",
 ]);
 const ADMIN_FINANCE_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
@@ -40,6 +41,7 @@ const ADMIN_FINANCE_ALLOWED_PATHS = new Set<string>([
   "/leave-requests",
   "/payroll",
   "/payslips",
+  "/reports",
   "/settings",
 ]);
 
