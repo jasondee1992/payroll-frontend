@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ClipboardList,
   BarChart3,
+  CalendarRange,
   CalendarDays,
   Clock3,
   LayoutDashboard,
@@ -50,6 +51,13 @@ export const navigationItems: NavigationItem[] = [
     description: "File leave, overtime, undertime, half-day, and related requests.",
     icon: CalendarDays,
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
+  },
+  {
+    title: "Holidays",
+    href: "/holidays",
+    description: "Manage the operating holiday calendar used by attendance and payroll.",
+    icon: CalendarRange,
+    roles: ["admin", "admin-finance", "finance", "hr", "system-admin"],
   },
   {
     title: "Payroll",

@@ -52,6 +52,17 @@ const PAYSLIP_VIEW_ROLES = new Set<AppRole>([
   "finance",
   "employee",
 ]);
+const HOLIDAY_VIEW_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "finance",
+  "hr",
+]);
+const HOLIDAY_MANAGE_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "hr",
+]);
 const AUDIT_LOG_VIEW_ROLES = new Set<AppRole>([
   "admin",
   "admin-finance",
@@ -63,6 +74,7 @@ const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
   "/employees",
   "/attendance",
+  "/holidays",
   "/leave-requests",
   "/payroll",
   "/payslips",
@@ -182,6 +194,14 @@ export function canManagePayrollAdjustments(role: AppRole | null | undefined) {
 
 export function canManagePayrollSettings(role: AppRole | null | undefined) {
   return canManagePayroll(role);
+}
+
+export function canViewHolidayCalendar(role: AppRole | null | undefined) {
+  return role != null && HOLIDAY_VIEW_ROLES.has(role);
+}
+
+export function canManageHolidayCalendar(role: AppRole | null | undefined) {
+  return role != null && HOLIDAY_MANAGE_ROLES.has(role);
 }
 
 export function canViewAuditLogs(role: AppRole | null | undefined) {
