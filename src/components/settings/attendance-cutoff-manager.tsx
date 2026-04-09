@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ColDef, ICellRendererParams } from "ag-grid-community";
-import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
 import { RefreshCcw, Trash2 } from "lucide-react";
 import {
   deleteAttendanceCutoff,
@@ -20,19 +17,6 @@ import {
 import { SectionCard } from "@/components/ui/section-card";
 import { cn } from "@/lib/utils";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
-
-type AttendanceCutoffGridRow = AttendanceCutoffRecord & {
-  cutoff_range: string;
-  uploaded_summary: string;
-  created_summary: string;
-};
-
-type AttendanceCutoffGridContext = {
-  deletingCutoffId: number | null;
-  onDeleteCutoff: (row: AttendanceCutoffGridRow) => void;
-};
-
 const STATUS_BADGE_CLASS_NAMES: Record<AttendanceCutoffRecord["status"], string> = {
   draft: "bg-slate-100 text-slate-700",
   under_review: "bg-amber-100 text-amber-800",
@@ -40,92 +24,20 @@ const STATUS_BADGE_CLASS_NAMES: Record<AttendanceCutoffRecord["status"], string>
   locked: "bg-rose-100 text-rose-800",
 };
 
-const COLUMN_DEFS: ColDef<AttendanceCutoffGridRow>[] = [
-  {
-    headerName: "Cutoff Range",
-    field: "cutoff_range",
-    flex: 1.4,
-    minWidth: 240,
-  },
-  {
-    headerName: "Status",
-    field: "status",
-    width: 160,
-    cellRenderer: (params: ICellRendererParams<AttendanceCutoffGridRow>) => {
-      const status = params.data?.status;
-      if (!status) {
-        return null;
-      }
+type AttendanceCutoffRow = AttendanceCutoffRecord & {
+  cutoffRange: string;
+  uploadedSummary: string;
+  createdSummary: string;
+};
 
-      return (
-        <span
-          className={cn(
-            "ui-badge capitalize",
-            STATUS_BADGE_CLASS_NAMES[status],
-          )}
-        >
-          {status.replace("_", " ")}
-        </span>
-      );
-    },
-  },
-  {
-    headerName: "Last Upload",
-    field: "uploaded_summary",
-    flex: 1.1,
-    minWidth: 220,
-  },
-  {
-    headerName: "Created",
-    field: "created_summary",
-    flex: 1.1,
-    minWidth: 220,
-  },
-  {
-    headerName: "Action",
-    colId: "actions",
-    width: 150,
-    sortable: false,
-    filter: false,
-    suppressHeaderMenuButton: true,
-    cellRenderer: (
-      params: ICellRendererParams<
-        AttendanceCutoffGridRow,
-        unknown,
-        AttendanceCutoffGridContext
-      >,
-    ) => {
-      const row = params.data;
-      const context = params.context;
-      if (!row || !context) {
-        return null;
-      }
-
-      const isDeleting = context.deletingCutoffId === row.id;
-      const isLocked = row.status === "locked";
-
-      return (
-        <button
-          type="button"
-          className="ui-button-secondary h-9 px-3 text-xs"
-          disabled={isDeleting || isLocked}
-          onClick={() => context.onDeleteCutoff(row)}
-        >
-          {isDeleting ? "Deleting..." : isLocked ? "Locked" : "Delete"}
-        </button>
-      );
-    },
-  },
-];
-
-function toGridRows(cutoffs: AttendanceCutoffRecord[]): AttendanceCutoffGridRow[] {
+function toRows(cutoffs: AttendanceCutoffRecord[]): AttendanceCutoffRow[] {
   return cutoffs.map((cutoff) => ({
     ...cutoff,
-    cutoff_range: `${formatDate(cutoff.cutoff_start)} to ${formatDate(cutoff.cutoff_end)}`,
-    uploaded_summary: cutoff.uploaded_at
+    cutoffRange: `${formatDate(cutoff.cutoff_start)} to ${formatDate(cutoff.cutoff_end)}`,
+    uploadedSummary: cutoff.uploaded_at
       ? formatPhilippineDateTime(cutoff.uploaded_at)
       : "No file uploaded yet",
-    created_summary: formatPhilippineDateTime(cutoff.created_at),
+    createdSummary: formatPhilippineDateTime(cutoff.created_at),
   }));
 }
 
@@ -159,14 +71,14 @@ export function AttendanceCutoffManager() {
     void loadCutoffs();
   }, []);
 
-  async function handleDeleteCutoff(row: AttendanceCutoffGridRow) {
+  async function handleDeleteCutoff(row: AttendanceCutoffRow) {
     if (row.status === "locked") {
       setActionError("Locked attendance cutoffs cannot be deleted.");
       return;
     }
 
     const confirmed = window.confirm(
-      `Delete the attendance cutoff for ${row.cutoff_range}? This removes the uploaded attendance, summaries, and review requests for that period.`,
+      `Delete the attendance cutoff for ${row.cutoffRange}? This removes the uploaded attendance, summaries, and review requests for that period.`,
     );
     if (!confirmed) {
       return;
@@ -178,7 +90,7 @@ export function AttendanceCutoffManager() {
 
     try {
       await deleteAttendanceCutoff(row.id);
-      setSuccessMessage(`Deleted attendance cutoff for ${row.cutoff_range}.`);
+      setSuccessMessage(`Deleted attendance cutoff for ${row.cutoffRange}.`);
       await loadCutoffs();
     } catch (error) {
       setActionError(
@@ -191,7 +103,7 @@ export function AttendanceCutoffManager() {
     }
   }
 
-  const gridRows = toGridRows(cutoffs);
+  const rows = toRows(cutoffs);
   const uploadedCount = cutoffs.filter((cutoff) => cutoff.uploaded_at != null).length;
   const lockedCount = cutoffs.filter((cutoff) => cutoff.status === "locked").length;
   const draftCount = cutoffs.filter((cutoff) => cutoff.status === "draft").length;
@@ -305,31 +217,62 @@ export function AttendanceCutoffManager() {
               />
             ) : null}
 
-            {!loading && !loadingError && gridRows.length === 0 ? (
+            {!loading && !loadingError && rows.length === 0 ? (
               <ResourceEmptyState
                 title="No attendance cutoffs yet"
                 description="Create and upload an attendance cutoff first, then manage it here if the saved period needs correction."
               />
             ) : null}
 
-            {!loading && !loadingError && gridRows.length > 0 ? (
-              <div className="attendance-cutoff-grid ag-theme-quartz overflow-hidden rounded-[20px]">
-                <AgGridReact<AttendanceCutoffGridRow>
-                  rowData={gridRows}
-                  columnDefs={COLUMN_DEFS}
-                  context={{ deletingCutoffId, onDeleteCutoff: handleDeleteCutoff }}
-                  theme="legacy"
-                  domLayout="autoHeight"
-                  pagination
-                  paginationPageSize={10}
-                  rowHeight={68}
-                  defaultColDef={{
-                    sortable: true,
-                    filter: true,
-                    resizable: true,
-                    suppressMovable: true,
-                  }}
-                />
+            {!loading && !loadingError && rows.length > 0 ? (
+              <div className="overflow-x-auto rounded-[20px] border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200 text-sm">
+                  <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Cutoff Range</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Last Upload</th>
+                      <th className="px-4 py-3">Created</th>
+                      <th className="px-4 py-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {rows.map((row) => {
+                      const isDeleting = deletingCutoffId === row.id;
+                      const isLocked = row.status === "locked";
+
+                      return (
+                        <tr key={row.id} className="align-top">
+                          <td className="px-4 py-4 font-medium text-slate-950">
+                            {row.cutoffRange}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span
+                              className={cn(
+                                "ui-badge capitalize",
+                                STATUS_BADGE_CLASS_NAMES[row.status],
+                              )}
+                            >
+                              {row.status.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-slate-600">{row.uploadedSummary}</td>
+                          <td className="px-4 py-4 text-slate-600">{row.createdSummary}</td>
+                          <td className="px-4 py-4 text-right">
+                            <button
+                              type="button"
+                              className="ui-button-secondary h-9 px-3 text-xs"
+                              disabled={isDeleting || isLocked}
+                              onClick={() => void handleDeleteCutoff(row)}
+                            >
+                              {isDeleting ? "Deleting..." : isLocked ? "Locked" : "Delete"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             ) : null}
           </div>
