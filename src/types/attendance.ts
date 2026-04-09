@@ -64,6 +64,22 @@ export interface AttendanceImportSummaryRecord {
   invalid_row_details: AttendanceImportError[];
 }
 
+export interface AttendanceHolidayContextRecord {
+  id: number;
+  holiday_name: string;
+  holiday_type: string;
+  is_paid: boolean;
+  applies_nationally: boolean;
+  applies_to_location?: string | null;
+}
+
+export type AttendanceDayType =
+  | "working_day"
+  | "paid_holiday"
+  | "holiday"
+  | "rest_day"
+  | "holiday_and_rest_day";
+
 export interface AttendanceRecord {
   id: number;
   cutoff_id: number;
@@ -81,6 +97,10 @@ export interface AttendanceRecord {
   has_missing_time_in: boolean;
   has_missing_time_out: boolean;
   import_batch_id?: number | null;
+  day_type: AttendanceDayType;
+  is_rest_day: boolean;
+  is_paid_holiday: boolean;
+  holiday_context: AttendanceHolidayContextRecord[];
   created_at: string;
   updated_at: string;
 }

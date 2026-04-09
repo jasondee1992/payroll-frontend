@@ -1216,9 +1216,10 @@ function TeamAttendancePanel(props: {
                 >
                   <option value="">Date-only dispute / no imported record</option>
                   {props.teamEmployeeRecords.map((record) => (
-                    <option key={record.id} value={record.id}>
-                      {formatDate(record.attendance_date)} • {record.status} •{" "}
-                      {formatTime(record.time_in ?? undefined)} / {formatTime(record.time_out ?? undefined)}
+                  <option key={record.id} value={record.id}>
+                      {formatDate(record.attendance_date)} • {getAttendanceCalendarSummary(record)} •{" "}
+                      {record.status} • {formatTime(record.time_in ?? undefined)} /{" "}
+                      {formatTime(record.time_out ?? undefined)}
                     </option>
                   ))}
                 </select>
@@ -1498,6 +1499,7 @@ function AttendanceReviewPanel(props: {
                   <tr>
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Day</th>
+                    <th className="px-4 py-3">Calendar</th>
                     <th className="px-4 py-3">Time In</th>
                     <th className="px-4 py-3">Time Out</th>
                     <th className="px-4 py-3">Late</th>
@@ -1518,6 +1520,9 @@ function AttendanceReviewPanel(props: {
                     >
                       <td className="px-4 py-4">{formatDate(record.attendance_date)}</td>
                       <td className="px-4 py-4">{formatWeekday(record.attendance_date)}</td>
+                      <td className="px-4 py-4">
+                        <AttendanceCalendarBadges record={record} />
+                      </td>
                       <td className="px-4 py-4">{formatTime(record.time_in ?? undefined)}</td>
                       <td className="px-4 py-4">{formatTime(record.time_out ?? undefined)}</td>
                       <td className="px-4 py-4">{record.late_minutes}</td>
@@ -1565,9 +1570,10 @@ function AttendanceReviewPanel(props: {
                   >
                     <option value="">Date-only dispute / no imported record</option>
                     {review.records.map((record) => (
-                      <option key={record.id} value={record.id}>
-                        {formatDate(record.attendance_date)} •{" "}
-                        {formatWeekday(record.attendance_date, { weekday: "short" })} • {record.status}
+                    <option key={record.id} value={record.id}>
+                      {formatDate(record.attendance_date)} •{" "}
+                        {formatWeekday(record.attendance_date, { weekday: "short" })} •{" "}
+                        {getAttendanceCalendarSummary(record)} • {record.status}
                       </option>
                     ))}
                   </select>
@@ -1886,6 +1892,25 @@ function StatusPill({
   );
 }
 
+function AttendanceCalendarBadges({ record }: { record: AttendanceRecord }) {
+  const holidayLabel = record.holiday_context
+    .map((holiday) => holiday.holiday_name)
+    .join(", ");
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <span className={cn("ui-badge", getAttendanceDayTypeTone(record.day_type))}>
+        {getAttendanceDayTypeLabel(record.day_type)}
+      </span>
+      {holidayLabel ? (
+        <span className="ui-badge bg-sky-100 text-sky-800 ring-sky-200/80">
+          {holidayLabel}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function SimpleTable({
   title,
   headers,
@@ -1939,6 +1964,46 @@ function formatStatusLabel(value: string) {
     .split("_")
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" ");
+}
+
+function getAttendanceCalendarSummary(record: AttendanceRecord) {
+  const labels = [getAttendanceDayTypeLabel(record.day_type)];
+
+  if (record.holiday_context.length > 0) {
+    labels.push(record.holiday_context.map((holiday) => holiday.holiday_name).join(", "));
+  }
+
+  return labels.join(" / ");
+}
+
+function getAttendanceDayTypeLabel(value: AttendanceRecord["day_type"]) {
+  switch (value) {
+    case "paid_holiday":
+      return "Paid Holiday";
+    case "holiday":
+      return "Holiday";
+    case "rest_day":
+      return "Rest Day";
+    case "holiday_and_rest_day":
+      return "Holiday + Rest Day";
+    default:
+      return "Working Day";
+  }
+}
+
+function getAttendanceDayTypeTone(value: AttendanceRecord["day_type"]) {
+  switch (value) {
+    case "paid_holiday":
+      return "bg-emerald-100 text-emerald-800 ring-emerald-200/80";
+    case "holiday":
+      return "bg-sky-100 text-sky-800 ring-sky-200/80";
+    case "rest_day":
+      return "bg-violet-100 text-violet-800 ring-violet-200/80";
+    case "holiday_and_rest_day":
+      return "bg-amber-100 text-amber-800 ring-amber-200/80";
+    default:
+      return "ui-badge-neutral";
+  }
 }
 
 function formatRequestTypeLabel(value: string) {

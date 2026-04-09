@@ -13,6 +13,7 @@ import type {
   AttendanceCutoffRecord,
   AttendanceCutoffSummaryRecord,
   AttendanceEmployeeSummaryRecord,
+  AttendanceHolidayContextRecord,
   AttendanceImportBatchRecord,
   AttendanceImportError,
   AttendanceImportPreviewRow,
@@ -170,6 +171,33 @@ export function parseAttendanceImportError(value: unknown): AttendanceImportErro
   };
 }
 
+export function parseAttendanceHolidayContextRecord(
+  value: unknown,
+): AttendanceHolidayContextRecord {
+  const record = parseRecord(value, "attendance holiday context");
+
+  return {
+    id: parseNumber(record.id, "attendanceHolidayContext.id"),
+    holiday_name: parseString(
+      record.holiday_name,
+      "attendanceHolidayContext.holiday_name",
+    ),
+    holiday_type: parseString(
+      record.holiday_type,
+      "attendanceHolidayContext.holiday_type",
+    ),
+    is_paid: parseBoolean(record.is_paid, "attendanceHolidayContext.is_paid"),
+    applies_nationally: parseBoolean(
+      record.applies_nationally,
+      "attendanceHolidayContext.applies_nationally",
+    ),
+    applies_to_location: parseOptionalString(
+      record.applies_to_location,
+      "attendanceHolidayContext.applies_to_location",
+    ),
+  };
+}
+
 export function parseAttendanceRecord(value: unknown): AttendanceRecord {
   const record = parseRecord(value, "attendance record");
 
@@ -208,6 +236,17 @@ export function parseAttendanceRecord(value: unknown): AttendanceRecord {
       record.import_batch_id == null
         ? null
         : parseNumber(record.import_batch_id, "attendanceRecord.import_batch_id"),
+    day_type: parseString(record.day_type, "attendanceRecord.day_type") as AttendanceRecord["day_type"],
+    is_rest_day: parseBoolean(record.is_rest_day, "attendanceRecord.is_rest_day"),
+    is_paid_holiday: parseBoolean(
+      record.is_paid_holiday,
+      "attendanceRecord.is_paid_holiday",
+    ),
+    holiday_context: parseCollection(
+      record.holiday_context,
+      (item) => parseAttendanceHolidayContextRecord(item),
+      "attendanceRecord.holiday_context",
+    ),
     created_at: parseString(record.created_at, "attendanceRecord.created_at"),
     updated_at: parseString(record.updated_at, "attendanceRecord.updated_at"),
   };

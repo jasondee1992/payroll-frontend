@@ -102,6 +102,7 @@ export async function getHolidays(filters: {
   dateFrom?: string;
   dateTo?: string;
   holidayType?: string | null;
+  appliesToLocation?: string | null;
   active?: boolean | null;
 } = {}) {
   const searchParams = new URLSearchParams();
@@ -117,6 +118,9 @@ export async function getHolidays(filters: {
   }
   if (filters.holidayType) {
     searchParams.set("holiday_type", filters.holidayType);
+  }
+  if (filters.appliesToLocation) {
+    searchParams.set("applies_to_location", filters.appliesToLocation);
   }
   if (filters.active != null) {
     searchParams.set("active", String(filters.active));

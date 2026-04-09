@@ -70,6 +70,7 @@ async function queryHolidayCollection(
   dateFromFilter: string,
   dateToFilter: string,
   holidayTypeFilter: string,
+  locationFilter: string,
   statusFilter: FilterStatus,
 ) {
   const parsedYear = Number(yearFilter);
@@ -79,6 +80,7 @@ async function queryHolidayCollection(
     dateFrom: dateFromFilter || undefined,
     dateTo: dateToFilter || undefined,
     holidayType: holidayTypeFilter === "all" ? null : holidayTypeFilter,
+    appliesToLocation: locationFilter.trim() || null,
     active:
       statusFilter === "all"
         ? null
@@ -99,6 +101,7 @@ export function HolidayCalendarWorkspace({ canManage }: { canManage: boolean }) 
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [holidayTypeFilter, setHolidayTypeFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
 
   useEffect(() => {
@@ -112,6 +115,7 @@ export function HolidayCalendarWorkspace({ canManage }: { canManage: boolean }) 
           dateFromFilter,
           dateToFilter,
           holidayTypeFilter,
+          locationFilter,
           statusFilter,
         );
         setHolidays(nextHolidays);
@@ -125,7 +129,7 @@ export function HolidayCalendarWorkspace({ canManage }: { canManage: boolean }) 
         setLoading(false);
       }
     })();
-  }, [dateFromFilter, dateToFilter, yearFilter, holidayTypeFilter, statusFilter]);
+  }, [dateFromFilter, dateToFilter, yearFilter, holidayTypeFilter, locationFilter, statusFilter]);
 
   async function loadHolidays() {
     setLoading(true);
@@ -137,6 +141,7 @@ export function HolidayCalendarWorkspace({ canManage }: { canManage: boolean }) 
         dateFromFilter,
         dateToFilter,
         holidayTypeFilter,
+        locationFilter,
         statusFilter,
       );
       setHolidays(nextHolidays);
@@ -360,7 +365,7 @@ export function HolidayCalendarWorkspace({ canManage }: { canManage: boolean }) 
           title="Configured Holidays"
           description="Filter the calendar, review holiday scope and paid status, and edit or deactivate individual entries."
         >
-          <div className="grid gap-4 xl:grid-cols-[150px_170px_170px_minmax(0,1fr)_180px]">
+          <div className="grid gap-4 xl:grid-cols-[140px_170px_170px_200px_minmax(0,1fr)_180px]">
             <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
               <span>Year</span>
               <input
@@ -407,6 +412,17 @@ export function HolidayCalendarWorkspace({ canManage }: { canManage: boolean }) 
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+              <span>Location</span>
+              <input
+                type="text"
+                value={locationFilter}
+                onChange={(event) => setLocationFilter(event.target.value)}
+                placeholder="HQ, Cebu Branch, Davao City"
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+              />
             </label>
 
             <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
