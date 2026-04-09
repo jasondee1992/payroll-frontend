@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiBaseUrl } from "@/lib/api/config";
 import {
+  canApprovePayroll,
+  canFinalizePayroll,
+  canManagePayrollPolicyProfiles,
   AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
   canManagePayrollAdjustments,
   canManagePayroll,
+  canReleasePayslips,
+  canReviewPayroll,
   canViewPayroll,
+  canViewPayrollPolicyProfiles,
   canViewPayslips,
   normalizeAppRole,
 } from "@/lib/auth/session";
@@ -43,14 +49,72 @@ function isSettingsRequest(pathSegments: string[] | undefined) {
   return Array.isArray(pathSegments) && pathSegments[0] === "settings";
 }
 
+function isPayrollPolicyProfilesRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length >= 2 &&
+    pathSegments[0] === "settings" &&
+    pathSegments[1] === "policy-profiles"
+  );
+}
+
+function isEmployeeEffectiveRulesRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length >= 3 &&
+    pathSegments[0] === "employees" &&
+    pathSegments[2] === "effective-rules"
+  );
+}
+
 function isManualAdjustmentsRequest(pathSegments: string[] | undefined) {
   return Array.isArray(pathSegments) && pathSegments[0] === "adjustments";
+}
+
+function isReviewBatchRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length === 3 &&
+    pathSegments[0] === "batches" &&
+    pathSegments[2] === "review"
+  );
+}
+
+function isApproveBatchRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length === 3 &&
+    pathSegments[0] === "batches" &&
+    pathSegments[2] === "approve"
+  );
+}
+
+function isFinalizeBatchRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length === 3 &&
+    pathSegments[0] === "batches" &&
+    pathSegments[2] === "finalize"
+  );
+}
+
+function isReleasePayslipsRequest(pathSegments: string[] | undefined) {
+  return (
+    Array.isArray(pathSegments) &&
+    pathSegments.length === 3 &&
+    pathSegments[0] === "batches" &&
+    pathSegments[2] === "release-payslips"
+  );
 }
 
 function canReadPayrollPath(
   userRole: ReturnType<typeof normalizeAppRole>,
   pathSegments: string[] | undefined,
 ) {
+  if (isPayrollPolicyProfilesRequest(pathSegments) || isEmployeeEffectiveRulesRequest(pathSegments)) {
+    return canViewPayrollPolicyProfiles(userRole);
+  }
+
   if (isSettingsRequest(pathSegments)) {
     return canManagePayroll(userRole);
   }
@@ -64,6 +128,70 @@ function canReadPayrollPath(
   }
 
   return canViewPayroll(userRole);
+}
+
+function canWritePayrollPath(
+  userRole: ReturnType<typeof normalizeAppRole>,
+  pathSegments: string[] | undefined,
+) {
+  if (isManualAdjustmentsRequest(pathSegments)) {
+    return canManagePayrollAdjustments(userRole);
+  }
+
+  if (isPayrollPolicyProfilesRequest(pathSegments)) {
+    return canManagePayrollPolicyProfiles(userRole);
+  }
+
+  if (isReviewBatchRequest(pathSegments)) {
+    return canReviewPayroll(userRole);
+  }
+
+  if (isApproveBatchRequest(pathSegments)) {
+    return canApprovePayroll(userRole);
+  }
+
+  if (isFinalizeBatchRequest(pathSegments)) {
+    return canFinalizePayroll(userRole);
+  }
+
+  if (isReleasePayslipsRequest(pathSegments)) {
+    return canReleasePayslips(userRole);
+  }
+
+  return canManagePayroll(userRole);
+}
+
+function getPayrollWriteAccessError(
+  userRole: ReturnType<typeof normalizeAppRole>,
+  pathSegments: string[] | undefined,
+) {
+  if (isManualAdjustmentsRequest(pathSegments)) {
+    return "Only Admin and Admin-Finance users can manage manual payroll adjustments.";
+  }
+
+  if (isPayrollPolicyProfilesRequest(pathSegments)) {
+    return "Only Admin and Admin-Finance users can update payroll policy profiles.";
+  }
+
+  if (isReviewBatchRequest(pathSegments)) {
+    return "Only Finance and Admin-Finance users can review payroll batches.";
+  }
+
+  if (isApproveBatchRequest(pathSegments)) {
+    return "Only Admin-Finance users can approve payroll batches.";
+  }
+
+  if (isFinalizeBatchRequest(pathSegments)) {
+    return "Only Admin-Finance users can finalize payroll batches.";
+  }
+
+  if (isReleasePayslipsRequest(pathSegments)) {
+    return "Only Admin-Finance users can release payslips.";
+  }
+
+  return canManagePayroll(userRole)
+    ? "You already have access."
+    : "Only Admin-Finance users can calculate, recalculate, or discard payroll workflow records.";
 }
 
 async function proxyPayrollRequest(
@@ -82,10 +210,14 @@ async function proxyPayrollRequest(
         {
           error:
             isSettingsRequest(path)
-              ? "Only Admin-Finance users can access payroll deduction settings."
+              ? isPayrollPolicyProfilesRequest(path)
+                ? "Only Admin, Admin-Finance, Finance, and HR users can access payroll policy profiles."
+                : "Only Admin-Finance users can access government deduction settings."
+              : isEmployeeEffectiveRulesRequest(path)
+                ? "Only Admin, Admin-Finance, Finance, and HR users can access effective payroll rules."
               : isEmployeePayslipRequest(path) || (userRole === "employee" && canViewPayslips(userRole))
               ? "You can only view your own posted payslips."
-              : "Only Finance and Admin-Finance users can access payroll workflow data.",
+              : "Only Admin, Finance, and Admin-Finance users can access payroll workflow data.",
         },
         { status: 403 },
       );
@@ -93,9 +225,7 @@ async function proxyPayrollRequest(
   }
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const canManageWriteRequest = isManualAdjustmentsRequest(path)
-      ? canManagePayrollAdjustments(userRole)
-      : canManagePayroll(userRole);
+    const canManageWriteRequest = canWritePayrollPath(userRole, path);
 
     if (canManageWriteRequest) {
       return proxyToBackend(request, accessToken, path);
@@ -103,10 +233,7 @@ async function proxyPayrollRequest(
 
     return NextResponse.json(
       {
-        error:
-          isManualAdjustmentsRequest(path)
-            ? "Only Admin and Admin-Finance users can manage manual payroll adjustments."
-            : "Only Admin-Finance users can calculate, recalculate, approve, post, or discard payroll batches.",
+        error: getPayrollWriteAccessError(userRole, path),
       },
       { status: 403 },
     );

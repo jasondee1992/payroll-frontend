@@ -53,6 +53,13 @@ const PAYROLL_APPROVE_ROLES = new Set<AppRole>(["admin-finance"]);
 const PAYROLL_FINALIZE_ROLES = new Set<AppRole>(["admin-finance"]);
 const PAYSLIP_RELEASE_ROLES = new Set<AppRole>(["admin-finance"]);
 const PAYROLL_ADJUSTMENT_MANAGE_ROLES = new Set<AppRole>(["admin", "admin-finance"]);
+const PAYROLL_POLICY_VIEW_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "finance",
+  "hr",
+]);
+const PAYROLL_POLICY_MANAGE_ROLES = new Set<AppRole>(["admin", "admin-finance"]);
 const PAYSLIP_VIEW_ROLES = new Set<AppRole>([
   "admin-finance",
   "finance",
@@ -206,6 +213,14 @@ export function canManagePayrollAdjustments(role: AppRole | null | undefined) {
 
 export function canManagePayrollSettings(role: AppRole | null | undefined) {
   return canManagePayroll(role);
+}
+
+export function canViewPayrollPolicyProfiles(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_POLICY_VIEW_ROLES.has(role);
+}
+
+export function canManagePayrollPolicyProfiles(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_POLICY_MANAGE_ROLES.has(role);
 }
 
 export function canViewHolidayCalendar(role: AppRole | null | undefined) {

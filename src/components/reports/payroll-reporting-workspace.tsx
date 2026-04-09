@@ -785,7 +785,7 @@ function SelectedCutoffPanel({ cutoff }: { cutoff: PayrollReportCutoffDetailReco
     { label: "Late deductions", value: cutoff.total_late_deductions },
     { label: "Undertime deductions", value: cutoff.total_undertime_deductions },
     { label: "Absence deductions", value: cutoff.total_absence_deductions },
-    { label: "Loan deductions", value: cutoff.total_loan_deductions },
+    { label: "Employee loan deductions", value: cutoff.total_loan_deductions },
   ];
   const dataState: "live" | "approved" | "not_started" =
     !cutoff.has_payroll_data

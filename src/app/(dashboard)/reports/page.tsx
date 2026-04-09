@@ -11,7 +11,7 @@ export default async function ReportsPage() {
     <>
       <PageHeader
         title="Payroll reports"
-        description="Review year-to-date payroll totals, current month processing, cutoff approval status, and statutory payroll cost breakdowns for Admin-Finance operations."
+        description="Review year-to-date payroll totals, current month processing, cutoff approval status, and statutory payroll cost breakdowns for payroll review operations."
         eyebrow="Reporting"
       />
 
@@ -21,7 +21,7 @@ export default async function ReportsPage() {
         <section className="panel p-6 sm:p-7">
           <ResourceErrorState
             title="Payroll reporting access is unavailable"
-            description="This reporting workspace is restricted to Finance and Admin-Finance users."
+            description="This reporting workspace is restricted to Admin, Finance, and Admin-Finance users."
           />
         </section>
       )}
