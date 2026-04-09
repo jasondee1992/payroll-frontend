@@ -115,3 +115,10 @@ export async function PATCH(
 ) {
   return proxyNotificationRequest(request, context);
 }
+
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ path?: string[] }> },
+) {
+  return proxyNotificationRequest(request, context);
+}

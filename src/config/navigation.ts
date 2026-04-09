@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ClipboardList,
   BarChart3,
+  Bell,
   CalendarRange,
   CalendarDays,
   Clock3,
@@ -50,6 +51,13 @@ export const navigationItems: NavigationItem[] = [
     href: "/leave-requests",
     description: "File leave, overtime, undertime, half-day, and related requests.",
     icon: CalendarDays,
+    roles: ["admin", "admin-finance", "finance", "hr", "employee"],
+  },
+  {
+    title: "Notifications",
+    href: "/notifications",
+    description: "Important in-app updates for approvals, payroll, and action items.",
+    icon: Bell,
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {

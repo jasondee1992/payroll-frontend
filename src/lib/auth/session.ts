@@ -74,6 +74,7 @@ const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
   "/employees",
   "/attendance",
+  "/notifications",
   "/holidays",
   "/leave-requests",
   "/payroll",
