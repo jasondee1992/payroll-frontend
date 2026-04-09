@@ -29,6 +29,11 @@ import type {
   PayslipRecord,
   PayrollAdjustmentRecord,
   PayrollBatchDetailRecord,
+  PayrollReconciliationComparisonRecord,
+  PayrollReconciliationRecord,
+  PayrollReconciliationTotalsRecord,
+  PayrollReconciliationWarningRecord,
+  PayrollReconciliationWarningSampleRecord,
   PayrollReportingSnapshotRecord,
   PayrollBatchSummaryRecord,
   PayrollCutoffPreviewRecord,
@@ -519,6 +524,152 @@ export function parsePayrollBatchDetailRecord(value: unknown): PayrollBatchDetai
       record.records ?? [],
       (item) => parsePayrollRecordRecord(item),
       "payroll batch records",
+    ),
+  };
+}
+
+export function parsePayrollReconciliationTotalsRecord(
+  value: unknown,
+): PayrollReconciliationTotalsRecord {
+  const record = parseRecord(value, "payroll reconciliation totals");
+
+  return {
+    employee_count: parseNumber(
+      record.employee_count,
+      "payrollReconciliationTotals.employee_count",
+    ),
+    gross_total: parseNumericString(
+      record.gross_total,
+      "payrollReconciliationTotals.gross_total",
+    ),
+    deductions_total: parseNumericString(
+      record.deductions_total,
+      "payrollReconciliationTotals.deductions_total",
+    ),
+    employer_contributions_total: parseNumericString(
+      record.employer_contributions_total,
+      "payrollReconciliationTotals.employer_contributions_total",
+    ),
+    net_total: parseNumericString(
+      record.net_total,
+      "payrollReconciliationTotals.net_total",
+    ),
+    government_deductions_total: parseNumericString(
+      record.government_deductions_total,
+      "payrollReconciliationTotals.government_deductions_total",
+    ),
+    flagged_record_count: parseNumber(
+      record.flagged_record_count,
+      "payrollReconciliationTotals.flagged_record_count",
+    ),
+  };
+}
+
+export function parsePayrollReconciliationWarningSampleRecord(
+  value: unknown,
+): PayrollReconciliationWarningSampleRecord {
+  const record = parseRecord(value, "payroll reconciliation warning sample");
+
+  return {
+    employee_id: parseNumber(record.employee_id, "payrollReconciliationSample.employee_id"),
+    payroll_record_id: parseNumber(
+      record.payroll_record_id,
+      "payrollReconciliationSample.payroll_record_id",
+    ),
+    employee_code: parseString(
+      record.employee_code,
+      "payrollReconciliationSample.employee_code",
+    ),
+    employee_name: parseString(
+      record.employee_name,
+      "payrollReconciliationSample.employee_name",
+    ),
+  };
+}
+
+export function parsePayrollReconciliationWarningRecord(
+  value: unknown,
+): PayrollReconciliationWarningRecord {
+  const record = parseRecord(value, "payroll reconciliation warning");
+
+  return {
+    key: parseString(record.key, "payrollReconciliationWarning.key"),
+    title: parseString(record.title, "payrollReconciliationWarning.title"),
+    description: parseString(
+      record.description,
+      "payrollReconciliationWarning.description",
+    ),
+    severity: parseString(
+      record.severity,
+      "payrollReconciliationWarning.severity",
+    ) as PayrollReconciliationWarningRecord["severity"],
+    affected_count: parseNumber(
+      record.affected_count,
+      "payrollReconciliationWarning.affected_count",
+    ),
+    samples: parseCollection(
+      record.samples ?? [],
+      (item) => parsePayrollReconciliationWarningSampleRecord(item),
+      "payrollReconciliationWarning.samples",
+    ),
+  };
+}
+
+export function parsePayrollReconciliationComparisonRecord(
+  value: unknown,
+): PayrollReconciliationComparisonRecord {
+  const record = parseRecord(value, "payroll reconciliation comparison");
+
+  return {
+    batch_id: parseNumber(record.batch_id, "payrollReconciliationComparison.batch_id"),
+    batch_status: parseString(
+      record.batch_status,
+      "payrollReconciliationComparison.batch_status",
+    ),
+    cutoff: parseAttendanceCutoffRecord(record.cutoff),
+    totals: parsePayrollReconciliationTotalsRecord(record.totals),
+    employee_count_delta: parseNumber(
+      record.employee_count_delta,
+      "payrollReconciliationComparison.employee_count_delta",
+    ),
+    gross_total_delta: parseNumericString(
+      record.gross_total_delta,
+      "payrollReconciliationComparison.gross_total_delta",
+    ),
+    deductions_total_delta: parseNumericString(
+      record.deductions_total_delta,
+      "payrollReconciliationComparison.deductions_total_delta",
+    ),
+    employer_contributions_total_delta: parseNumericString(
+      record.employer_contributions_total_delta,
+      "payrollReconciliationComparison.employer_contributions_total_delta",
+    ),
+    net_total_delta: parseNumericString(
+      record.net_total_delta,
+      "payrollReconciliationComparison.net_total_delta",
+    ),
+  };
+}
+
+export function parsePayrollReconciliationRecord(
+  value: unknown,
+): PayrollReconciliationRecord {
+  const record = parseRecord(value, "payroll reconciliation");
+
+  return {
+    batch_id: parseNumber(record.batch_id, "payrollReconciliation.batch_id"),
+    batch_status: parseString(record.batch_status, "payrollReconciliation.batch_status"),
+    generated_at: parseString(record.generated_at, "payrollReconciliation.generated_at"),
+    cutoff: parseAttendanceCutoffRecord(record.cutoff),
+    totals: parsePayrollReconciliationTotalsRecord(record.totals),
+    comparison:
+      record.comparison == null
+        ? null
+        : parsePayrollReconciliationComparisonRecord(record.comparison),
+    warnings: parseCollection(
+      record.warnings ?? [],
+      (item) => parsePayrollReconciliationWarningRecord(item),
+      "payrollReconciliation.warnings",
     ),
   };
 }
@@ -2073,6 +2224,22 @@ export async function getPayrollBatches() {
 export async function getPayrollBatchDetail(batchId: number) {
   return requestPayrollProxy(`/batches/${batchId}`, {
     parser: parsePayrollBatchDetailRecord,
+  });
+}
+
+export async function getPayrollReconciliation(batchId: number | string) {
+  return apiClient.get<PayrollReconciliationRecord, PayrollReconciliationRecord>(
+    apiEndpoints.payroll.workflowBatchReconciliation(String(batchId)),
+    {
+      parser: parsePayrollReconciliationRecord,
+    },
+  );
+}
+
+export async function getPayrollReconciliationResource(batchId: number | string) {
+  return loadApiResource(() => getPayrollReconciliation(batchId), {
+    fallbackData: null,
+    errorMessage: "Unable to load payroll reconciliation data from the backend.",
   });
 }
 

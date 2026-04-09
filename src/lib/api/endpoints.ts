@@ -46,6 +46,8 @@ export const apiEndpoints = {
     workflowCutoffs: `${API_V1_PREFIX}/payroll/cutoffs`,
     workflowBatches: `${API_V1_PREFIX}/payroll/batches`,
     workflowBatchDetail: (batchId: string) => `${API_V1_PREFIX}/payroll/batches/${batchId}`,
+    workflowBatchReconciliation: (batchId: string) =>
+      `${API_V1_PREFIX}/payroll/batches/${batchId}/reconciliation`,
     workflowRecordDetail: (recordId: string) => `${API_V1_PREFIX}/payroll/records/${recordId}`,
     workflowPayslips: `${API_V1_PREFIX}/payroll/payslips`,
     workflowPayslipDetail: (payslipId: string) =>

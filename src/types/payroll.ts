@@ -251,6 +251,54 @@ export interface PayrollBatchDetailRecord extends PayrollBatchSummaryRecord {
   records: PayrollRecordRecord[];
 }
 
+export interface PayrollReconciliationTotalsRecord {
+  employee_count: number;
+  gross_total: string;
+  deductions_total: string;
+  employer_contributions_total: string;
+  net_total: string;
+  government_deductions_total: string;
+  flagged_record_count: number;
+}
+
+export interface PayrollReconciliationComparisonRecord {
+  batch_id: number;
+  batch_status: string;
+  cutoff: AttendanceCutoffRecord;
+  totals: PayrollReconciliationTotalsRecord;
+  employee_count_delta: number;
+  gross_total_delta: string;
+  deductions_total_delta: string;
+  employer_contributions_total_delta: string;
+  net_total_delta: string;
+}
+
+export interface PayrollReconciliationWarningSampleRecord {
+  employee_id: number;
+  payroll_record_id: number;
+  employee_code: string;
+  employee_name: string;
+}
+
+export interface PayrollReconciliationWarningRecord {
+  key: string;
+  title: string;
+  description: string;
+  severity: "info" | "warning" | "danger" | string;
+  affected_count: number;
+  samples: PayrollReconciliationWarningSampleRecord[];
+}
+
+export interface PayrollReconciliationRecord {
+  batch_id: number;
+  batch_status: string;
+  generated_at: string;
+  cutoff: AttendanceCutoffRecord;
+  totals: PayrollReconciliationTotalsRecord;
+  comparison?: PayrollReconciliationComparisonRecord | null;
+  warnings: PayrollReconciliationWarningRecord[];
+}
+
 export interface PayslipRecord {
   id: number;
   payroll_batch_id: number;

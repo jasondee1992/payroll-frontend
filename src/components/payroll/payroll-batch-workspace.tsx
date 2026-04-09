@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calculator,
@@ -1115,6 +1116,14 @@ export function PayrollBatchWorkspace({ role }: Props) {
                   <PayrollStatusBadge status={normalizePayrollStatus(batch.status)} />
                 </div>
                 <p className="mt-2 text-sm text-slate-600">{batch.records_using_system_defaults} records used system-computed attendance defaults.</p>
+                <div className="mt-3">
+                  <Link
+                    href={`/payroll/reconciliation/${batch.id}`}
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+                  >
+                    Open reconciliation view
+                  </Link>
+                </div>
               </div>
               <div className="ui-action-bar ui-sticky-band grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {canManage && !batchIsReadOnly ? <Action icon={RefreshCw} label="Recalculate" disabled={submitting} onClick={() => void runAction("recalculate")} /> : null}
