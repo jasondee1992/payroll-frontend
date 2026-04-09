@@ -33,6 +33,9 @@ export const apiEndpoints = {
   attendance: {
     list: `${API_V1_PREFIX}/attendance`,
   },
+  auditLogs: {
+    list: `${API_V1_PREFIX}/audit-logs`,
+  },
   payroll: {
     policyProfiles: `${API_V1_PREFIX}/payroll/settings/policy-profiles`,
     policyProfileDetail: (policyId: string) =>

@@ -14,8 +14,11 @@ import {
 import {
   acknowledgeAttendanceReview,
   approveAttendanceReviewRequest,
+  cancelAttendanceReviewRequest,
   createAttendanceCutoff,
   createAttendanceReviewRequest,
+  createAttendanceTeamReviewRequest,
+  getAttendanceEmployeeRecords,
   getAttendanceCutoffSummary,
   getAttendanceCutoffs,
   getAttendanceReviewRequests,
@@ -38,6 +41,7 @@ import {
 import { preserveCurrentValue } from "@/lib/preserved-collection-state";
 import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import type {
+  AttendanceRecord,
   AttendanceCutoffRecord,
   AttendanceCutoffSummaryRecord,
   AttendanceImportSummaryRecord,
@@ -52,27 +56,33 @@ type AttendanceWorkspaceProps = {
 };
 
 type RequestDraftState = {
+  employee_id: string;
   attendance_record_id: string;
+  attendance_date: string;
   request_type: AttendanceReviewRequestRecord["request_type"];
   requested_time_in: string;
   requested_time_out: string;
   requested_overtime_minutes: string;
   requested_undertime_reason: string;
   reason: string;
+  remarks: string;
 };
 
 const DEFAULT_REQUEST_DRAFT: RequestDraftState = {
+  employee_id: "",
   attendance_record_id: "",
+  attendance_date: "",
   request_type: "attendance-correction",
   requested_time_in: "",
   requested_time_out: "",
   requested_overtime_minutes: "",
   requested_undertime_reason: "",
   reason: "",
+  remarks: "",
 };
 
 const ATTENDANCE_REQUEST_TYPE_OPTIONS = [
-  { value: "attendance-correction", label: "Attendance Correction" },
+  { value: "attendance-correction", label: "Attendance Correction / Dispute" },
   { value: "missing-time-in", label: "Missing Time In" },
   { value: "missing-time-out", label: "Missing Time Out" },
   { value: "overtime", label: "Overtime Request" },
@@ -97,11 +107,14 @@ export function AttendanceWorkspace({
   const [createCutoffEnd, setCreateCutoffEnd] = useState("");
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
   const [requestDraft, setRequestDraft] = useState<RequestDraftState>(DEFAULT_REQUEST_DRAFT);
+  const [teamRequestDraft, setTeamRequestDraft] = useState<RequestDraftState>(DEFAULT_REQUEST_DRAFT);
+  const [teamEmployeeRecords, setTeamEmployeeRecords] = useState<AttendanceRecord[]>([]);
   const [requestFilterStatus, setRequestFilterStatus] = useState("");
   const [requestFilterEmployee, setRequestFilterEmployee] = useState("");
   const [reviewRemarks, setReviewRemarks] = useState<Record<number, string>>({});
   const [loadingCutoffs, setLoadingCutoffs] = useState(true);
   const [loadingTeamSummary, setLoadingTeamSummary] = useState(false);
+  const [loadingTeamEmployeeRecords, setLoadingTeamEmployeeRecords] = useState(false);
   const [loadingMyReview, setLoadingMyReview] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [uploadingAttendance, setUploadingAttendance] = useState(false);
@@ -129,6 +142,63 @@ export function AttendanceWorkspace({
     (cutoff) =>
       cutoff.cutoff_start === createCutoffStart && cutoff.cutoff_end === createCutoffEnd,
   );
+
+  function buildRequestDraftDefaults(records: AttendanceRecord[], employeeId?: number | null) {
+    return {
+      ...DEFAULT_REQUEST_DRAFT,
+      employee_id: employeeId != null ? String(employeeId) : "",
+      attendance_record_id: String(records[0]?.id ?? ""),
+      attendance_date: records[0]?.attendance_date ?? "",
+    };
+  }
+
+  function buildAttendanceRequestPayload(
+    draft: RequestDraftState,
+    cutoffId: number,
+  ): CreateAttendanceReviewRequestPayload {
+    return {
+      cutoff_id: cutoffId,
+      employee_id: draft.employee_id ? Number(draft.employee_id) : null,
+      attendance_record_id: draft.attendance_record_id
+        ? Number(draft.attendance_record_id)
+        : null,
+      attendance_date: draft.attendance_date || null,
+      request_type: draft.request_type,
+      requested_time_in: draft.requested_time_in || null,
+      requested_time_out: draft.requested_time_out || null,
+      requested_overtime_minutes: draft.requested_overtime_minutes
+        ? Number(draft.requested_overtime_minutes)
+        : null,
+      requested_undertime_reason: draft.requested_undertime_reason || null,
+      reason: draft.reason,
+      remarks: draft.remarks || null,
+    };
+  }
+
+  async function refreshCutoffContext(activeCutoffId: number) {
+    const [nextTeamSummary, nextRequests, nextMyReview] = await Promise.all([
+      canReviewTeamAttendance
+        ? getAttendanceCutoffSummary(activeCutoffId)
+        : Promise.resolve(null),
+      canReviewTeamAttendance
+        ? getAttendanceReviewRequests({
+            cutoffId: activeCutoffId,
+            status: requestFilterStatus || null,
+            employee: requestFilterEmployee || null,
+          })
+        : Promise.resolve([]),
+      getMyAttendanceReview(activeCutoffId).catch(() => null),
+    ]);
+
+    if (nextTeamSummary) {
+      setTeamSummary(nextTeamSummary);
+    }
+    if (canReviewTeamAttendance) {
+      setRequests(nextRequests);
+    }
+    setMyReview(nextMyReview);
+    return { nextTeamSummary, nextMyReview };
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -202,11 +272,21 @@ export function AttendanceWorkspace({
               status: requestFilterStatus || null,
               employee: requestFilterEmployee || null,
             }),
-          ]);
-          if (!isCancelled) {
-            setTeamSummary(summaryResult);
-            setRequests(requestsResult);
-          }
+        ]);
+        if (!isCancelled) {
+          setTeamSummary(summaryResult);
+          setRequests(requestsResult);
+          setTeamRequestDraft((current) => {
+            const nextEmployeeId = preserveCurrentValue(
+              summaryResult.employees.map((item) => item.employee_id),
+              current.employee_id ? Number(current.employee_id) : null,
+            );
+            return {
+              ...current,
+              employee_id: nextEmployeeId != null ? String(nextEmployeeId) : "",
+            };
+          });
+        }
         } catch (error) {
           if (!isCancelled) {
             setInlineError(
@@ -229,9 +309,12 @@ export function AttendanceWorkspace({
         if (!isCancelled) {
           setMyReview(reviewResult);
           setRequestDraft((current) => ({
+            ...buildRequestDraftDefaults(reviewResult.records),
             ...current,
             attendance_record_id:
               current.attendance_record_id || String(reviewResult.records[0]?.id ?? ""),
+            attendance_date:
+              current.attendance_date || reviewResult.records[0]?.attendance_date || "",
           }));
         }
       } catch {
@@ -256,6 +339,59 @@ export function AttendanceWorkspace({
     requestFilterStatus,
     selectedCutoffId,
   ]);
+
+  useEffect(() => {
+    if (!canReviewTeamAttendance || selectedCutoffId == null || !teamRequestDraft.employee_id) {
+      setTeamEmployeeRecords([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const activeCutoffId = selectedCutoffId;
+    const employeeId = Number(teamRequestDraft.employee_id);
+    if (!Number.isFinite(employeeId) || employeeId <= 0) {
+      setTeamEmployeeRecords([]);
+      return;
+    }
+
+    async function loadTeamEmployeeRecords() {
+      setLoadingTeamEmployeeRecords(true);
+      try {
+        const records = await getAttendanceEmployeeRecords(activeCutoffId, employeeId);
+        if (isCancelled) {
+          return;
+        }
+        setTeamEmployeeRecords(records);
+        setTeamRequestDraft((current) => ({
+          ...buildRequestDraftDefaults(records, employeeId),
+          ...current,
+          employee_id: String(employeeId),
+          attendance_record_id:
+            current.attendance_record_id || String(records[0]?.id ?? ""),
+          attendance_date:
+            current.attendance_date || records[0]?.attendance_date || "",
+        }));
+      } catch (error) {
+        if (!isCancelled) {
+          setInlineError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load employee attendance records.",
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingTeamEmployeeRecords(false);
+        }
+      }
+    }
+
+    void loadTeamEmployeeRecords();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [canReviewTeamAttendance, selectedCutoffId, teamRequestDraft.employee_id]);
 
   function updateSearchParams(nextTabId: string, nextCutoffId?: number | null) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -401,18 +537,35 @@ export function AttendanceWorkspace({
       return;
     }
 
-    const payload: CreateAttendanceReviewRequestPayload = {
-      cutoff_id: selectedCutoffId,
-      attendance_record_id: Number(requestDraft.attendance_record_id),
-      request_type: requestDraft.request_type,
-      requested_time_in: requestDraft.requested_time_in || null,
-      requested_time_out: requestDraft.requested_time_out || null,
-      requested_overtime_minutes: requestDraft.requested_overtime_minutes
-        ? Number(requestDraft.requested_overtime_minutes)
-        : null,
-      requested_undertime_reason: requestDraft.requested_undertime_reason || null,
-      reason: requestDraft.reason,
-    };
+    await preserveContextDuring(async () => {
+      setSubmittingRequest(true);
+      setInlineError(null);
+      setSuccessMessage(null);
+      const activeCutoffId = selectedCutoffId;
+
+      try {
+        await createAttendanceReviewRequest(
+          buildAttendanceRequestPayload(requestDraft, activeCutoffId),
+        );
+        const { nextMyReview } = await refreshCutoffContext(activeCutoffId);
+        if (nextMyReview) {
+          setRequestDraft(buildRequestDraftDefaults(nextMyReview.records));
+        }
+        setSuccessMessage("Attendance correction request submitted.");
+      } catch (error) {
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to submit attendance request.",
+        );
+      } finally {
+        setSubmittingRequest(false);
+      }
+    });
+  }
+
+  async function handleSubmitTeamAttendanceRequest() {
+    if (selectedCutoffId == null) {
+      return;
+    }
 
     await preserveContextDuring(async () => {
       setSubmittingRequest(true);
@@ -421,31 +574,20 @@ export function AttendanceWorkspace({
       const activeCutoffId = selectedCutoffId;
 
       try {
-        await createAttendanceReviewRequest(payload);
-        const [nextReview, nextTeamSummary, nextRequests] = await Promise.all([
-          getMyAttendanceReview(activeCutoffId),
-          canReviewTeamAttendance
-            ? getAttendanceCutoffSummary(activeCutoffId)
-            : Promise.resolve(null),
-          canReviewTeamAttendance
-            ? getAttendanceReviewRequests({ cutoffId: activeCutoffId })
-            : Promise.resolve([]),
-        ]);
-        setMyReview(nextReview);
-        if (nextTeamSummary) {
-          setTeamSummary(nextTeamSummary);
-        }
-        if (canReviewTeamAttendance) {
-          setRequests(nextRequests);
-        }
-        setRequestDraft({
-          ...DEFAULT_REQUEST_DRAFT,
-          attendance_record_id: String(nextReview.records[0]?.id ?? ""),
-        });
-        setSuccessMessage("Attendance review request submitted.");
+        await createAttendanceTeamReviewRequest(
+          buildAttendanceRequestPayload(teamRequestDraft, activeCutoffId),
+        );
+        await refreshCutoffContext(activeCutoffId);
+        setTeamRequestDraft(
+          buildRequestDraftDefaults(
+            teamEmployeeRecords,
+            teamRequestDraft.employee_id ? Number(teamRequestDraft.employee_id) : null,
+          ),
+        );
+        setSuccessMessage("Attendance correction request logged for review.");
       } catch (error) {
         setInlineError(
-          error instanceof Error ? error.message : "Unable to submit attendance request.",
+          error instanceof Error ? error.message : "Unable to submit attendance correction.",
         );
       } finally {
         setSubmittingRequest(false);
@@ -470,18 +612,7 @@ export function AttendanceWorkspace({
         }
 
         if (selectedCutoffId != null) {
-          const activeCutoffId = selectedCutoffId;
-          const [nextSummary, nextRequests] = await Promise.all([
-            getAttendanceCutoffSummary(activeCutoffId),
-            getAttendanceReviewRequests({
-              cutoffId: activeCutoffId,
-              status: requestFilterStatus || null,
-              employee: requestFilterEmployee || null,
-            }),
-          ]);
-          setTeamSummary(nextSummary);
-          setRequests(nextRequests);
-          setMyReview(await getMyAttendanceReview(activeCutoffId).catch(() => null));
+          await refreshCutoffContext(selectedCutoffId);
         }
 
         setSuccessMessage(
@@ -492,6 +623,29 @@ export function AttendanceWorkspace({
       } catch (error) {
         setInlineError(
           error instanceof Error ? error.message : "Unable to review attendance request.",
+        );
+      }
+    });
+  }
+
+  async function handleCancelRequest(requestId: number) {
+    await preserveContextDuring(async () => {
+      setInlineError(null);
+      setSuccessMessage(null);
+
+      try {
+        await cancelAttendanceReviewRequest(requestId, {
+          remarks: reviewRemarks[requestId] ?? null,
+        });
+
+        if (selectedCutoffId != null) {
+          await refreshCutoffContext(selectedCutoffId);
+        }
+
+        setSuccessMessage("Attendance request cancelled.");
+      } catch (error) {
+        setInlineError(
+          error instanceof Error ? error.message : "Unable to cancel the attendance request.",
         );
       }
     });
@@ -614,6 +768,9 @@ export function AttendanceWorkspace({
       onRequestDraftChange={setRequestDraft}
       onSubmitRequest={handleSubmitAttendanceRequest}
       onAcknowledge={handleAcknowledgeReview}
+      reviewRemarks={reviewRemarks}
+      onReviewRemarksChange={setReviewRemarks}
+      onCancelRequest={handleCancelRequest}
       submittingRequest={submittingRequest}
       acknowledgingReview={acknowledgingReview}
       highlightedRequestId={hasHighlightedRequest ? highlightedRequestId : null}
@@ -681,6 +838,12 @@ export function AttendanceWorkspace({
                 loadingSummary={loadingTeamSummary}
                 requests={requests}
                 loadingRequests={loadingRequests}
+                requestDraft={teamRequestDraft}
+                onRequestDraftChange={setTeamRequestDraft}
+                teamEmployeeRecords={teamEmployeeRecords}
+                loadingTeamEmployeeRecords={loadingTeamEmployeeRecords}
+                onSubmitRequest={handleSubmitTeamAttendanceRequest}
+                onCancelRequest={handleCancelRequest}
                 requestFilterStatus={requestFilterStatus}
                 requestFilterEmployee={requestFilterEmployee}
                 onRequestFilterStatusChange={setRequestFilterStatus}
@@ -745,6 +908,12 @@ function TeamAttendancePanel(props: {
   loadingSummary: boolean;
   requests: AttendanceReviewRequestRecord[];
   loadingRequests: boolean;
+  requestDraft: RequestDraftState;
+  onRequestDraftChange: Dispatch<SetStateAction<RequestDraftState>>;
+  teamEmployeeRecords: AttendanceRecord[];
+  loadingTeamEmployeeRecords: boolean;
+  onSubmitRequest: () => void;
+  onCancelRequest: (requestId: number) => void;
   requestFilterStatus: string;
   requestFilterEmployee: string;
   onRequestFilterStatusChange: (value: string) => void;
@@ -1001,6 +1170,101 @@ function TeamAttendancePanel(props: {
       </DashboardSection>
 
       <DashboardSection
+        title="Log attendance correction"
+        description="Create a correction or dispute request for an employee before the cutoff is finalized for payroll."
+      >
+        {props.summary ? (
+          <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+            <div className="space-y-4">
+              <Field label="Employee">
+                <select
+                  value={props.requestDraft.employee_id}
+                  onChange={(event) =>
+                    props.onRequestDraftChange(() => ({
+                      ...DEFAULT_REQUEST_DRAFT,
+                      employee_id: event.target.value,
+                    }))
+                  }
+                  className="ui-select"
+                >
+                  <option value="">Select employee</option>
+                  {props.summary.employees.map((employee) => (
+                    <option key={employee.employee_id} value={employee.employee_id}>
+                      {employee.employee_name} • {employee.employee_code}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Attendance Record">
+                <select
+                  value={props.requestDraft.attendance_record_id}
+                  onChange={(event) =>
+                    props.onRequestDraftChange((current) => {
+                      const nextRecord = props.teamEmployeeRecords.find(
+                        (record) => String(record.id) === event.target.value,
+                      );
+                      return {
+                        ...current,
+                        attendance_record_id: event.target.value,
+                        attendance_date: nextRecord?.attendance_date ?? current.attendance_date,
+                      };
+                    })
+                  }
+                  className="ui-select"
+                  disabled={!props.requestDraft.employee_id || props.loadingTeamEmployeeRecords}
+                >
+                  <option value="">Date-only dispute / no imported record</option>
+                  {props.teamEmployeeRecords.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {formatDate(record.attendance_date)} • {record.status} •{" "}
+                      {formatTime(record.time_in ?? undefined)} / {formatTime(record.time_out ?? undefined)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Attendance Date">
+                <input
+                  type="date"
+                  value={props.requestDraft.attendance_date}
+                  onChange={(event) =>
+                    props.onRequestDraftChange((current) => ({
+                      ...current,
+                      attendance_date: event.target.value,
+                    }))
+                  }
+                  className="ui-select"
+                />
+              </Field>
+            </div>
+
+            <div className="space-y-4">
+              <RequestDraftFields
+                draft={props.requestDraft}
+                onDraftChange={props.onRequestDraftChange}
+              />
+              <div className="ui-action-bar flex justify-end">
+                <button
+                  type="button"
+                  onClick={props.onSubmitRequest}
+                  disabled={!props.requestDraft.employee_id}
+                  className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Submit correction request
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ResourceEmptyState
+            title="No cutoff selected yet"
+            description="Select or upload a cutoff first, then log employee correction requests from this panel."
+          />
+        )}
+      </DashboardSection>
+
+      <DashboardSection
         title="Attendance requests for approval"
         description="Review employee attendance correction requests by cutoff, status, and employee."
       >
@@ -1014,6 +1278,7 @@ function TeamAttendancePanel(props: {
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
           </select>
           <input
             type="search"
@@ -1051,25 +1316,18 @@ function TeamAttendancePanel(props: {
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <MetaItem label="Request Type" value={formatRequestTypeLabel(request.request_type)} />
+                  <MetaItem label="Original" value={formatRequestTimelineValue(request, "original")} />
+                  <MetaItem label="Requested" value={formatRequestTimelineValue(request, "requested")} />
                   <MetaItem
-                    label="Requested Time In"
-                    value={request.requested_time_in ? formatTime(request.requested_time_in) : "--"}
-                  />
-                  <MetaItem
-                    label="Requested Time Out"
-                    value={request.requested_time_out ? formatTime(request.requested_time_out) : "--"}
-                  />
-                  <MetaItem
-                    label="Requested OT"
-                    value={
-                      request.requested_overtime_minutes != null
-                        ? `${request.requested_overtime_minutes} mins`
-                        : "--"
-                    }
+                    label="Resolution"
+                    value={request.applied_at ? `Applied ${formatPhilippineDateTime(request.applied_at)}` : "Pending application"}
                   />
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-slate-600">{request.reason}</p>
+                {request.remarks ? (
+                  <p className="mt-2 text-sm leading-6 text-slate-500">Notes: {request.remarks}</p>
+                ) : null}
 
                 {request.status === "pending" ? (
                   <div className="ui-action-bar mt-4 flex flex-col gap-3 md:flex-row md:items-center">
@@ -1099,6 +1357,13 @@ function TeamAttendancePanel(props: {
                         className="ui-button-secondary"
                       >
                         Reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => props.onCancelRequest(request.id)}
+                        className="ui-button-secondary"
+                      >
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -1138,10 +1403,15 @@ function AttendanceReviewPanel(props: {
   onRequestDraftChange: Dispatch<SetStateAction<RequestDraftState>>;
   onSubmitRequest: () => void;
   onAcknowledge: () => void;
+  reviewRemarks: Record<number, string>;
+  onReviewRemarksChange: Dispatch<SetStateAction<Record<number, string>>>;
+  onCancelRequest: (requestId: number) => void;
   submittingRequest: boolean;
   acknowledgingReview: boolean;
   highlightedRequestId: number | null;
 }) {
+  const review = props.review;
+
   return (
     <div className="space-y-4">
       <DashboardSection
@@ -1173,44 +1443,44 @@ function AttendanceReviewPanel(props: {
 
       {props.loading ? (
         <ResourceTableSkeleton rowCount={4} />
-      ) : props.review ? (
+      ) : review ? (
         <>
           <DashboardSection
             title="Cutoff attendance summary"
             description="Payroll-ready totals for the selected cutoff."
-            action={<StatusPill status={props.review.summary.review_status} compact />}
+            action={<StatusPill status={review.summary.review_status} compact />}
           >
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-              <MetricCard label="Work Days" value={String(props.review.summary.total_work_days)} />
-              <MetricCard label="Late" value={String(props.review.summary.total_late_minutes)} />
+              <MetricCard label="Work Days" value={String(review.summary.total_work_days)} />
+              <MetricCard label="Late" value={String(review.summary.total_late_minutes)} />
               <MetricCard
                 label="Undertime"
-                value={String(props.review.summary.total_undertime_minutes)}
+                value={String(review.summary.total_undertime_minutes)}
               />
               <MetricCard
                 label="Overtime"
-                value={String(props.review.summary.total_overtime_minutes)}
+                value={String(review.summary.total_overtime_minutes)}
               />
               <MetricCard
                 label="Night Diff"
-                value={String(props.review.summary.total_night_differential_minutes)}
+                value={String(review.summary.total_night_differential_minutes)}
               />
               <MetricCard
                 label="Exceptions"
-                value={String(props.review.summary.unresolved_exceptions_count)}
+                value={String(review.summary.unresolved_exceptions_count)}
               />
             </div>
 
             <div className="ui-action-bar ui-sticky-band mt-5 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-500">
-                {props.review.summary.acknowledged_at
-                  ? `Acknowledged ${formatPhilippineDateTime(props.review.summary.acknowledged_at)}`
+                {review.summary.acknowledged_at
+                  ? `Acknowledged ${formatPhilippineDateTime(review.summary.acknowledged_at)}`
                   : "Attendance review is still pending your acknowledgment."}
               </p>
               <button
                 type="button"
                 onClick={props.onAcknowledge}
-                disabled={!props.review.can_acknowledge || props.acknowledgingReview}
+                disabled={!review.can_acknowledge || props.acknowledgingReview}
                 className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {props.acknowledgingReview ? "Saving..." : "Acknowledge attendance"}
@@ -1237,7 +1507,7 @@ function AttendanceReviewPanel(props: {
                   </tr>
                 </thead>
                 <tbody>
-                  {props.review.records.map((record) => (
+                  {review.records.map((record) => (
                     <tr
                       key={record.id}
                       className={cn(
@@ -1271,125 +1541,64 @@ function AttendanceReviewPanel(props: {
           </DashboardSection>
 
           <DashboardSection
-            title="Submit attendance request"
-            description="File overtime, undertime explanations, and attendance corrections for the selected cutoff."
+            title="Submit attendance correction"
+            description="File a correction or dispute for missing logs, incorrect uploads, or wrong computed attendance results."
           >
-            <div className="grid gap-4 xl:grid-cols-2">
-              <Field label="Attendance Date">
-                <select
+            <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="space-y-4">
+                <Field label="Attendance Record">
+                  <select
                   value={props.requestDraft.attendance_record_id}
                   onChange={(event) =>
-                    props.onRequestDraftChange((current) => ({
-                      ...current,
-                      attendance_record_id: event.target.value,
-                    }))
-                  }
-                  className="ui-select"
-                >
-                  {props.review.records.map((record) => (
-                    <option key={record.id} value={record.id}>
-                      {formatDate(record.attendance_date)} • {formatWeekday(record.attendance_date, { weekday: "short" })} • {record.status}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                      props.onRequestDraftChange((current) => {
+                        const nextRecord = review.records.find(
+                          (record) => String(record.id) === event.target.value,
+                        );
+                        return {
+                          ...current,
+                          attendance_record_id: event.target.value,
+                          attendance_date: nextRecord?.attendance_date ?? current.attendance_date,
+                        };
+                      })
+                    }
+                    className="ui-select"
+                  >
+                    <option value="">Date-only dispute / no imported record</option>
+                    {review.records.map((record) => (
+                      <option key={record.id} value={record.id}>
+                        {formatDate(record.attendance_date)} •{" "}
+                        {formatWeekday(record.attendance_date, { weekday: "short" })} • {record.status}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-              <Field label="Request Type">
-                <select
-                  value={props.requestDraft.request_type}
-                  onChange={(event) =>
-                    props.onRequestDraftChange((current) => ({
-                      ...current,
-                      request_type: event.target.value as RequestDraftState["request_type"],
-                    }))
-                  }
-                  className="ui-select"
-                >
-                  {ATTENDANCE_REQUEST_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                <Field label="Attendance Date">
+                  <input
+                    type="date"
+                    value={props.requestDraft.attendance_date}
+                    onChange={(event) =>
+                      props.onRequestDraftChange((current) => ({
+                        ...current,
+                        attendance_date: event.target.value,
+                      }))
+                    }
+                    className="ui-select"
+                  />
+                </Field>
+              </div>
 
-              <Field label="Requested Time In">
-                <input
-                  type="time"
-                  value={props.requestDraft.requested_time_in}
-                  onChange={(event) =>
-                    props.onRequestDraftChange((current) => ({
-                      ...current,
-                      requested_time_in: event.target.value,
-                    }))
-                  }
-                  className="ui-select"
-                />
-              </Field>
-
-              <Field label="Requested Time Out">
-                <input
-                  type="time"
-                  value={props.requestDraft.requested_time_out}
-                  onChange={(event) =>
-                    props.onRequestDraftChange((current) => ({
-                      ...current,
-                      requested_time_out: event.target.value,
-                    }))
-                  }
-                  className="ui-select"
-                />
-              </Field>
-
-              <Field label="Requested Overtime Minutes">
-                <input
-                  type="number"
-                  min="0"
-                  value={props.requestDraft.requested_overtime_minutes}
-                  onChange={(event) =>
-                    props.onRequestDraftChange((current) => ({
-                      ...current,
-                      requested_overtime_minutes: event.target.value,
-                    }))
-                  }
-                  className="ui-select"
-                />
-              </Field>
-
-              <Field label="Undertime Explanation">
-                <input
-                  type="text"
-                  value={props.requestDraft.requested_undertime_reason}
-                  onChange={(event) =>
-                    props.onRequestDraftChange((current) => ({
-                      ...current,
-                      requested_undertime_reason: event.target.value,
-                    }))
-                  }
-                  className="ui-select"
-                />
-              </Field>
-            </div>
-
-            <Field label="Reason">
-              <textarea
-                value={props.requestDraft.reason}
-                onChange={(event) =>
-                  props.onRequestDraftChange((current) => ({
-                    ...current,
-                    reason: event.target.value,
-                  }))
-                }
-                rows={4}
-                className="ui-textarea min-h-28"
+              <RequestDraftFields
+                draft={props.requestDraft}
+                onDraftChange={props.onRequestDraftChange}
               />
-            </Field>
+            </div>
 
             <div className="ui-action-bar mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={props.onSubmitRequest}
-                disabled={!props.review.can_submit_requests || props.submittingRequest}
+                disabled={!review.can_submit_requests || props.submittingRequest}
                 className="ui-button-primary disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {props.submittingRequest ? "Submitting..." : "Submit attendance request"}
@@ -1401,9 +1610,9 @@ function AttendanceReviewPanel(props: {
             title="Request history"
             description="Track status changes, review remarks, and timestamps for the requests you submitted."
           >
-            {props.review.requests.length > 0 ? (
+            {review.requests.length > 0 ? (
               <div className="space-y-3">
-                {props.review.requests.map((request) => (
+                {review.requests.map((request) => (
                   <article
                     key={request.id}
                     className={cn(
@@ -1412,18 +1621,33 @@ function AttendanceReviewPanel(props: {
                         "border-sky-300 ring-2 ring-sky-200 shadow-[inset_4px_0_0_0_rgba(2,132,199,0.7)]",
                     )}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
-                          {formatRequestTypeLabel(request.request_type)}
-                        </p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {formatRequestTypeLabel(request.request_type)}
+                      </p>
                         <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
                           {formatDate(request.attendance_date_snapshot)}
                         </p>
-                      </div>
-                      <StatusPill status={request.status} compact />
+                    </div>
+                    <StatusPill status={request.status} compact />
+                  </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <MetaItem label="Original" value={formatRequestTimelineValue(request, "original")} />
+                      <MetaItem label="Requested" value={formatRequestTimelineValue(request, "requested")} />
+                      <MetaItem
+                        label="Applied"
+                        value={
+                          request.applied_at
+                            ? formatPhilippineDateTime(request.applied_at)
+                            : "Pending review"
+                        }
+                      />
                     </div>
                     <p className="mt-4 text-sm leading-6 text-slate-600">{request.reason}</p>
+                    {request.remarks ? (
+                      <p className="mt-2 text-sm text-slate-500">Notes: {request.remarks}</p>
+                    ) : null}
                     <p className="mt-4 text-xs uppercase tracking-[0.16em] text-slate-500">
                       Submitted {formatPhilippineDateTime(request.created_at)}
                       {request.reviewed_at
@@ -1434,6 +1658,29 @@ function AttendanceReviewPanel(props: {
                       <p className="mt-2 text-sm text-slate-600">
                         Remarks: {request.review_remarks}
                       </p>
+                    ) : null}
+                    {request.status === "pending" ? (
+                      <div className="ui-action-bar mt-4 flex flex-col gap-3 md:flex-row md:items-center">
+                        <input
+                          type="text"
+                          value={props.reviewRemarks[request.id] ?? ""}
+                          onChange={(event) =>
+                            props.onReviewRemarksChange((current) => ({
+                              ...current,
+                              [request.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Optional cancellation note"
+                          className="ui-select"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => props.onCancelRequest(request.id)}
+                          className="ui-button-secondary md:self-start"
+                        >
+                          Cancel request
+                        </button>
+                      </div>
                     ) : null}
                   </article>
                 ))}
@@ -1468,6 +1715,121 @@ function Field({
       <span className="text-sm font-medium text-slate-700">{label}</span>
       {children}
     </label>
+  );
+}
+
+function RequestDraftFields(props: {
+  draft: RequestDraftState;
+  onDraftChange: Dispatch<SetStateAction<RequestDraftState>>;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Field label="Request Type">
+          <select
+            value={props.draft.request_type}
+            onChange={(event) =>
+              props.onDraftChange((current) => ({
+                ...current,
+                request_type: event.target.value as RequestDraftState["request_type"],
+              }))
+            }
+            className="ui-select"
+          >
+            {ATTENDANCE_REQUEST_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Requested Time In">
+          <input
+            type="time"
+            value={props.draft.requested_time_in}
+            onChange={(event) =>
+              props.onDraftChange((current) => ({
+                ...current,
+                requested_time_in: event.target.value,
+              }))
+            }
+            className="ui-select"
+          />
+        </Field>
+
+        <Field label="Requested Time Out">
+          <input
+            type="time"
+            value={props.draft.requested_time_out}
+            onChange={(event) =>
+              props.onDraftChange((current) => ({
+                ...current,
+                requested_time_out: event.target.value,
+              }))
+            }
+            className="ui-select"
+          />
+        </Field>
+
+        <Field label="Requested Overtime Minutes">
+          <input
+            type="number"
+            min="0"
+            value={props.draft.requested_overtime_minutes}
+            onChange={(event) =>
+              props.onDraftChange((current) => ({
+                ...current,
+                requested_overtime_minutes: event.target.value,
+              }))
+            }
+            className="ui-select"
+          />
+        </Field>
+
+        <Field label="Undertime Explanation">
+          <input
+            type="text"
+            value={props.draft.requested_undertime_reason}
+            onChange={(event) =>
+              props.onDraftChange((current) => ({
+                ...current,
+                requested_undertime_reason: event.target.value,
+              }))
+            }
+            className="ui-select"
+          />
+        </Field>
+
+        <Field label="Supporting Notes">
+          <input
+            type="text"
+            value={props.draft.remarks}
+            onChange={(event) =>
+              props.onDraftChange((current) => ({
+                ...current,
+                remarks: event.target.value,
+              }))
+            }
+            className="ui-select"
+          />
+        </Field>
+      </div>
+
+      <Field label="Reason">
+        <textarea
+          value={props.draft.reason}
+          onChange={(event) =>
+            props.onDraftChange((current) => ({
+              ...current,
+              reason: event.target.value,
+            }))
+          }
+          rows={4}
+          className="ui-textarea min-h-28"
+        />
+      </Field>
+    </div>
   );
 }
 
@@ -1584,4 +1946,35 @@ function formatRequestTypeLabel(value: string) {
     .split("-")
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" ");
+}
+
+function formatRequestTimelineValue(
+  request: AttendanceReviewRequestRecord,
+  mode: "original" | "requested",
+) {
+  if (mode === "original") {
+    if (request.original_time_in || request.original_time_out) {
+      return `${formatTime(request.original_time_in ?? undefined)} / ${formatTime(
+        request.original_time_out ?? undefined,
+      )}`;
+    }
+    return request.attendance_record_id ? "No captured time" : "No imported record";
+  }
+
+  const parts: string[] = [];
+  if (request.requested_time_in || request.requested_time_out) {
+    parts.push(
+      `${formatTime(request.requested_time_in ?? undefined)} / ${formatTime(
+        request.requested_time_out ?? undefined,
+      )}`,
+    );
+  }
+  if (request.requested_overtime_minutes != null) {
+    parts.push(`OT ${request.requested_overtime_minutes} mins`);
+  }
+  if (request.requested_undertime_reason) {
+    parts.push("With undertime note");
+  }
+
+  return parts.join(" | ") || "See request details";
 }

@@ -40,12 +40,23 @@ const EMPLOYEE_LOAN_VIEW_ROLES = new Set<AppRole>([
   "hr",
 ]);
 const EMPLOYEE_LOAN_MANAGE_ROLES = new Set<AppRole>(["hr"]);
-const PAYROLL_VIEW_ROLES = new Set<AppRole>(["admin-finance", "finance"]);
+const PAYROLL_VIEW_ROLES = new Set<AppRole>(["admin", "admin-finance", "finance"]);
 const PAYROLL_MANAGE_ROLES = new Set<AppRole>(["admin-finance"]);
+const PAYROLL_REVIEW_ROLES = new Set<AppRole>(["finance", "admin-finance"]);
+const PAYROLL_APPROVE_ROLES = new Set<AppRole>(["admin-finance"]);
+const PAYROLL_FINALIZE_ROLES = new Set<AppRole>(["admin-finance"]);
+const PAYSLIP_RELEASE_ROLES = new Set<AppRole>(["admin-finance"]);
+const PAYROLL_ADJUSTMENT_MANAGE_ROLES = new Set<AppRole>(["admin", "admin-finance"]);
 const PAYSLIP_VIEW_ROLES = new Set<AppRole>([
   "admin-finance",
   "finance",
   "employee",
+]);
+const AUDIT_LOG_VIEW_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "finance",
+  "hr",
 ]);
 
 const PROTECTED_PATH_PREFIXES = [
@@ -56,6 +67,7 @@ const PROTECTED_PATH_PREFIXES = [
   "/payroll",
   "/payslips",
   "/reports",
+  "/audit-logs",
   "/settings",
 ] as const;
 
@@ -148,8 +160,32 @@ export function canManagePayroll(role: AppRole | null | undefined) {
   return role != null && PAYROLL_MANAGE_ROLES.has(role);
 }
 
+export function canReviewPayroll(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_REVIEW_ROLES.has(role);
+}
+
+export function canApprovePayroll(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_APPROVE_ROLES.has(role);
+}
+
+export function canFinalizePayroll(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_FINALIZE_ROLES.has(role);
+}
+
+export function canReleasePayslips(role: AppRole | null | undefined) {
+  return role != null && PAYSLIP_RELEASE_ROLES.has(role);
+}
+
+export function canManagePayrollAdjustments(role: AppRole | null | undefined) {
+  return role != null && PAYROLL_ADJUSTMENT_MANAGE_ROLES.has(role);
+}
+
 export function canManagePayrollSettings(role: AppRole | null | undefined) {
   return canManagePayroll(role);
+}
+
+export function canViewAuditLogs(role: AppRole | null | undefined) {
+  return role != null && AUDIT_LOG_VIEW_ROLES.has(role);
 }
 
 export function canViewPayslips(role: AppRole | null | undefined) {

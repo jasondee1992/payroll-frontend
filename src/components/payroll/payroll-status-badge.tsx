@@ -12,9 +12,10 @@ const statusStyles: Record<PayrollStatus, string> = {
   Paid: "ui-badge-success",
   "Needs review": "ui-badge-warning",
   Calculated: "ui-badge-info",
-  "Under Finance Review": "ui-badge-warning",
+  Reviewed: "ui-badge-warning",
   Approved: "ui-badge-success",
-  Posted: "bg-slate-900 text-white ring-slate-900/10",
+  Finalized: "bg-slate-900 text-white ring-slate-900/10",
+  "Payslip Released": "bg-emerald-600 text-white ring-emerald-700/10",
   Locked: "ui-badge-neutral",
 };
 

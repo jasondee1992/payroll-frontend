@@ -135,7 +135,7 @@ export interface AttendanceReviewRequestRecord {
   id: number;
   cutoff_id: number;
   employee_id: number;
-  attendance_record_id: number;
+  attendance_record_id?: number | null;
   submitted_by_user_id: number;
   reviewed_by_user_id?: number | null;
   reviewed_by_name?: string | null;
@@ -144,14 +144,19 @@ export interface AttendanceReviewRequestRecord {
   employee_name_snapshot: string;
   attendance_date_snapshot: string;
   request_type: AttendanceRequestType;
+  original_time_in?: string | null;
+  original_time_out?: string | null;
   requested_time_in?: string | null;
   requested_time_out?: string | null;
   requested_overtime_minutes?: number | null;
   requested_undertime_reason?: string | null;
   reason: string;
-  status: "pending" | "approved" | "rejected";
+  remarks?: string | null;
+  status: "pending" | "approved" | "rejected" | "cancelled";
   review_remarks?: string | null;
   reviewed_at?: string | null;
+  applied_attendance_record_id?: number | null;
+  applied_at?: string | null;
   created_at: string;
   updated_at: string;
 }

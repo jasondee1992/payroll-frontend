@@ -12,9 +12,10 @@ export type PayrollStatus =
   | "Paid"
   | "Needs review"
   | "Calculated"
-  | "Under Finance Review"
+  | "Reviewed"
   | "Approved"
-  | "Posted"
+  | "Finalized"
+  | "Payslip Released"
   | "Locked";
 
 export interface PayrollPeriod {
@@ -129,6 +130,29 @@ export interface PayrollAdjustmentRecord {
   updated_at: string;
 }
 
+export interface ManualPayrollAdjustmentRecord {
+  id: number;
+  employee_id: number;
+  cutoff_id: number;
+  adjustment_type: string;
+  category: string;
+  amount: string;
+  direction: "addition" | "deduction" | string;
+  taxable: boolean;
+  is_recurring: boolean;
+  effective_date?: string | null;
+  reason: string;
+  remarks?: string | null;
+  status: "draft" | "approved" | "rejected" | "applied" | string;
+  created_by_user_id: number;
+  approved_by_user_id?: number | null;
+  approved_at?: string | null;
+  applied_payroll_record_id?: number | null;
+  applied_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PayrollDeductionBreakdownRecord {
   id: number;
   payroll_record_id: number;
@@ -207,6 +231,8 @@ export interface PayrollBatchSummaryRecord {
   reviewed_at?: string | null;
   approved_by_user_id?: number | null;
   approved_at?: string | null;
+  finalized_by_user_id?: number | null;
+  finalized_at?: string | null;
   posted_by_user_id?: number | null;
   posted_at?: string | null;
   remarks?: string | null;

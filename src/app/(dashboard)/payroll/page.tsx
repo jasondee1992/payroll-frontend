@@ -11,7 +11,7 @@ export default async function PayrollPage() {
     <>
       <PageHeader
         title="Payroll"
-        description="Calculate payroll by reviewed attendance cutoff, inspect employee-by-employee breakdowns, then approve and post explicitly."
+        description="Review cutoff readiness, manage manual payroll adjustments, inspect employee-by-employee breakdowns, and move payroll forward with explicit approvals."
       />
 
       {canViewPayroll(session.role) ? (
@@ -20,7 +20,7 @@ export default async function PayrollPage() {
         <section className="panel p-6 sm:p-7">
           <ResourceErrorState
             title="Payroll access is unavailable"
-            description="This payroll workflow is restricted to Finance and Admin-Finance users."
+            description="This payroll workflow is restricted to Admin, Finance, and Admin-Finance users."
           />
         </section>
       )}

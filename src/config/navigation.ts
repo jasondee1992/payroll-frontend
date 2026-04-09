@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  ClipboardList,
   BarChart3,
   CalendarDays,
   Clock3,
@@ -55,7 +56,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/payroll",
     description: "Payroll runs, approvals, and pay cycle monitoring.",
     icon: WalletCards,
-    roles: ["admin-finance", "finance"],
+    roles: ["admin", "admin-finance", "finance"],
   },
   {
     title: "Payslips",
@@ -63,6 +64,13 @@ export const navigationItems: NavigationItem[] = [
     description: "Published statements and employee pay documents.",
     icon: Receipt,
     roles: ["admin-finance", "finance", "employee"],
+  },
+  {
+    title: "Audit Logs",
+    href: "/audit-logs",
+    description: "Track who changed what across payroll and operations.",
+    icon: ClipboardList,
+    roles: ["admin", "admin-finance", "finance", "hr", "system-admin"],
   },
   {
     title: "Reports",

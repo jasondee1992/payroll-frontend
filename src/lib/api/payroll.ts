@@ -25,6 +25,7 @@ import type {
   GovernmentDeductionTestResultItemRecord,
   GovernmentDeductionTypeConfigRecord,
   GovernmentDeductionTypeRecord,
+  ManualPayrollAdjustmentRecord,
   PayslipRecord,
   PayrollAdjustmentRecord,
   PayrollBatchDetailRecord,
@@ -62,9 +63,11 @@ const PAYROLL_STATUS_MAP: Record<string, PayrollStatus> = {
   "needs review": "Needs review",
   needs_review: "Needs review",
   review: "Needs review",
-  under_finance_review: "Under Finance Review",
+  reviewed: "Reviewed",
   approved: "Approved",
-  posted: "Posted",
+  finalized: "Finalized",
+  payslip_released: "Payslip Released",
+  posted: "Payslip Released",
   locked: "Locked",
 };
 
@@ -163,6 +166,59 @@ export function parsePayrollAdjustmentRecord(value: unknown): PayrollAdjustmentR
     description: parseString(record.description, "payrollAdjustment.description"),
     created_at: parseString(record.created_at, "payrollAdjustment.created_at"),
     updated_at: parseString(record.updated_at, "payrollAdjustment.updated_at"),
+  };
+}
+
+export function parseManualPayrollAdjustmentRecord(
+  value: unknown,
+): ManualPayrollAdjustmentRecord {
+  const record = parseRecord(value, "manual payroll adjustment");
+
+  return {
+    id: parseNumber(record.id, "manualPayrollAdjustment.id"),
+    employee_id: parseNumber(record.employee_id, "manualPayrollAdjustment.employee_id"),
+    cutoff_id: parseNumber(record.cutoff_id, "manualPayrollAdjustment.cutoff_id"),
+    adjustment_type: parseString(
+      record.adjustment_type,
+      "manualPayrollAdjustment.adjustment_type",
+    ),
+    category: parseString(record.category, "manualPayrollAdjustment.category"),
+    amount: parseNumericString(record.amount, "manualPayrollAdjustment.amount"),
+    direction: parseString(record.direction, "manualPayrollAdjustment.direction"),
+    taxable: parseBoolean(record.taxable, "manualPayrollAdjustment.taxable"),
+    is_recurring: parseBoolean(
+      record.is_recurring,
+      "manualPayrollAdjustment.is_recurring",
+    ),
+    effective_date: parseOptionalString(
+      record.effective_date,
+      "manualPayrollAdjustment.effective_date",
+    ),
+    reason: parseString(record.reason, "manualPayrollAdjustment.reason"),
+    remarks: parseOptionalString(record.remarks, "manualPayrollAdjustment.remarks"),
+    status: parseString(record.status, "manualPayrollAdjustment.status"),
+    created_by_user_id: parseNumber(
+      record.created_by_user_id,
+      "manualPayrollAdjustment.created_by_user_id",
+    ),
+    approved_by_user_id: parseOptionalNumber(
+      record.approved_by_user_id,
+      "manualPayrollAdjustment.approved_by_user_id",
+    ),
+    approved_at: parseOptionalString(
+      record.approved_at,
+      "manualPayrollAdjustment.approved_at",
+    ),
+    applied_payroll_record_id: parseOptionalNumber(
+      record.applied_payroll_record_id,
+      "manualPayrollAdjustment.applied_payroll_record_id",
+    ),
+    applied_at: parseOptionalString(
+      record.applied_at,
+      "manualPayrollAdjustment.applied_at",
+    ),
+    created_at: parseString(record.created_at, "manualPayrollAdjustment.created_at"),
+    updated_at: parseString(record.updated_at, "manualPayrollAdjustment.updated_at"),
   };
 }
 
@@ -415,6 +471,11 @@ export function parsePayrollBatchSummaryRecord(value: unknown): PayrollBatchSumm
       "payrollBatch.approved_by_user_id",
     ),
     approved_at: parseOptionalString(record.approved_at, "payrollBatch.approved_at"),
+    finalized_by_user_id: parseOptionalNumber(
+      record.finalized_by_user_id,
+      "payrollBatch.finalized_by_user_id",
+    ),
+    finalized_at: parseOptionalString(record.finalized_at, "payrollBatch.finalized_at"),
     posted_by_user_id: parseOptionalNumber(
       record.posted_by_user_id,
       "payrollBatch.posted_by_user_id",
@@ -1627,6 +1688,32 @@ export type PayrollRecordRecalculatePayload = PayrollBatchRemarksPayload & {
   reviewRemarks?: string;
 };
 
+export type ManualPayrollAdjustmentPayload = {
+  employeeId: number;
+  cutoffId: number;
+  adjustmentType: string;
+  category: string;
+  amount: number;
+  direction: "addition" | "deduction";
+  taxable: boolean;
+  isRecurring?: boolean;
+  effectiveDate?: string | null;
+  reason: string;
+  remarks?: string;
+};
+
+export type ManualPayrollAdjustmentUpdatePayload = {
+  adjustmentType?: string;
+  category?: string;
+  amount?: number;
+  direction?: "addition" | "deduction";
+  taxable?: boolean;
+  isRecurring?: boolean;
+  effectiveDate?: string | null;
+  reason?: string;
+  remarks?: string;
+};
+
 export type GovernmentDeductionTypeConfigInputPayload = {
   deduction_type_code: string;
   based_on: string;
@@ -1755,6 +1842,107 @@ async function requestPayrollCollection<T>(
 
 export async function getPayrollCutoffPreviews() {
   return requestPayrollCollection("/cutoffs", parsePayrollCutoffPreviewRecord);
+}
+
+export async function getManualPayrollAdjustments(filters: {
+  cutoffId?: number | null;
+  employeeId?: number | null;
+  status?: string | null;
+} = {}) {
+  const query = new URLSearchParams();
+
+  if (filters.cutoffId != null) {
+    query.set("cutoff_id", String(filters.cutoffId));
+  }
+
+  if (filters.employeeId != null) {
+    query.set("employee_id", String(filters.employeeId));
+  }
+
+  if (filters.status) {
+    query.set("status", filters.status);
+  }
+
+  const suffix = query.toString();
+
+  return requestPayrollProxy(`/adjustments${suffix ? `?${suffix}` : ""}`, {
+    parser: (value) =>
+      parseCollection(
+        value,
+        (item) => parseManualPayrollAdjustmentRecord(item),
+        "manual payroll adjustments",
+      ),
+  });
+}
+
+export async function createManualPayrollAdjustment(
+  payload: ManualPayrollAdjustmentPayload,
+) {
+  return requestPayrollProxy("/adjustments", {
+    method: "POST",
+    body: {
+      employee_id: payload.employeeId,
+      cutoff_id: payload.cutoffId,
+      adjustment_type: payload.adjustmentType.trim(),
+      category: payload.category,
+      amount: payload.amount,
+      direction: payload.direction,
+      taxable: payload.taxable,
+      is_recurring: payload.isRecurring ?? false,
+      effective_date: payload.effectiveDate ?? undefined,
+      reason: payload.reason.trim(),
+      remarks: payload.remarks?.trim() || undefined,
+    },
+    parser: parseManualPayrollAdjustmentRecord,
+  });
+}
+
+export async function updateManualPayrollAdjustment(
+  adjustmentId: number,
+  payload: ManualPayrollAdjustmentUpdatePayload,
+) {
+  return requestPayrollProxy(`/adjustments/${adjustmentId}`, {
+    method: "PUT",
+    body: {
+      adjustment_type: payload.adjustmentType?.trim() || undefined,
+      category: payload.category,
+      amount: payload.amount,
+      direction: payload.direction,
+      taxable: payload.taxable,
+      is_recurring: payload.isRecurring,
+      effective_date: payload.effectiveDate ?? undefined,
+      reason: payload.reason?.trim() || undefined,
+      remarks:
+        payload.remarks === undefined ? undefined : payload.remarks.trim() || null,
+    },
+    parser: parseManualPayrollAdjustmentRecord,
+  });
+}
+
+export async function approveManualPayrollAdjustment(
+  adjustmentId: number,
+  payload: { remarks?: string } = {},
+) {
+  return requestPayrollProxy(`/adjustments/${adjustmentId}/approve`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+    },
+    parser: parseManualPayrollAdjustmentRecord,
+  });
+}
+
+export async function rejectManualPayrollAdjustment(
+  adjustmentId: number,
+  payload: { remarks?: string } = {},
+) {
+  return requestPayrollProxy(`/adjustments/${adjustmentId}/reject`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+    },
+    parser: parseManualPayrollAdjustmentRecord,
+  });
 }
 
 export async function getPayrollReportingSnapshot(filters: {
@@ -1927,11 +2115,37 @@ export async function approvePayrollBatch(
   });
 }
 
-export async function postPayrollBatch(
+export async function reviewPayrollBatch(
   batchId: number,
   payload: PayrollBatchRemarksPayload = {},
 ) {
-  return requestPayrollProxy(`/batches/${batchId}/post`, {
+  return requestPayrollProxy(`/batches/${batchId}/review`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+    },
+    parser: parsePayrollBatchDetailRecord,
+  });
+}
+
+export async function finalizePayrollBatch(
+  batchId: number,
+  payload: PayrollBatchRemarksPayload = {},
+) {
+  return requestPayrollProxy(`/batches/${batchId}/finalize`, {
+    method: "POST",
+    body: {
+      remarks: payload.remarks?.trim() || undefined,
+    },
+    parser: parsePayrollBatchDetailRecord,
+  });
+}
+
+export async function releasePayrollBatchPayslips(
+  batchId: number,
+  payload: PayrollBatchRemarksPayload = {},
+) {
+  return requestPayrollProxy(`/batches/${batchId}/release-payslips`, {
     method: "POST",
     body: {
       remarks: payload.remarks?.trim() || undefined,

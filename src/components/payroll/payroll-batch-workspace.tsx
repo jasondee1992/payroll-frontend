@@ -24,6 +24,7 @@ import {
   calculatePayrollBatch,
   discardPayrollBatch,
   evaluateEmployeePayrollCutoffStatuses,
+  finalizePayrollBatch,
   getEmployeePayrollCutoffPreview,
   getEmployeePayrollCutoffStatuses,
   getPayrollBatchDetail,
@@ -31,13 +32,21 @@ import {
   getPayrollCutoffPreviews,
   lockEmployeePayrollCutoff,
   normalizePayrollStatus,
-  postPayrollBatch,
   recalculateEmployeePayrollCutoff,
   recalculatePayrollBatch,
   recalculatePayrollRecord,
+  releasePayrollBatchPayslips,
+  reviewPayrollBatch,
   unlockEmployeePayrollCutoff,
 } from "@/lib/api/payroll";
-import { canManagePayroll, type AppRole } from "@/lib/auth/session";
+import {
+  canApprovePayroll,
+  canFinalizePayroll,
+  canManagePayroll,
+  canReleasePayslips,
+  canReviewPayroll,
+  type AppRole,
+} from "@/lib/auth/session";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import {
   preserveCurrentValue,
@@ -45,6 +54,7 @@ import {
 } from "@/lib/preserved-collection-state";
 import { usePreservedScroll } from "@/lib/use-preserved-scroll";
 import { cn } from "@/lib/utils";
+import { ManualAdjustmentsPanel } from "@/components/payroll/manual-adjustments-panel";
 import type {
   EmployeePayrollCutoffPreviewRecord,
   EmployeePayrollCutoffStatusRecord,
@@ -79,6 +89,10 @@ const PAYROLL_REFRESH_INTERVAL_MS = 5000;
 
 export function PayrollBatchWorkspace({ role }: Props) {
   const canManage = canManagePayroll(role);
+  const canReview = canReviewPayroll(role);
+  const canApprove = canApprovePayroll(role);
+  const canFinalize = canFinalizePayroll(role);
+  const canRelease = canReleasePayslips(role);
   const batchListRef = useRef<HTMLDivElement | null>(null);
   const batchDetailRef = useRef<HTMLDivElement | null>(null);
   const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
@@ -295,6 +309,22 @@ export function PayrollBatchWorkspace({ role }: Props) {
     () => cutoffs.filter((item) => item.can_calculate && item.existing_batch_id == null).length,
     [cutoffs],
   );
+  const calculatedBatchCount = useMemo(
+    () => batches.filter((item) => item.status === "calculated").length,
+    [batches],
+  );
+  const reviewedBatchCount = useMemo(
+    () => batches.filter((item) => item.status === "reviewed").length,
+    [batches],
+  );
+  const finalizedBatchCount = useMemo(
+    () => batches.filter((item) => item.status === "finalized").length,
+    [batches],
+  );
+  const releasedBatchCount = useMemo(
+    () => batches.filter((item) => item.status === "payslip_released" || item.status === "posted").length,
+    [batches],
+  );
   const filteredCutoffEmployeeStatuses = useMemo(
     () =>
       cutoffEmployeeStatuses.filter((item) => {
@@ -312,6 +342,24 @@ export function PayrollBatchWorkspace({ role }: Props) {
   const selectedCutoffActionHint = selectedCutoffHasExistingBatch
     ? "A payroll batch already exists for this cutoff. Review it below or use Recalculate from the batch details."
     : selectedCutoff?.blocked_reason ?? null;
+  const batchIsReadOnly =
+    batch?.status === "finalized"
+    || batch?.status === "payslip_released"
+    || batch?.status === "posted"
+    || batch?.status === "locked";
+  const batchLifecycleMessage = batch ? getLifecycleMessage(batch.status) : null;
+
+  const refreshManualAdjustmentContext = useCallback(async () => {
+    if (cutoffId != null) {
+      await loadCutoffEmployees(cutoffId, { background: true });
+    }
+    if (batchId != null) {
+      const nextBatch = await getPayrollBatchDetail(batchId);
+      setBatch(nextBatch);
+      setRemarks(nextBatch.remarks ?? "");
+    }
+    await loadOverview(batchId, { background: true });
+  }, [batchId, cutoffId, loadCutoffEmployees, loadOverview]);
 
   function focusPayrollBatch(
     nextBatchId: number | null,
@@ -538,24 +586,52 @@ export function PayrollBatchWorkspace({ role }: Props) {
     }
   }
 
-  async function runAction(action: "calculate" | "recalculate" | "approve" | "post" | "discard") {
+  async function runAction(
+    action:
+      | "calculate"
+      | "recalculate"
+      | "review"
+      | "approve"
+      | "finalize"
+      | "release"
+      | "discard",
+  ) {
     const currentBatch = batch;
     const currentBatchId = currentBatch?.id ?? null;
+    const canRunAction =
+      action === "calculate" || action === "recalculate" || action === "discard"
+        ? canManage
+        : action === "review"
+          ? canReview
+          : action === "approve"
+            ? canApprove
+            : action === "finalize"
+              ? canFinalize
+              : canRelease;
 
-    if (action === "calculate" && (!selectedCutoff || !canManage)) {
+    if (action === "calculate" && (!selectedCutoff || !canRunAction)) {
       return;
     }
-    if (action !== "calculate" && (currentBatchId == null || !canManage)) {
+    if (action !== "calculate" && (currentBatchId == null || !canRunAction)) {
       return;
     }
     const ensuredBatchId = currentBatchId ?? 0;
-    if (action === "post" && !window.confirm("Post this payroll batch and release payslips?")) {
+    if (action === "review" && !window.confirm("Mark this payroll batch as reviewed?")) {
+      return;
+    }
+    if (action === "approve" && !window.confirm("Approve this payroll batch?")) {
+      return;
+    }
+    if (action === "finalize" && !window.confirm("Finalize this payroll batch? Edits and recalculation will be blocked after this step.")) {
+      return;
+    }
+    if (action === "release" && !window.confirm("Release payslips for this finalized payroll batch? Employees will be able to access them after release.")) {
       return;
     }
     if (
       action === "discard" &&
       !window.confirm(
-        "Discard this unposted payroll batch? This will remove the computed batch, employee records, and any unposted payslip rows for this cutoff.",
+        "Discard this unfinalized payroll batch? This will remove the computed batch, employee records, and any unreleased payslip rows for this cutoff.",
       )
     ) {
       return;
@@ -588,9 +664,13 @@ export function PayrollBatchWorkspace({ role }: Props) {
             ? await calculatePayrollBatch({ cutoffId: selectedCutoff.cutoff.id, remarks })
             : action === "recalculate"
               ? await recalculatePayrollBatch(ensuredBatchId, { remarks })
+              : action === "review"
+                ? await reviewPayrollBatch(ensuredBatchId, { remarks })
               : action === "approve"
                 ? await approvePayrollBatch(ensuredBatchId, { remarks })
-                : await postPayrollBatch(ensuredBatchId, { remarks });
+                : action === "finalize"
+                  ? await finalizePayrollBatch(ensuredBatchId, { remarks })
+                  : await releasePayrollBatchPayslips(ensuredBatchId, { remarks });
         setBatch(nextBatch);
         setBatchId(nextBatch.id);
         setRemarks(nextBatch.remarks ?? remarks);
@@ -599,9 +679,13 @@ export function PayrollBatchWorkspace({ role }: Props) {
             ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was calculated.`
             : action === "recalculate"
               ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was recalculated.`
+              : action === "review"
+                ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was reviewed.`
               : action === "approve"
                 ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was approved.`
-                : `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was posted.`
+                : action === "finalize"
+                  ? `Payroll batch for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} was finalized.`
+                  : `Payslips for ${label(nextBatch.cutoff.cutoff_start, nextBatch.cutoff.cutoff_end)} were released.`
         );
         await loadOverview(nextBatch.id);
       }
@@ -625,9 +709,9 @@ export function PayrollBatchWorkspace({ role }: Props) {
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card label="Ready cutoffs" value={String(readyCutoffCount)} detail="Attendance cutoffs that can move into payroll." />
-        <Card label="Under review" value={String(batches.filter((item) => item.status === "under_finance_review").length)} detail="Batches waiting for finance review." />
-        <Card label="Approved" value={String(batches.filter((item) => item.status === "approved").length)} detail="Approved batches waiting for posting." />
-        <Card label="Posted" value={String(batches.filter((item) => item.status === "posted").length)} detail="Posted payroll with released payslips." />
+        <Card label="Calculated" value={String(calculatedBatchCount)} detail="Batches waiting for finance review." />
+        <Card label="Reviewed" value={String(reviewedBatchCount)} detail="Reviewed batches waiting for approval." />
+        <Card label="Released" value={String(releasedBatchCount)} detail={`Finalized pending release: ${finalizedBatchCount}`} />
       </section>
 
       {error ? <Banner tone="error">{error}</Banner> : null}
@@ -860,6 +944,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                     <Head>Attendance</Head>
                     <Head>Leave</Head>
                     <Head>Overtime</Head>
+                    <Head>Adjustments</Head>
                     <Head>Readiness</Head>
                     <Head>Locked</Head>
                     <Head>Calculated</Head>
@@ -911,6 +996,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                           </Cell>
                           <Cell><InlineStatusBadge value={item.leave_status} /></Cell>
                           <Cell><InlineStatusBadge value={item.overtime_status} /></Cell>
+                          <Cell><InlineStatusBadge value={item.adjustment_status} /></Cell>
                           <Cell><ReadinessBadge status={item.readiness_status} /></Cell>
                           <Cell>{item.is_locked ? <FlagMark label="Locked" tone="success" /> : <FlagMark label="Open" tone="neutral" />}</Cell>
                           <Cell>{item.is_calculated ? <FlagMark label="Calculated" tone="success" /> : <FlagMark label="Pending" tone="warning" />}</Cell>
@@ -968,7 +1054,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                         </tr>
                         {previewOpen ? (
                           <tr className="ui-table-row-expanded">
-                            <td colSpan={10} className="border-b border-slate-200/70 px-4 py-5">
+                            <td colSpan={11} className="border-b border-slate-200/70 px-4 py-5">
                               {loadingEmployeePreview ? (
                                 <ResourceTableSkeleton rowCount={3} />
                               ) : item.is_calculated && employeePreview ? (
@@ -1004,6 +1090,19 @@ export function PayrollBatchWorkspace({ role }: Props) {
         </div>
       </section>
 
+      <ManualAdjustmentsPanel
+        role={role}
+        cutoffId={selectedCutoff?.cutoff.id ?? null}
+        cutoffLabel={
+          selectedCutoff
+            ? label(selectedCutoff.cutoff.cutoff_start, selectedCutoff.cutoff.cutoff_end)
+            : null
+        }
+        employees={cutoffEmployeeStatuses}
+        hasExistingBatch={selectedCutoffHasExistingBatch}
+        onAdjustmentsChanged={refreshManualAdjustmentContext}
+      />
+
       <div ref={batchDetailRef} className="panel-strong p-5 sm:p-6">
         {loadingBatch ? <ResourceTableSkeleton rowCount={5} /> : !batch ? (
           <ResourceEmptyState title="Select a payroll batch" description="Choose a batch to inspect the employee-level payroll breakdown." />
@@ -1017,11 +1116,60 @@ export function PayrollBatchWorkspace({ role }: Props) {
                 </div>
                 <p className="mt-2 text-sm text-slate-600">{batch.records_using_system_defaults} records used system-computed attendance defaults.</p>
               </div>
-              <div className="ui-action-bar ui-sticky-band grid gap-2 sm:grid-cols-3">
-                {canManage && batch.status !== "posted" && batch.status !== "locked" ? <Action icon={RefreshCw} label="Recalculate" disabled={submitting} onClick={() => void runAction("recalculate")} /> : null}
-                {canManage && batch.status === "under_finance_review" ? <Action icon={CheckCircle2} label="Approve" disabled={submitting} onClick={() => void runAction("approve")} /> : null}
-                {canManage && batch.status === "approved" ? <Action icon={Send} label="Post payroll" disabled={submitting} onClick={() => void runAction("post")} /> : null}
-                {canManage && batch.status !== "posted" && batch.status !== "locked" ? <Action icon={Trash2} label="Discard batch" disabled={submitting} tone="danger" onClick={() => void runAction("discard")} /> : null}
+              <div className="ui-action-bar ui-sticky-band grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {canManage && !batchIsReadOnly ? <Action icon={RefreshCw} label="Recalculate" disabled={submitting} onClick={() => void runAction("recalculate")} /> : null}
+                {canReview && batch.status === "calculated" ? <Action icon={CheckCircle2} label="Mark reviewed" disabled={submitting} onClick={() => void runAction("review")} /> : null}
+                {canApprove && batch.status === "reviewed" ? <Action icon={CheckCircle2} label="Approve" disabled={submitting} onClick={() => void runAction("approve")} /> : null}
+                {canFinalize && batch.status === "approved" ? <Action icon={Lock} label="Finalize" disabled={submitting} onClick={() => void runAction("finalize")} /> : null}
+                {canRelease && batch.status === "finalized" ? <Action icon={Send} label="Release payslips" disabled={submitting} onClick={() => void runAction("release")} /> : null}
+                {canManage && !batchIsReadOnly ? <Action icon={Trash2} label="Discard batch" disabled={submitting} tone="danger" onClick={() => void runAction("discard")} /> : null}
+              </div>
+            </div>
+
+            {batchLifecycleMessage ? (
+              <div className={cn(
+                "rounded-2xl border px-4 py-4 text-sm",
+                batch.status === "payslip_released" || batch.status === "posted"
+                  ? "border-emerald-200 bg-emerald-50/70 text-emerald-800"
+                  : batch.status === "finalized"
+                    ? "border-slate-200 bg-slate-50/80 text-slate-700"
+                    : "border-amber-200 bg-amber-50/80 text-amber-800",
+              )}>
+                {batchLifecycleMessage}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+              <div className="rounded-[24px] border border-slate-200/80 bg-white/90 p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Lifecycle</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-5">
+                  {buildLifecycleSteps(batch).map((step) => (
+                    <div
+                      key={step.label}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3",
+                        step.completed
+                          ? "border-emerald-200 bg-emerald-50/70"
+                          : step.current
+                            ? "border-sky-200 bg-sky-50/70"
+                            : "border-slate-200 bg-slate-50/70",
+                      )}
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{step.label}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-950">{step.state}</p>
+                      <p className="mt-1 text-xs text-slate-500">{step.timestamp ? formatDateTime(step.timestamp) : "Pending"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Operational summary</p>
+                <div className="mt-4 grid gap-3">
+                  <Mini label="Records" value={String(batch.record_count)} active />
+                  <Mini label="Gross" value={formatCurrency(batch.total_gross_pay)} active />
+                  <Mini label="Net" value={formatCurrency(batch.total_net_pay)} active />
+                  <Mini label="Flags" value={String(batch.records_with_flags)} active={batch.records_with_flags > 0} />
+                </div>
               </div>
             </div>
 
@@ -1029,9 +1177,9 @@ export function PayrollBatchWorkspace({ role }: Props) {
               value={remarks}
               onChange={(event) => setRemarks(event.target.value)}
               rows={3}
-              disabled={!canManage || submitting}
+              disabled={submitting || (!canManage && !canReview && !canApprove && !canFinalize && !canRelease)}
               className="ui-textarea min-h-24 bg-slate-50/70"
-              placeholder="Finance remarks"
+              placeholder="Payroll lifecycle remarks"
             />
 
             <div className="ui-table-shell">
@@ -1052,7 +1200,7 @@ export function PayrollBatchWorkspace({ role }: Props) {
                     {batch.records.map((item) => {
                       const expanded = expandedRecordIds.includes(item.id);
                       const canRecalculateRecord =
-                        canManage && batch.status !== "posted" && batch.status !== "locked";
+                        canManage && !batchIsReadOnly;
 
                       return (
                         <Fragment key={item.id}>
@@ -1163,12 +1311,38 @@ function ExpandedPayrollRecord({
           : "Employee loan deduction for this cutoff.",
     }));
   const loanDeductionTotal = sumAmountStrings(loanRows.map((item) => item.amount));
+  const manualAdditionRows = record.adjustments
+    .filter(
+      (item) => item.category === "earning" && item.adjustment_type.startsWith("manual_"),
+    )
+    .map((item) => ({
+      label: pretty(item.adjustment_type),
+      amount: item.amount,
+      note: item.description,
+    }));
+  const manualDeductionRows = record.adjustments
+    .filter(
+      (item) => item.category === "deduction" && item.adjustment_type.startsWith("manual_"),
+    )
+    .map((item) => ({
+      label: pretty(item.adjustment_type),
+      amount: item.amount,
+      note: item.description,
+    }));
+  const manualDeductionTotal = sumAmountStrings(
+    manualDeductionRows.map((item) => item.amount),
+  );
   const residualOtherDeductions = subtractAmountStrings(
     record.other_deductions,
-    loanDeductionTotal,
+    sumAmountStrings([loanDeductionTotal, manualDeductionTotal]),
   );
   const allowanceRows = record.adjustments
-    .filter((item) => item.category === "earning" && !coreEarningTypes.has(item.adjustment_type))
+    .filter(
+      (item) =>
+        item.category === "earning"
+        && !coreEarningTypes.has(item.adjustment_type)
+        && !item.adjustment_type.startsWith("manual_"),
+    )
     .map((item) => ({
       label: item.adjustment_type === "other_earnings" ? "Allowance pool" : pretty(item.adjustment_type),
       amount: item.amount,
@@ -1242,7 +1416,9 @@ function ExpandedPayrollRecord({
   ]);
   const visibleEarningRows = filterRowsWithAmounts(earningRows);
   const visibleAllowanceRows = filterRowsWithAmounts(allowanceRows);
+  const visibleManualAdditionRows = filterRowsWithAmounts(manualAdditionRows);
   const visibleDeductionRows = filterRowsWithAmounts(deductionRows);
+  const visibleManualDeductionRows = filterRowsWithAmounts(manualDeductionRows);
   const visibleGovernmentRows = filterRowsWithAmounts(governmentRows);
   const earningSections: BreakdownSection[] = [
     ...(visibleEarningRows.length > 0
@@ -1274,8 +1450,36 @@ function ExpandedPayrollRecord({
           },
         ]
       : []),
+    ...(visibleManualAdditionRows.length > 0
+      ? [
+          {
+            eyebrow: "Manual entries",
+            title: "Approved manual additions",
+            description: "One-time payroll additions approved specifically for this cutoff.",
+            summaryLabel: "Manual addition total",
+            summaryValue: sumAmountStrings(visibleManualAdditionRows.map((item) => item.amount)),
+            rows: visibleManualAdditionRows,
+            tone: "positive" as const,
+          },
+        ]
+      : []),
   ];
   const deductionSections: BreakdownSection[] = [
+    ...(visibleManualDeductionRows.length > 0
+      ? [
+          {
+            eyebrow: "Manual entries",
+            title: "Approved manual deductions",
+            description: "One-time payroll deductions approved specifically for this cutoff.",
+            summaryLabel: "Manual deduction total",
+            summaryValue: sumAmountStrings(
+              visibleManualDeductionRows.map((item) => item.amount),
+            ),
+            rows: visibleManualDeductionRows,
+            tone: "negative" as const,
+          },
+        ]
+      : []),
     ...(visibleDeductionRows.length > 0
       ? [
           {
@@ -1307,6 +1511,11 @@ function ExpandedPayrollRecord({
   const computationNotes = [
     `Source ${pretty(record.calculation_source_status)}`,
     `Attendance review ${pretty(record.attendance_review_status)}`,
+    ...(visibleManualAdditionRows.length > 0 || visibleManualDeductionRows.length > 0
+      ? [
+          `${visibleManualAdditionRows.length + visibleManualDeductionRows.length} approved manual adjustment${visibleManualAdditionRows.length + visibleManualDeductionRows.length === 1 ? "" : "s"}`,
+        ]
+      : []),
     ...flags(record),
     ...(record.review_remarks ? [`Review remarks: ${record.review_remarks}`] : []),
   ];
@@ -1614,13 +1823,18 @@ function ReadinessBadge({ status }: { status: string }) {
 function InlineStatusBadge({ value }: { value: string }) {
   const normalized = value.trim().toLowerCase();
   const tone =
-    normalized === "approved" || normalized === "clear" || normalized === "not_required"
+    normalized === "approved"
+    || normalized === "applied"
+    || normalized === "clear"
+    || normalized === "not_required"
       ? "success"
-      : normalized === "pending"
+      : normalized === "pending" || normalized === "pending_approval"
         ? "warning"
         : normalized === "issue"
           ? "danger"
-          : "neutral";
+          : normalized === "rejected"
+            ? "neutral"
+            : "neutral";
 
   return <StatusPill label={pretty(value)} tone={tone} />;
 }
@@ -1660,6 +1874,45 @@ function StatusPill({
       {label}
     </span>
   );
+}
+
+function buildLifecycleSteps(batch: PayrollBatchDetailRecord) {
+  const normalizedStatus = batch.status.trim().toLowerCase();
+  const currentIndex = ["draft", "calculated", "reviewed", "approved", "finalized", "payslip_released", "posted"].indexOf(normalizedStatus);
+  const releaseTimestamp = batch.posted_at;
+
+  return [
+    { label: "Calculated", timestamp: batch.calculated_at, state: batch.calculated_at ? "Completed" : "Pending" },
+    { label: "Reviewed", timestamp: batch.reviewed_at, state: batch.reviewed_at ? "Completed" : normalizedStatus === "calculated" ? "Next" : "Pending" },
+    { label: "Approved", timestamp: batch.approved_at, state: batch.approved_at ? "Completed" : normalizedStatus === "reviewed" ? "Next" : "Pending" },
+    { label: "Finalized", timestamp: batch.finalized_at, state: batch.finalized_at ? "Completed" : normalizedStatus === "approved" ? "Next" : "Pending" },
+    { label: "Released", timestamp: releaseTimestamp, state: releaseTimestamp ? "Completed" : normalizedStatus === "finalized" ? "Next" : "Pending" },
+  ].map((step, index) => ({
+    ...step,
+    completed: step.timestamp != null,
+    current: !step.timestamp && index === Math.max(Math.min(currentIndex, 4), 0),
+  }));
+}
+
+function getLifecycleMessage(status: string) {
+  const normalizedStatus = status.trim().toLowerCase();
+
+  if (normalizedStatus === "calculated") {
+    return "Calculated payroll is still operational. Finance should review the batch before any approval action.";
+  }
+  if (normalizedStatus === "reviewed") {
+    return "Finance review is complete. Admin-Finance approval is still required before payroll can be finalized.";
+  }
+  if (normalizedStatus === "approved") {
+    return "Approved payroll is not yet official. Finalize the batch to lock payroll values before release.";
+  }
+  if (normalizedStatus === "finalized") {
+    return "Payroll is finalized and protected from recalculation. Employees still cannot view payslips until release.";
+  }
+  if (normalizedStatus === "payslip_released" || normalizedStatus === "posted") {
+    return "Payslips have been released. Employees can now access this payroll cutoff from the payslip module.";
+  }
+  return null;
 }
 
 

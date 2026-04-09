@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "@/lib/api/config";
 import {
   AUTH_ROLE_COOKIE,
   AUTH_TOKEN_COOKIE,
+  canManagePayrollAdjustments,
   canManagePayroll,
   canViewPayroll,
   canViewPayslips,
@@ -40,6 +41,10 @@ function isEmployeePayslipRequest(pathSegments: string[] | undefined) {
 
 function isSettingsRequest(pathSegments: string[] | undefined) {
   return Array.isArray(pathSegments) && pathSegments[0] === "settings";
+}
+
+function isManualAdjustmentsRequest(pathSegments: string[] | undefined) {
+  return Array.isArray(pathSegments) && pathSegments[0] === "adjustments";
 }
 
 function canReadPayrollPath(
@@ -87,16 +92,34 @@ async function proxyPayrollRequest(
     }
   }
 
-  if (request.method !== "GET" && request.method !== "HEAD" && !canManagePayroll(userRole)) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    const canManageWriteRequest = isManualAdjustmentsRequest(path)
+      ? canManagePayrollAdjustments(userRole)
+      : canManagePayroll(userRole);
+
+    if (canManageWriteRequest) {
+      return proxyToBackend(request, accessToken, path);
+    }
+
     return NextResponse.json(
       {
         error:
-          "Only Admin-Finance users can calculate, recalculate, approve, post, or discard payroll batches.",
+          isManualAdjustmentsRequest(path)
+            ? "Only Admin and Admin-Finance users can manage manual payroll adjustments."
+            : "Only Admin-Finance users can calculate, recalculate, approve, post, or discard payroll batches.",
       },
       { status: 403 },
     );
   }
 
+  return proxyToBackend(request, accessToken, path);
+}
+
+async function proxyToBackend(
+  request: NextRequest,
+  accessToken: string | undefined,
+  path: string[] | undefined,
+) {
   const backendUrl = buildBackendUrl(request, path);
 
   if (!backendUrl) {

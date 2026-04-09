@@ -47,13 +47,16 @@ export type CreateAttendanceCutoffPayload = {
 
 export type CreateAttendanceReviewRequestPayload = {
   cutoff_id: number;
-  attendance_record_id: number;
+  employee_id?: number | null;
+  attendance_record_id?: number | null;
+  attendance_date?: string | null;
   request_type: AttendanceReviewRequestRecord["request_type"];
   requested_time_in?: string | null;
   requested_time_out?: string | null;
   requested_overtime_minutes?: number | null;
   requested_undertime_reason?: string | null;
   reason: string;
+  remarks?: string | null;
 };
 
 export type AttendanceRequestReviewPayload = {
@@ -287,10 +290,13 @@ export function parseAttendanceReviewRequestRecord(
     id: parseNumber(record.id, "attendanceReviewRequest.id"),
     cutoff_id: parseNumber(record.cutoff_id, "attendanceReviewRequest.cutoff_id"),
     employee_id: parseNumber(record.employee_id, "attendanceReviewRequest.employee_id"),
-    attendance_record_id: parseNumber(
-      record.attendance_record_id,
-      "attendanceReviewRequest.attendance_record_id",
-    ),
+    attendance_record_id:
+      record.attendance_record_id == null
+        ? null
+        : parseNumber(
+            record.attendance_record_id,
+            "attendanceReviewRequest.attendance_record_id",
+          ),
     submitted_by_user_id: parseNumber(
       record.submitted_by_user_id,
       "attendanceReviewRequest.submitted_by_user_id",
@@ -329,6 +335,14 @@ export function parseAttendanceReviewRequestRecord(
       record.request_type,
       "attendanceReviewRequest.request_type",
     ) as AttendanceReviewRequestRecord["request_type"],
+    original_time_in: parseOptionalString(
+      record.original_time_in,
+      "attendanceReviewRequest.original_time_in",
+    ),
+    original_time_out: parseOptionalString(
+      record.original_time_out,
+      "attendanceReviewRequest.original_time_out",
+    ),
     requested_time_in: parseOptionalString(
       record.requested_time_in,
       "attendanceReviewRequest.requested_time_in",
@@ -343,13 +357,17 @@ export function parseAttendanceReviewRequestRecord(
         : parseNumber(
             record.requested_overtime_minutes,
             "attendanceReviewRequest.requested_overtime_minutes",
-          ),
+    ),
     requested_undertime_reason: parseOptionalString(
       record.requested_undertime_reason,
       "attendanceReviewRequest.requested_undertime_reason",
     ),
     reason: parseString(record.reason, "attendanceReviewRequest.reason"),
-    status: parseString(record.status, "attendanceReviewRequest.status") as AttendanceReviewRequestRecord["status"],
+    remarks: parseOptionalString(record.remarks, "attendanceReviewRequest.remarks"),
+    status: parseString(
+      record.status,
+      "attendanceReviewRequest.status",
+    ) as AttendanceReviewRequestRecord["status"],
     review_remarks: parseOptionalString(
       record.review_remarks,
       "attendanceReviewRequest.review_remarks",
@@ -357,6 +375,17 @@ export function parseAttendanceReviewRequestRecord(
     reviewed_at: parseOptionalString(
       record.reviewed_at,
       "attendanceReviewRequest.reviewed_at",
+    ),
+    applied_attendance_record_id:
+      record.applied_attendance_record_id == null
+        ? null
+        : parseNumber(
+            record.applied_attendance_record_id,
+            "attendanceReviewRequest.applied_attendance_record_id",
+          ),
+    applied_at: parseOptionalString(
+      record.applied_at,
+      "attendanceReviewRequest.applied_at",
     ),
     created_at: parseString(record.created_at, "attendanceReviewRequest.created_at"),
     updated_at: parseString(record.updated_at, "attendanceReviewRequest.updated_at"),
@@ -864,6 +893,21 @@ export async function createAttendanceReviewRequest(
   return handleApiResponse(response, parseAttendanceReviewRequestRecord);
 }
 
+export async function createAttendanceTeamReviewRequest(
+  payload: CreateAttendanceReviewRequestPayload,
+) {
+  const response = await fetch("/api/attendance/requests", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return handleApiResponse(response, parseAttendanceReviewRequestRecord);
+}
+
 export async function getAttendanceReviewRequests(params?: {
   cutoffId?: number | null;
   status?: string | null;
@@ -927,6 +971,43 @@ export async function rejectAttendanceReviewRequest(
   });
 
   return handleApiResponse(response, parseAttendanceReviewRequestRecord);
+}
+
+export async function cancelAttendanceReviewRequest(
+  requestId: number,
+  payload: AttendanceRequestReviewPayload,
+) {
+  const response = await fetch(`/api/attendance/requests/${requestId}/cancel`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return handleApiResponse(response, parseAttendanceReviewRequestRecord);
+}
+
+export async function getAttendanceEmployeeRecords(cutoffId: number, employeeId: number) {
+  const response = await fetch(
+    `/api/attendance/cutoffs/${cutoffId}/employees/${employeeId}/records`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    },
+  );
+
+  return handleApiResponse(response, (value) =>
+    parseCollection(
+      value,
+      (item) => parseAttendanceRecord(item),
+      "attendanceEmployeeRecords",
+    ),
+  );
 }
 
 export async function lockAttendanceCutoff(cutoffId: number) {

@@ -59,7 +59,7 @@ export function PayslipWorkspace() {
     return (
       <ResourceEmptyState
         title="No payslips found"
-        description="Payslips appear here after payroll is calculated for a cutoff."
+        description="Payslips appear here after payroll is finalized and released."
       />
     );
   }
@@ -83,7 +83,7 @@ export function PayslipWorkspace() {
         <div className="ui-section-header flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Generated payslips</h2>
-            <p className="mt-1 text-sm text-slate-600">Review payroll output by employee, including calculated, approved, and posted payslips.</p>
+            <p className="mt-1 text-sm text-slate-600">Review payroll output by employee across calculated, approved, finalized, and released lifecycle stages.</p>
           </div>
           <button
             type="button"
@@ -158,7 +158,7 @@ export function PayslipWorkspace() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Detail label="Cutoff" value={`${formatDate(selectedPayslip.cutoff_start)} - ${formatDate(selectedPayslip.cutoff_end)}`} />
               <Detail label="Payroll status" value={pretty(selectedPayslip.status)} />
-              <Detail label="Posted at" value={selectedPayslip.posted_at ? formatDateTime(selectedPayslip.posted_at) : "Not posted yet"} />
+              <Detail label="Released at" value={selectedPayslip.posted_at ? formatDateTime(selectedPayslip.posted_at) : "Not released yet"} />
               <Detail label="Gross pay" value={formatCurrency(selectedPayslip.payroll_record.gross_pay)} />
               <Detail label="Taxable income" value={formatCurrency(selectedPayslip.payroll_record.taxable_income)} />
               <Detail label="Gov't deductions" value={formatCurrency(selectedPayslip.payroll_record.government_deductions_total)} />
@@ -211,8 +211,11 @@ function pretty(value: string) {
 }
 
 function payslipStatusToneClassName(status: string) {
-  if (status === "posted") {
+  if (status === "payslip_released" || status === "posted") {
     return "text-emerald-700";
+  }
+  if (status === "finalized") {
+    return "text-slate-700";
   }
   if (status === "approved") {
     return "text-sky-700";

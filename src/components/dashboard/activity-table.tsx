@@ -27,9 +27,10 @@ const statusStyles: Record<ActivityItem["status"], string> = {
   "Needs review": "bg-amber-50 text-amber-700",
   Scheduled: "bg-blue-50 text-blue-700",
   Calculated: "bg-sky-50 text-sky-700",
-  "Under Finance Review": "bg-amber-50 text-amber-700",
+  Reviewed: "bg-amber-50 text-amber-700",
   Approved: "bg-emerald-50 text-emerald-700",
-  Posted: "bg-slate-900 text-white",
+  Finalized: "bg-slate-900 text-white",
+  "Payslip Released": "bg-emerald-600 text-white",
   Locked: "bg-slate-200 text-slate-700",
 };
 
@@ -44,9 +45,10 @@ const statusIcons = {
   "Needs review": Clock3,
   Scheduled: PlayCircle,
   Calculated: FileSpreadsheet,
-  "Under Finance Review": Clock3,
+  Reviewed: Clock3,
   Approved: CheckCircle2,
-  Posted: CheckCircle2,
+  Finalized: CheckCircle2,
+  "Payslip Released": CheckCircle2,
   Locked: CheckCircle2,
 } satisfies Record<ActivityItem["status"], typeof CheckCircle2>;
 

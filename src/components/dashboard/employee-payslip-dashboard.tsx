@@ -103,7 +103,7 @@ export function EmployeePayslipDashboard() {
     return (
       <ResourceEmptyState
         title="No payslips available yet"
-        description="Your payslip will appear here after payroll for the selected cutoff is calculated."
+        description="Your payslip will appear here after payroll for the selected cutoff is finalized and released."
       />
     );
   }
@@ -136,7 +136,7 @@ export function EmployeePayslipDashboard() {
           detail={
             latestPayslip
               ? `${latestPayslip.status} ${formatDate(latestPayslip.payoutDate)}`
-              : "No payroll payslip yet"
+              : "No released payslip yet"
           }
         />
         <SummaryCard
@@ -181,7 +181,7 @@ export function EmployeePayslipDashboard() {
                           active ? "text-slate-300" : "text-slate-500",
                         )}
                       >
-                        Updated: {formatDate(payslip.payoutDate)}
+                        Released: {formatDate(payslip.payoutDate)}
                       </p>
                     </div>
 
@@ -283,7 +283,7 @@ export function EmployeePayslipDashboard() {
                 </p>
                 <div className="mt-4 grid gap-3">
                   <MetaRow label="Payslip Ref" value={selectedPayslip.reference} />
-                  <MetaRow label="Updated" value={formatDate(selectedPayslip.payoutDate)} />
+                  <MetaRow label="Released" value={formatDate(selectedPayslip.payoutDate)} />
                   <MetaRow label="Cutoff" value={selectedPayslip.periodLabel} />
                   <MetaRow label="Status" value={selectedPayslip.status} />
                   <MetaRow label="Taxable income" value={formatCurrency(selectedPayslip.taxableIncome)} />
@@ -364,8 +364,11 @@ function prettyLabel(value: string) {
 }
 
 function statusToneClassName(status: string) {
-  if (status === "Posted") {
+  if (status === "Payslip Released" || status === "Posted") {
     return "bg-emerald-100 text-emerald-700";
+  }
+  if (status === "Finalized") {
+    return "bg-slate-100 text-slate-700";
   }
   if (status === "Approved") {
     return "bg-sky-100 text-sky-700";
