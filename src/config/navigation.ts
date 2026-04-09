@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertTriangle,
   ClipboardList,
   BarChart3,
   Bell,
@@ -31,6 +32,13 @@ export const navigationItems: NavigationItem[] = [
     description: "Operational overview and payroll cycle status.",
     icon: LayoutDashboard,
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
+  },
+  {
+    title: "Exceptions",
+    href: "/exceptions",
+    description: "Operational blockers and validation issues before payroll finalization.",
+    icon: AlertTriangle,
+    roles: ["admin", "admin-finance", "finance", "hr"],
   },
   {
     title: "Employees",

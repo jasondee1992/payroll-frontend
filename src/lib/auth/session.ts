@@ -40,6 +40,12 @@ const EMPLOYEE_LOAN_VIEW_ROLES = new Set<AppRole>([
   "hr",
 ]);
 const EMPLOYEE_LOAN_MANAGE_ROLES = new Set<AppRole>(["hr"]);
+const EXCEPTION_DASHBOARD_VIEW_ROLES = new Set<AppRole>([
+  "admin",
+  "admin-finance",
+  "finance",
+  "hr",
+]);
 const PAYROLL_VIEW_ROLES = new Set<AppRole>(["admin", "admin-finance", "finance"]);
 const PAYROLL_MANAGE_ROLES = new Set<AppRole>(["admin-finance"]);
 const PAYROLL_REVIEW_ROLES = new Set<AppRole>(["finance", "admin-finance"]);
@@ -72,6 +78,7 @@ const AUDIT_LOG_VIEW_ROLES = new Set<AppRole>([
 
 const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
+  "/exceptions",
   "/employees",
   "/attendance",
   "/notifications",
@@ -159,6 +166,10 @@ export function canManageEmployees(role: AppRole | null | undefined) {
 
 export function canViewEmployeeLoans(role: AppRole | null | undefined) {
   return role != null && EMPLOYEE_LOAN_VIEW_ROLES.has(role);
+}
+
+export function canViewExceptionDashboard(role: AppRole | null | undefined) {
+  return role != null && EXCEPTION_DASHBOARD_VIEW_ROLES.has(role);
 }
 
 export function canManageEmployeeLoans(role: AppRole | null | undefined) {

@@ -28,6 +28,7 @@ const SYSTEM_ADMIN_ALLOWED_PATHS = new Set<string>([
 ]);
 const HR_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
+  "/exceptions",
   "/employees",
   "/attendance",
   "/holidays",
@@ -37,6 +38,7 @@ const HR_ALLOWED_PATHS = new Set<string>([
 ]);
 const FINANCE_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
+  "/exceptions",
   "/attendance",
   "/holidays",
   "/leave-requests",
@@ -47,6 +49,7 @@ const FINANCE_ALLOWED_PATHS = new Set<string>([
 ]);
 const ADMIN_FINANCE_ALLOWED_PATHS = new Set<string>([
   "/dashboard",
+  "/exceptions",
   "/attendance",
   "/holidays",
   "/leave-requests",
