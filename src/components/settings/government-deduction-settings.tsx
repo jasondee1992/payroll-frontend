@@ -23,6 +23,7 @@ import {
   cloneGovernmentDeductionRuleSet,
   createGovernmentDeductionRuleSet,
   deleteGovernmentDeductionRuleSet,
+  getCurrentGovernmentDeductionRuleSet,
   getGovernmentDeductionRuleSetDetail,
   getGovernmentDeductionRuleSets,
   getGovernmentDeductionTypes,
@@ -121,6 +122,8 @@ export function GovernmentDeductionSettings() {
   const [ruleSets, setRuleSets] = useState<GovernmentDeductionRuleSetSummaryRecord[]>([]);
   const [selectedRuleSetId, setSelectedRuleSetId] = useState<number | null>(null);
   const [draft, setDraft] = useState<RuleSetDraft | null>(null);
+  const [currentRuleSet, setCurrentRuleSet] =
+    useState<GovernmentDeductionRuleSetDetailRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -134,6 +137,8 @@ export function GovernmentDeductionSettings() {
   });
   const [testResult, setTestResult] =
     useState<GovernmentDeductionTestCalculationRecord | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [effectiveOnFilter, setEffectiveOnFilter] = useState("");
   const selectedRuleSetIdRef = useRef<number | null>(null);
   const detailRequestIdRef = useRef(0);
   const { captureScrollPosition, restoreScrollPosition } = usePreservedScroll();
@@ -147,12 +152,17 @@ export function GovernmentDeductionSettings() {
     setError(null);
 
     try {
-      const [nextTypes, nextRuleSets] = await Promise.all([
+      const [nextTypes, nextRuleSets, nextCurrentRuleSet] = await Promise.all([
         getGovernmentDeductionTypes(),
-        getGovernmentDeductionRuleSets(),
+        getGovernmentDeductionRuleSets({
+          status: statusFilter === "all" ? null : statusFilter,
+          effectiveOn: effectiveOnFilter || null,
+        }),
+        getCurrentGovernmentDeductionRuleSet(effectiveOnFilter || null).catch(() => null),
       ]);
       setTypes(nextTypes);
       setRuleSets(nextRuleSets);
+      setCurrentRuleSet(nextCurrentRuleSet);
 
       const nextSelectedRuleSetId = preserveCurrentValue(
         nextRuleSets.map((item) => item.id),
@@ -175,7 +185,7 @@ export function GovernmentDeductionSettings() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [effectiveOnFilter, statusFilter]);
 
   useEffect(() => {
     void loadOverview();
@@ -339,7 +349,7 @@ export function GovernmentDeductionSettings() {
         setDraft(buildDraftFromDetail(detail, types));
         setMessage(
           previousActiveRuleSet
-            ? `${previousActiveRuleSet.name} was moved back to draft and ${detail.name} is now the active government deduction rule set.`
+            ? `${detail.name} is now published. ${previousActiveRuleSet.name} was preserved with an adjusted historical range where needed.`
             : `${detail.name} is now the active government deduction rule set.`,
         );
         await loadOverview(detail.id);
@@ -592,14 +602,18 @@ export function GovernmentDeductionSettings() {
           detail="Draft, active, and archived government deduction setups."
         />
         <MetricCard
-          label="Active sets"
+          label="Published versions"
           value={String(activeRuleSetCount)}
-          detail="Only one active effective range should cover a payroll cutoff."
+          detail="Published rule sets stay available for their effective ranges."
         />
         <MetricCard
-          label="Supported types"
-          value={String(types.length)}
-          detail="SSS, PhilHealth, Pag-IBIG, and Withholding Tax."
+          label="Current config"
+          value={currentRuleSet?.name ?? "None"}
+          detail={
+            currentRuleSet
+              ? `${formatDate(currentRuleSet.effective_from)} to ${currentRuleSet.effective_to ? formatDate(currentRuleSet.effective_to) : "Open-ended"}`
+              : "No active rule set covers the selected effective date."
+          }
         />
       </section>
       <SectionCard
@@ -733,6 +747,26 @@ export function GovernmentDeductionSettings() {
               </div>
 
               <div className={cn("space-y-3", isRuleSetListCollapsed && "xl:hidden")}>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <LabeledInput
+                    label="Effective on"
+                    value={effectiveOnFilter}
+                    type="date"
+                    onChange={setEffectiveOnFilter}
+                  />
+                  <LabeledSelect
+                    label="Status filter"
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    options={[
+                      { value: "all", label: "All statuses" },
+                      { value: "draft", label: "Draft" },
+                      { value: "active", label: "Published" },
+                      { value: "archived", label: "Archived" },
+                    ]}
+                  />
+                </div>
+
                 {ruleSets.length > 0 ? (
                   ruleSets.map((ruleSet) => {
                     const active = ruleSet.id === selectedRuleSetSummary?.id;
@@ -768,9 +802,14 @@ export function GovernmentDeductionSettings() {
                                 {ruleSet.effective_to ? formatDate(ruleSet.effective_to) : "Open-ended"}
                               </p>
                             </div>
-                            <span className={cn("ui-badge shrink-0 uppercase", statusTone(ruleSet.status, active))}>
-                              {pretty(ruleSet.status)}
-                            </span>
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              <span className={cn("ui-badge uppercase", statusTone(ruleSet.status, active))}>
+                                {pretty(ruleSet.status)}
+                              </span>
+                              <span className={cn("ui-badge uppercase", timelineTone(ruleSet.version_timeline_status, active))}>
+                                {pretty(ruleSet.version_timeline_status)}
+                              </span>
+                            </div>
                           </div>
                           <p className={cn("mt-3 text-xs", active ? "text-slate-300" : "text-slate-500")}>
                             {ruleSet.config_count} configs • {ruleSet.bracket_count} brackets
@@ -819,10 +858,10 @@ export function GovernmentDeductionSettings() {
                       </div>
                     );
                   })
-                ) : (
+                  ) : (
                   <ResourceEmptyState
-                    title="No government deduction rule sets yet"
-                    description="Create a draft rule set before calculating payroll with government deductions."
+                    title="No deduction rule sets match the current filters"
+                    description="Adjust the effective date or status filter, or create a new draft rule set."
                   />
                 )}
               </div>
@@ -942,10 +981,9 @@ export function GovernmentDeductionSettings() {
                       <p className="max-w-3xl">
                         This rule set overlaps with the active rule set{" "}
                         <span className="font-semibold">{overlappingActiveRuleSet.name}</span>.
-                        Clicking <span className="font-semibold">Activate</span> will move the
-                        active label to this rule set and return{" "}
-                        <span className="font-semibold">{overlappingActiveRuleSet.name}</span> to
-                        draft so it can be activated again later.
+                        Clicking <span className="font-semibold">Activate</span> will preserve
+                        historical coverage by trimming or archiving the overlapping published
+                        version when the date ranges allow it.
                       </p>
                     </div>
                   ) : null}
@@ -2115,6 +2153,22 @@ function statusTone(status: string, active: boolean) {
     return "bg-emerald-100 text-emerald-700";
   }
   if (status === "archived") {
+    return "bg-slate-200 text-slate-700";
+  }
+  return "bg-amber-100 text-amber-700";
+}
+
+function timelineTone(status: string, active: boolean) {
+  if (active) {
+    return "bg-white/10 text-white";
+  }
+  if (status === "current") {
+    return "bg-sky-100 text-sky-700";
+  }
+  if (status === "future") {
+    return "bg-violet-100 text-violet-700";
+  }
+  if (status === "historical") {
     return "bg-slate-200 text-slate-700";
   }
   return "bg-amber-100 text-amber-700";

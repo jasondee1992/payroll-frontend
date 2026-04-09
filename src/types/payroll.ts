@@ -335,6 +335,8 @@ export interface GovernmentDeductionRuleSetSummaryRecord {
   effective_from: string;
   effective_to?: string | null;
   status: string;
+  is_current_version: boolean;
+  version_timeline_status: string;
   notes?: string | null;
   created_by_user_id?: number | null;
   approved_by_user_id?: number | null;
@@ -559,4 +561,3 @@ export interface PayrollReportingSnapshotRecord {
   employer_contribution_summary: PayrollReportEmployerContributionSummaryRecord;
   monthly_trends: PayrollReportTrendPointRecord[];
 }
-

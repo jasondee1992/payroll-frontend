@@ -1385,6 +1385,14 @@ export function parseGovernmentDeductionRuleSetSummaryRecord(
       "governmentDeductionRuleSetSummary.effective_to",
     ),
     status: parseString(record.status, "governmentDeductionRuleSetSummary.status"),
+    is_current_version: parseBoolean(
+      record.is_current_version,
+      "governmentDeductionRuleSetSummary.is_current_version",
+    ),
+    version_timeline_status: parseString(
+      record.version_timeline_status,
+      "governmentDeductionRuleSetSummary.version_timeline_status",
+    ),
     notes: parseOptionalString(record.notes, "governmentDeductionRuleSetSummary.notes"),
     created_by_user_id: parseOptionalNumber(
       record.created_by_user_id,
@@ -2201,10 +2209,35 @@ export async function getGovernmentDeductionTypes() {
   );
 }
 
-export async function getGovernmentDeductionRuleSets() {
+export async function getGovernmentDeductionRuleSets(filters?: {
+  status?: string | null;
+  effectiveOn?: string | null;
+}) {
+  const searchParams = new URLSearchParams();
+  if (filters?.status) {
+    searchParams.set("status", filters.status);
+  }
+  if (filters?.effectiveOn) {
+    searchParams.set("effective_on", filters.effectiveOn);
+  }
+
   return requestPayrollCollection(
-    "/settings/deduction-rule-sets",
+    `/settings/deduction-rule-sets${searchParams.toString() ? `?${searchParams.toString()}` : ""}`,
     parseGovernmentDeductionRuleSetSummaryRecord,
+  );
+}
+
+export async function getCurrentGovernmentDeductionRuleSet(effectiveOn?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (effectiveOn) {
+    searchParams.set("effective_on", effectiveOn);
+  }
+
+  return requestPayrollProxy(
+    `/settings/deduction-rule-sets/current${searchParams.toString() ? `?${searchParams.toString()}` : ""}`,
+    {
+      parser: parseGovernmentDeductionRuleSetDetailRecord,
+    },
   );
 }
 
