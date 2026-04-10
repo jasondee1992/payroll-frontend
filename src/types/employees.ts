@@ -5,9 +5,10 @@ export type EmploymentType =
   | "Probationary";
 
 export type EmployeeStatus = "Active" | "On Leave" | "Pending" | "Inactive";
-export type PayrollSchedule = "Monthly" | "Bi-weekly" | "Weekly";
+export type PayFrequency = "Monthly" | "Semi-monthly" | "Bi-weekly" | "Weekly";
+export type PayrollSchedule = PayFrequency;
 export type TaxStatus = "Single" | "Married" | "Head of Family";
-export type RateType = "Monthly" | "Daily" | "Hourly" | "Bi-weekly";
+export type RateType = "Monthly" | "Daily" | "Hourly";
 
 export interface EmployeeGovernmentInfo {
   tin: string;
@@ -21,6 +22,7 @@ export interface EmployeeGovernmentInfo {
 export interface EmployeeSalaryProfile {
   basicSalary: string;
   rateType: RateType;
+  payFrequency: PayFrequency;
   allowance?: string;
   totalAllowance?: string;
   allowanceItems?: EmployeeSalaryProfileAllowance[];

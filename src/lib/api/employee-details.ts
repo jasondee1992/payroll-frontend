@@ -14,6 +14,7 @@ import {
   normalizeEmploymentType,
   normalizePayrollSchedule,
 } from "@/lib/api/employees";
+import { buildPayFrequencyPreview } from "@/lib/pay-frequency";
 import {
   getEmployeeEffectivePayrollRules,
   getPayrollPeriodRecordsResource,
@@ -46,6 +47,12 @@ export type EmployeeProfileData = {
   salaryProfileSummary: Array<{ label: string; value: string }>;
   salaryAllowanceItems: Array<{ label: string; value: string }>;
   salaryAllowanceTotal: string;
+  salaryCompensationTotal: string;
+  payFrequency: string;
+  salaryPerPayrollAmount: string;
+  allowancePerPayrollAmount: string;
+  recurringPerPayrollAmount: string;
+  payFrequencyHelperText: string;
   payrollPolicySummary: Array<{ label: string; value: string }>;
   payrollRuleSummary: Array<{ label: string; value: string }>;
   payrollRulesErrorMessage: string | null;
@@ -178,12 +185,33 @@ export async function getEmployeeProfileResource(
   const salaryProfile = salaryProfileRecord
     ? mapEmployeeSalaryProfile(salaryProfileRecord)
     : null;
+  const salaryCompensationTotal = salaryProfile
+    ? formatCurrency(
+        Number(salaryProfile.basicSalary) + Number(salaryProfile.totalAllowance),
+      )
+    : "Not available";
+  const salaryPerPayrollPreview = buildPayFrequencyPreview(
+    salaryProfile?.basicSalary ?? 0,
+    salaryProfile?.payFrequency ?? "Monthly",
+  );
+  const allowancePerPayrollPreview = buildPayFrequencyPreview(
+    salaryProfile?.totalAllowance ?? 0,
+    salaryProfile?.payFrequency ?? "Monthly",
+  );
+  const recurringPerPayrollAmount = salaryProfile
+    ? formatCurrency(
+        Number(salaryPerPayrollPreview.perPayrollAmount.replace(/[^\d.-]/g, ""))
+        + Number(allowancePerPayrollPreview.perPayrollAmount.replace(/[^\d.-]/g, "")),
+      )
+    : "Not available";
   const salaryProfileSummary = salaryProfile
     ? [
         {
           label: "Basic Salary",
           value: formatCurrency(salaryProfile.basicSalary),
         },
+        { label: "Salary Pay Frequency", value: salaryProfile.payFrequency },
+        { label: "Base Salary Per Payroll Run", value: salaryPerPayrollPreview.perPayrollAmount },
         { label: "Rate Type", value: salaryProfile.rateType },
         {
           label: "Effective Date",
@@ -197,6 +225,8 @@ export async function getEmployeeProfileResource(
           label: "Basic Salary",
           value: "Not available",
         },
+        { label: "Salary Pay Frequency", value: "Not available" },
+        { label: "Base Salary Per Payroll Run", value: "Not available" },
         { label: "Rate Type", value: "Not available" },
         {
           label: "Effective Date",
@@ -343,6 +373,12 @@ export async function getEmployeeProfileResource(
       salaryProfileSummary,
       salaryAllowanceItems,
       salaryAllowanceTotal,
+      salaryCompensationTotal,
+      payFrequency: salaryProfile?.payFrequency ?? "Not available",
+      salaryPerPayrollAmount: salaryProfile ? salaryPerPayrollPreview.perPayrollAmount : "Not available",
+      allowancePerPayrollAmount: salaryProfile ? allowancePerPayrollPreview.perPayrollAmount : "Not available",
+      recurringPerPayrollAmount,
+      payFrequencyHelperText: salaryProfile ? salaryPerPayrollPreview.helperText : "Pay frequency is not available.",
       payrollPolicySummary,
       payrollRuleSummary,
       payrollRulesErrorMessage: payrollRulesResult.errorMessage,

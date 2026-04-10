@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 const filterOptions = {
   departments: ["All Departments", "Finance", "Human Resources", "Operations"],
   statuses: ["All Statuses", "Active", "On Leave", "Pending", "Inactive"],
-  payrollSchedules: ["All Schedules", "Monthly", "Bi-weekly", "Weekly"],
+  payrollSchedules: ["All Schedules", "Monthly", "Semi-monthly", "Bi-weekly", "Weekly"],
 };
 
 export function EmployeeListToolbar() {

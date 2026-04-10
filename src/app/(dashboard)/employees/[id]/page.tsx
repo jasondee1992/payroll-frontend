@@ -109,13 +109,27 @@ export default async function EmployeeDetailPage({
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                    Allowance subtotal
-                  </p>
-                  <p className="mt-1 text-lg font-semibold">
-                    {employee.salaryAllowanceTotal}
-                  </p>
+                <div className="grid gap-3 sm:min-w-[18rem]">
+                  <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      Monthly Recurring Compensation
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {employee.salaryCompensationTotal}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      Monthly basic salary plus recurring allowances
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      Recurring Allowances Monthly
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-slate-900">
+                      {employee.salaryAllowanceTotal}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -139,6 +153,32 @@ export default async function EmployeeDetailPage({
                   No allowance amounts are currently assigned to this employee.
                 </div>
               )}
+
+              <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4">
+                  <DetailItem
+                    label="Salary Pay Frequency"
+                    value={employee.payFrequency}
+                    helperText={employee.payFrequencyHelperText}
+                    valueClassName="font-medium text-slate-900"
+                  />
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4">
+                  <DetailItem
+                    label="Base Salary Per Payroll Run"
+                    value={employee.salaryPerPayrollAmount}
+                    valueClassName="font-medium text-slate-900"
+                  />
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4">
+                  <DetailItem
+                    label="Recurring Compensation Per Payroll Run"
+                    value={employee.recurringPerPayrollAmount}
+                    helperText={`Base ${employee.salaryPerPayrollAmount} + allowances ${employee.allowancePerPayrollAmount}`}
+                    valueClassName="font-medium text-slate-900"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </EmployeeDetailSection>

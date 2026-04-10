@@ -12,6 +12,10 @@ import {
 } from "@/lib/api/employees";
 import { updateUserAccount } from "@/lib/api/users";
 import { formatCurrency } from "@/lib/format";
+import {
+  buildPayFrequencyPreview,
+  PAY_FREQUENCY_LABELS,
+} from "@/lib/pay-frequency";
 import { cn } from "@/lib/utils";
 import {
   EmployeeInputField,
@@ -50,9 +54,12 @@ const employmentStatusOptions = [
 
 const payrollScheduleOptions = [
   "Select payroll schedule",
-  "Monthly",
-  "Bi-weekly",
-  "Weekly",
+  ...PAY_FREQUENCY_LABELS,
+];
+
+const payFrequencyOptions = [
+  "Select pay frequency",
+  ...PAY_FREQUENCY_LABELS,
 ];
 
 const workArrangementTypeOptions = [
@@ -223,6 +230,7 @@ const defaultEmployeeData: EditableEmployeeData = {
   pagIbigNumber: "",
   taxStatus: "Select tax status",
   basicSalary: "",
+  payFrequency: "Select pay frequency",
   rateType: "Select rate type",
   allowances: [],
   accountAccess: {
@@ -303,6 +311,7 @@ export function EmployeeForm({
     formatPagIbigNumberValue(formDataDefaults.pagIbigNumber),
   );
   const [basicSalary, setBasicSalary] = useState(formDataDefaults.basicSalary);
+  const [payFrequency, setPayFrequency] = useState(formDataDefaults.payFrequency);
   const [linkedAccountRole, setLinkedAccountRole] = useState(
     formDataDefaults.accountAccess.role || "Select account role",
   );
@@ -369,6 +378,20 @@ export function EmployeeForm({
     return total + parseCurrencyInput(allowanceValues[allowance]);
   }, 0);
   const salarySubtotal = basicSalaryAmount + allowanceSubtotal;
+  const salaryFrequencyPreview = buildPayFrequencyPreview(
+    basicSalaryAmount,
+    payFrequency,
+  );
+  const allowanceFrequencyPreview = buildPayFrequencyPreview(
+    allowanceSubtotal,
+    payFrequency,
+  );
+  const recurringCompensationPreview = formatCurrency(
+    Number(
+      parseCurrencyInput(salaryFrequencyPreview.perPayrollAmount)
+      + parseCurrencyInput(allowanceFrequencyPreview.perPayrollAmount),
+    ),
+  );
 
   function openAllowanceModal() {
     setDraftAllowances(dedupeAllowanceNames(selectedAllowances));
@@ -457,8 +480,9 @@ export function EmployeeForm({
     const department = getRequiredFormValue(formData, "department");
     const employmentType = getRequiredFormValue(formData, "employment-type");
     const payrollSchedule = getRequiredFormValue(formData, "payroll-schedule");
-    const taxStatus = getRequiredFormValue(formData, "tax-status");
-    const rateType = getRequiredFormValue(formData, "rate-type");
+      const taxStatus = getRequiredFormValue(formData, "tax-status");
+      const payFrequencyValue = getRequiredFormValue(formData, "pay-frequency");
+      const rateType = getRequiredFormValue(formData, "rate-type");
     const missingSelectFields = [
       { id: "department", label: "Department", value: department },
       {
@@ -487,6 +511,7 @@ export function EmployeeForm({
         value: payrollPolicyId,
       },
       { id: "tax-status", label: "Tax Status", value: taxStatus },
+      { id: "pay-frequency", label: "Salary Pay Frequency", value: payFrequencyValue },
       { id: "rate-type", label: "Rate Type", value: rateType },
     ].filter((field) => isPlaceholderSelection(field.value));
 
@@ -567,7 +592,7 @@ export function EmployeeForm({
       const salaryProfileFields = {
         basic_salary: basicSalaryAmount,
         rate_type: rateType,
-        pay_frequency: payrollSchedule,
+        pay_frequency: payFrequencyValue,
       };
 
       if (isEditMode) {
@@ -638,9 +663,10 @@ export function EmployeeForm({
         setContactNumber("");
         setTin("");
         setSssNumber("");
-        setPhilHealthNumber("");
-        setPagIbigNumber("");
+      setPhilHealthNumber("");
+      setPagIbigNumber("");
       setBasicSalary("");
+      setPayFrequency("Select pay frequency");
       setAllowanceValues({});
       setReportingManagerId("");
       setWorkArrangementType("Select work arrangement type");
@@ -963,6 +989,7 @@ export function EmployeeForm({
                   selectValidationErrors,
                   "payroll-schedule",
                 )}
+                helperText="Operational payroll schedule label only. Salary computation uses Salary Pay Frequency in the compensation section."
                 required
               />
             </div>
@@ -1082,7 +1109,7 @@ export function EmployeeForm({
 
           <EmployeeFormSection
             title="Salary Information"
-            description="Set the employee's compensation base and recurring allowance values for payroll preparation."
+            description="Set the monthly compensation basis and the salary pay frequency used when payroll derives each pay-period amount."
           >
             <div className="space-y-5">
               <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1116,6 +1143,22 @@ export function EmployeeForm({
                   prefix="PHP"
                   value={basicSalary}
                   onChange={(event) => setBasicSalary(event.target.value)}
+                  helperText="Enter the monthly salary basis. Payroll derives each run amount from Salary Pay Frequency."
+                  required
+                />
+                <EmployeeSelectField
+                  id="pay-frequency"
+                  label="Salary Pay Frequency"
+                  options={payFrequencyOptions}
+                  defaultValue={formDataDefaults.payFrequency || "Select pay frequency"}
+                  value={payFrequency}
+                  onChange={(event) => {
+                    setPayFrequency(event.target.value);
+                    clearSelectValidationError("pay-frequency");
+                  }}
+                  invalid={hasSelectValidationError(selectValidationErrors, "pay-frequency")}
+                  errorText={getSelectValidationMessage(selectValidationErrors, "pay-frequency")}
+                  helperText="This is the payroll computation driver. It follows the same pay-frequency pattern used in Settings > Test Calculation."
                   required
                 />
                 <EmployeeSelectField
@@ -1158,14 +1201,14 @@ export function EmployeeForm({
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
-                      Salary subtotal
+                      Monthly Compensation Subtotal
                     </p>
                     <p className="mt-2 text-3xl font-semibold tracking-tight">
                       {formatCurrency(salarySubtotal)}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Live preview of the recurring salary amounts currently
-                      entered before the employee record is saved.
+                      Monthly recurring compensation entered on this form before
+                      payroll derives the current pay-period amount.
                     </p>
                   </div>
 
@@ -1186,6 +1229,43 @@ export function EmployeeForm({
                         {formatCurrency(allowanceSubtotal)}
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                  <div className="rounded-2xl bg-white/8 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      Salary Pay Frequency
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-white">
+                      {salaryFrequencyPreview.payFrequency}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      {salaryFrequencyPreview.helperText}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white/8 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      Base Salary Per Payroll Run
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-white">
+                      {salaryFrequencyPreview.perPayrollAmount}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      Formula: {salaryFrequencyPreview.formulaLabel}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white/8 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      Recurring Compensation Per Payroll Run
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-white">
+                      {recurringCompensationPreview}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      Base {salaryFrequencyPreview.perPayrollAmount} + allowances{" "}
+                      {allowanceFrequencyPreview.perPayrollAmount}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1867,6 +1947,12 @@ function buildEditChangeSummary(
     "Basic Salary",
     formatCurrency(parseCurrencyInput(initialData.basicSalary)),
     formatCurrency(payload.salary_profile.basic_salary),
+  );
+  pushFieldChange(
+    changes,
+    "Salary Pay Frequency",
+    initialData.payFrequency,
+    payload.salary_profile.pay_frequency,
   );
   pushFieldChange(
     changes,

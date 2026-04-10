@@ -21,12 +21,14 @@ const EMPLOYEE_ALLOWED_PATHS = new Set<string>([
   "/payslips",
 ]);
 const SYSTEM_ADMIN_ALLOWED_PATHS = new Set<string>([
+  "/audit-logs",
   "/employees",
   "/holidays",
   "/notifications",
   "/settings",
 ]);
 const HR_ALLOWED_PATHS = new Set<string>([
+  "/audit-logs",
   "/dashboard",
   "/exceptions",
   "/employees",
@@ -37,6 +39,7 @@ const HR_ALLOWED_PATHS = new Set<string>([
   "/settings",
 ]);
 const FINANCE_ALLOWED_PATHS = new Set<string>([
+  "/audit-logs",
   "/dashboard",
   "/exceptions",
   "/attendance",
@@ -48,6 +51,7 @@ const FINANCE_ALLOWED_PATHS = new Set<string>([
   "/reports",
 ]);
 const ADMIN_FINANCE_ALLOWED_PATHS = new Set<string>([
+  "/audit-logs",
   "/dashboard",
   "/exceptions",
   "/attendance",

@@ -14,12 +14,14 @@ import {
   parseRecord,
   parseString,
 } from "@/lib/api/parsers";
+import { normalizePayFrequency } from "@/lib/pay-frequency";
 import type {
   EmployeeApiRecord,
   EmployeeGovernmentInfoApiRecord,
   EmployeeListResponse,
   EmployeeListItem,
   EmployeeManagerOption,
+  RateType,
   EmployeeSalaryProfileAllowanceApiRecord,
   EmployeeSalaryProfileApiRecord,
   EmployeeStatus,
@@ -60,7 +62,7 @@ export function buildEmployeeFullName(employee: EmployeeApiRecord) {
 
 export function normalizeRateType(
   value: string,
-): "Monthly" | "Daily" | "Hourly" | "Bi-weekly" {
+): RateType {
   const normalizedValue = value.trim().toLowerCase();
 
   if (normalizedValue === "daily") {
@@ -69,15 +71,6 @@ export function normalizeRateType(
 
   if (normalizedValue === "hourly") {
     return "Hourly";
-  }
-
-  if (
-    normalizedValue === "bi-weekly" ||
-    normalizedValue === "bi weekly" ||
-    normalizedValue === "semi-monthly" ||
-    normalizedValue === "semi monthly"
-  ) {
-    return "Bi-weekly";
   }
 
   return "Monthly";
@@ -297,22 +290,7 @@ export function normalizeEmploymentType(
 export function normalizePayrollSchedule(
   value: string,
 ): EmployeeListItem["payrollSchedule"] {
-  const normalizedValue = value.trim().toLowerCase();
-
-  if (
-    normalizedValue === "bi-weekly" ||
-    normalizedValue === "bi weekly" ||
-    normalizedValue === "semi-monthly" ||
-    normalizedValue === "semi monthly"
-  ) {
-    return "Bi-weekly";
-  }
-
-  if (normalizedValue === "weekly") {
-    return "Weekly";
-  }
-
-  return "Monthly";
+  return normalizePayFrequency(value);
 }
 
 export function mapEmployeeListItem(
@@ -387,6 +365,7 @@ export function mapEmployeeSalaryProfile(record: EmployeeSalaryProfileApiRecord)
   return {
     basicSalary: record.basic_salary,
     rateType: normalizeRateType(record.rate_type),
+    payFrequency: normalizePayFrequency(record.pay_frequency),
     allowance: record.allowance,
     totalAllowance: record.total_allowance,
     allowanceItems: record.allowances

@@ -51,6 +51,11 @@ import {
 } from "@/components/shared/resource-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { cn } from "@/lib/utils";
+import {
+  buildPayFrequencyPreview,
+  computePayFrequencyGrossPay,
+  PAY_FREQUENCY_OPTIONS,
+} from "@/lib/pay-frequency";
 
 type ConfigDraft = {
   deduction_type_code: string;
@@ -110,13 +115,6 @@ type TestInputs = {
 };
 
 const CONFIG_SEED_ORDER = ["SSS", "PHILHEALTH", "PAGIBIG", "WITHHOLDING_TAX"];
-const PAY_FREQUENCY_OPTIONS = [
-  { value: "monthly", label: "Monthly" },
-  { value: "semi_monthly", label: "Semi-monthly" },
-  { value: "bi_weekly", label: "Bi-weekly" },
-  { value: "weekly", label: "Weekly" },
-] as const;
-
 export function GovernmentDeductionSettings() {
   const [types, setTypes] = useState<GovernmentDeductionTypeRecord[]>([]);
   const [ruleSets, setRuleSets] = useState<GovernmentDeductionRuleSetSummaryRecord[]>([]);
@@ -245,7 +243,7 @@ export function GovernmentDeductionSettings() {
   }, [types]);
 
   const grossPayAutoComputed = useMemo(
-    () => computePreviewGrossPay(testInputs.monthly_salary, testInputs.pay_frequency),
+    () => computePayFrequencyGrossPay(testInputs.monthly_salary, testInputs.pay_frequency),
     [testInputs.monthly_salary, testInputs.pay_frequency],
   );
   const previewEmployerShareTotal = useMemo(
@@ -268,7 +266,7 @@ export function GovernmentDeductionSettings() {
       const nextState = { ...current, ...nextValue };
 
       if ("monthly_salary" in nextValue || "pay_frequency" in nextValue) {
-        nextState.gross_pay = computePreviewGrossPay(
+        nextState.gross_pay = computePayFrequencyGrossPay(
           nextState.monthly_salary,
           nextState.pay_frequency,
         );
@@ -1328,24 +1326,6 @@ function validateTestCalculationInputs(
   return null;
 }
 
-function computePreviewGrossPay(monthlySalaryValue: string, payFrequency: string) {
-  const monthlySalary = Number(monthlySalaryValue);
-  if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) {
-    return "";
-  }
-
-  let grossPay = monthlySalary;
-  if (payFrequency === "semi_monthly") {
-    grossPay = monthlySalary / 2;
-  } else if (payFrequency === "bi_weekly") {
-    grossPay = (monthlySalary * 12) / 26;
-  } else if (payFrequency === "weekly") {
-    grossPay = (monthlySalary * 12) / 52;
-  }
-
-  return grossPay.toFixed(2);
-}
-
 function sanitizeCurrencyInput(value: string) {
   const digitsOnly = value.replace(/[^\d.]/g, "");
   const [integerPart = "", ...fractionParts] = digitsOnly.split(".");
@@ -1439,33 +1419,16 @@ function getPayFrequencyExplanation(
   monthlySalaryValue: string,
   grossPayValue: string,
 ) {
-  const formattedGrossPay = formatOptionalCurrency(grossPayValue);
+  const preview = buildPayFrequencyPreview(monthlySalaryValue, payFrequency);
+  const formattedGrossPay = grossPayValue
+    ? formatOptionalCurrency(grossPayValue)
+    : preview.perPayrollAmount;
 
-  if (payFrequency === "monthly") {
-    return monthlySalaryValue.trim()
-      ? `Gross Pay = Monthly Salary. Current preview uses ${formattedGrossPay}.`
-      : "Gross Pay = Monthly Salary for monthly payroll.";
+  if (monthlySalaryValue.trim()) {
+    return `Gross Pay = ${preview.formulaLabel}. Current preview uses ${formattedGrossPay}.`;
   }
 
-  if (payFrequency === "semi_monthly") {
-    return monthlySalaryValue.trim()
-      ? `Gross Pay = Monthly Salary / 2. Current preview uses ${formattedGrossPay}.`
-      : "Gross Pay = Monthly Salary / 2 for semi-monthly payroll.";
-  }
-
-  if (payFrequency === "bi_weekly") {
-    return monthlySalaryValue.trim()
-      ? `Gross Pay = (Monthly Salary x 12) / 26. Current preview uses ${formattedGrossPay}.`
-      : "Gross Pay = (Monthly Salary x 12) / 26 for bi-weekly payroll.";
-  }
-
-  if (payFrequency === "weekly") {
-    return monthlySalaryValue.trim()
-      ? `Gross Pay = (Monthly Salary x 12) / 52. Current preview uses ${formattedGrossPay}.`
-      : "Gross Pay = (Monthly Salary x 12) / 52 for weekly payroll.";
-  }
-
-  return "Gross Pay changes based on the selected pay frequency.";
+  return `Gross Pay = ${preview.formulaLabel} for ${preview.payFrequency.toLowerCase()} payroll.`;
 }
 
 function summarizePreviewBasis(items: GovernmentDeductionTestCalculationRecord["items"]) {

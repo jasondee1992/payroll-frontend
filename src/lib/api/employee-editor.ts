@@ -41,6 +41,7 @@ export type EditableEmployeeData = {
   pagIbigNumber: string;
   taxStatus: string;
   basicSalary: string;
+  payFrequency: string;
   rateType: string;
   allowances: Array<{
     allowanceName: string;
@@ -152,6 +153,7 @@ export async function getEditableEmployeeResource(
       pagIbigNumber: governmentInfo?.pagIbigNumber ?? "",
       taxStatus: governmentInfo?.taxStatus ?? "Select tax status",
       basicSalary: salaryProfile?.basicSalary ?? "",
+      payFrequency: salaryProfile?.payFrequency ?? normalizePayrollSchedule(employee.payroll_schedule),
       rateType: salaryProfile?.rateType ?? "Select rate type",
       allowances:
         salaryProfile?.allowanceItems
