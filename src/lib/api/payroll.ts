@@ -28,6 +28,7 @@ import type {
   ManualPayrollAdjustmentRecord,
   PayslipRecord,
   PayrollAdjustmentRecord,
+  PayrollAttendanceLineItemRecord,
   PayrollBatchDetailRecord,
   PayrollReconciliationComparisonRecord,
   PayrollReconciliationRecord,
@@ -277,6 +278,76 @@ export function parsePayrollDeductionBreakdownRecord(
   };
 }
 
+export function parsePayrollAttendanceLineItemRecord(
+  value: unknown,
+): PayrollAttendanceLineItemRecord {
+  const record = parseRecord(value, "payroll attendance line item");
+
+  return {
+    category: parseString(record.category, "payrollAttendanceLineItem.category"),
+    attendance_record_id: parseOptionalNumber(
+      record.attendance_record_id,
+      "payrollAttendanceLineItem.attendance_record_id",
+    ),
+    attendance_date: parseString(
+      record.attendance_date,
+      "payrollAttendanceLineItem.attendance_date",
+    ),
+    time_in: parseOptionalString(record.time_in, "payrollAttendanceLineItem.time_in"),
+    time_out: parseOptionalString(record.time_out, "payrollAttendanceLineItem.time_out"),
+    time_out_day_offset: parseNumber(
+      record.time_out_day_offset ?? 0,
+      "payrollAttendanceLineItem.time_out_day_offset",
+    ),
+    shift_start: parseOptionalString(
+      record.shift_start,
+      "payrollAttendanceLineItem.shift_start",
+    ),
+    shift_end: parseOptionalString(
+      record.shift_end,
+      "payrollAttendanceLineItem.shift_end",
+    ),
+    late_minutes: parseNumber(
+      record.late_minutes ?? 0,
+      "payrollAttendanceLineItem.late_minutes",
+    ),
+    undertime_minutes: parseNumber(
+      record.undertime_minutes ?? 0,
+      "payrollAttendanceLineItem.undertime_minutes",
+    ),
+    overtime_minutes: parseNumber(
+      record.overtime_minutes ?? 0,
+      "payrollAttendanceLineItem.overtime_minutes",
+    ),
+    night_differential_minutes: parseNumber(
+      record.night_differential_minutes ?? 0,
+      "payrollAttendanceLineItem.night_differential_minutes",
+    ),
+    rendered_minutes: parseNumber(
+      record.rendered_minutes ?? 0,
+      "payrollAttendanceLineItem.rendered_minutes",
+    ),
+    payroll_minutes: parseNumber(
+      record.payroll_minutes ?? 0,
+      "payrollAttendanceLineItem.payroll_minutes",
+    ),
+    amount: parseNumericString(record.amount, "payrollAttendanceLineItem.amount"),
+    day_type: parseString(record.day_type, "payrollAttendanceLineItem.day_type"),
+    is_rest_day: parseBoolean(
+      record.is_rest_day,
+      "payrollAttendanceLineItem.is_rest_day",
+    ),
+    approval_basis: parseOptionalString(
+      record.approval_basis,
+      "payrollAttendanceLineItem.approval_basis",
+    ),
+    source_reference: parseOptionalString(
+      record.source_reference,
+      "payrollAttendanceLineItem.source_reference",
+    ),
+  };
+}
+
 export function parsePayrollRecordRecord(value: unknown): PayrollRecordRecord {
   const record = parseRecord(value, "payroll record");
 
@@ -435,6 +506,11 @@ export function parsePayrollRecordRecord(value: unknown): PayrollRecordRecord {
     deduction_snapshot_json: parseOptionalString(
       record.deduction_snapshot_json,
       "payrollRecord.deduction_snapshot_json",
+    ),
+    attendance_line_items: parseCollection(
+      record.attendance_line_items ?? [],
+      (item) => parsePayrollAttendanceLineItemRecord(item),
+      "payroll attendance line items",
     ),
     adjustments: parseCollection(
       record.adjustments ?? [],

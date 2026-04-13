@@ -167,6 +167,28 @@ export interface PayrollDeductionBreakdownRecord {
   updated_at: string;
 }
 
+export interface PayrollAttendanceLineItemRecord {
+  category: string;
+  attendance_record_id?: number | null;
+  attendance_date: string;
+  time_in?: string | null;
+  time_out?: string | null;
+  time_out_day_offset: number;
+  shift_start?: string | null;
+  shift_end?: string | null;
+  late_minutes: number;
+  undertime_minutes: number;
+  overtime_minutes: number;
+  night_differential_minutes: number;
+  rendered_minutes: number;
+  payroll_minutes: number;
+  amount: string;
+  day_type: string;
+  is_rest_day: boolean;
+  approval_basis?: string | null;
+  source_reference?: string | null;
+}
+
 export interface PayrollRecordRecord {
   id: number;
   payroll_batch_id: number;
@@ -215,6 +237,7 @@ export interface PayrollRecordRecord {
   no_employee_response: boolean;
   review_remarks?: string | null;
   deduction_snapshot_json?: string | null;
+  attendance_line_items: PayrollAttendanceLineItemRecord[];
   adjustments: PayrollAdjustmentRecord[];
   deduction_breakdowns: PayrollDeductionBreakdownRecord[];
   created_at: string;

@@ -1244,7 +1244,7 @@ function TeamAttendancePanel(props: {
                   <option key={record.id} value={record.id}>
                       {formatDate(record.attendance_date)} • {getAttendanceCalendarSummary(record)} •{" "}
                       {record.status} • {formatTime(record.time_in ?? undefined)} /{" "}
-                      {formatTime(record.time_out ?? undefined)}
+                      {formatAttendanceTimeOut(record)}
                     </option>
                   ))}
                 </select>
@@ -1549,7 +1549,7 @@ function AttendanceReviewPanel(props: {
                         <AttendanceCalendarBadges record={record} />
                       </td>
                       <td className="px-4 py-4">{formatTime(record.time_in ?? undefined)}</td>
-                      <td className="px-4 py-4">{formatTime(record.time_out ?? undefined)}</td>
+                      <td className="px-4 py-4">{formatAttendanceTimeOut(record)}</td>
                       <td className="px-4 py-4">{record.late_minutes}</td>
                       <td className="px-4 py-4">{record.undertime_minutes}</td>
                       <td className="px-4 py-4">{record.overtime_minutes}</td>
@@ -2036,6 +2036,15 @@ function formatRequestTypeLabel(value: string) {
     .split("-")
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" ");
+}
+
+function formatAttendanceTimeOut(record: AttendanceRecord) {
+  const formattedTime = formatTime(record.time_out ?? undefined);
+  if (record.time_out_day_offset <= 0) {
+    return formattedTime;
+  }
+
+  return `${formattedTime} (+${record.time_out_day_offset} day)`;
 }
 
 function formatRequestTimelineValue(

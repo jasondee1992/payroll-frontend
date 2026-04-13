@@ -59,6 +59,7 @@ import { ManualAdjustmentsPanel } from "@/components/payroll/manual-adjustments-
 import type {
   EmployeePayrollCutoffPreviewRecord,
   EmployeePayrollCutoffStatusRecord,
+  PayrollAttendanceLineItemRecord,
   PayrollBatchDetailRecord,
   PayrollBatchSummaryRecord,
   PayrollCutoffPreviewRecord,
@@ -70,9 +71,21 @@ type Props = {
 };
 
 type BreakdownRow = {
+  id: string;
   label: string;
   amount: string;
   note: string;
+  details?: BreakdownRowDetail[];
+};
+
+type BreakdownRowDetail = {
+  id: string;
+  title: string;
+  amount: string;
+  fields: {
+    label: string;
+    value: string;
+  }[];
 };
 
 type BreakdownSection = {
@@ -1311,6 +1324,7 @@ function ExpandedPayrollRecord({
   const loanRows = deductionBreakdowns
     .filter((item) => isEmployeeLoanBreakdown(item.snapshot))
     .map((item) => ({
+      id: `loan-${item.id}`,
       label: item.deduction_name,
       amount: item.employee_share,
       note:
@@ -1324,6 +1338,7 @@ function ExpandedPayrollRecord({
       (item) => item.category === "earning" && item.adjustment_type.startsWith("manual_"),
     )
     .map((item) => ({
+      id: `manual-addition-${item.id}`,
       label: pretty(item.adjustment_type),
       amount: item.amount,
       note: item.description,
@@ -1333,6 +1348,7 @@ function ExpandedPayrollRecord({
       (item) => item.category === "deduction" && item.adjustment_type.startsWith("manual_"),
     )
     .map((item) => ({
+      id: `manual-deduction-${item.id}`,
       label: pretty(item.adjustment_type),
       amount: item.amount,
       note: item.description,
@@ -1352,46 +1368,74 @@ function ExpandedPayrollRecord({
         && !item.adjustment_type.startsWith("manual_"),
     )
     .map((item) => ({
+      id: `allowance-${item.id}`,
       label: item.adjustment_type === "other_earnings" ? "Allowance pool" : pretty(item.adjustment_type),
       amount: item.amount,
       note: item.description,
     }));
+  const lateLineItems = record.attendance_line_items.filter(
+    (item) => item.category === "late_deduction",
+  );
+  const absenceLineItems = record.attendance_line_items.filter(
+    (item) => item.category === "absence_deduction",
+  );
+  const undertimeLineItems = record.attendance_line_items.filter(
+    (item) => item.category === "undertime_deduction",
+  );
+  const overtimeLineItems = record.attendance_line_items.filter(
+    (item) => item.category === "overtime_pay",
+  );
+  const nightDifferentialLineItems = record.attendance_line_items.filter(
+    (item) => item.category === "night_differential_pay",
+  );
   const earningRows = [
     {
+      id: "earning-basic-pay",
       label: "Basic pay",
       amount: record.basic_pay,
       note: "Base pay for the selected cutoff period.",
     },
-    {
+    buildAttendanceBreakdownRow({
+      id: "earning-overtime-pay",
       label: "Overtime pay",
       amount: record.overtime_pay,
       note: `${record.total_overtime_minutes} approved overtime minutes were included.`,
-    },
-    {
+      lineItems: overtimeLineItems,
+    }),
+    buildAttendanceBreakdownRow({
+      id: "earning-night-differential",
       label: "Night differential",
       amount: record.night_differential_pay,
       note: `${record.total_night_differential_minutes} night differential minutes were included.`,
-    },
+      lineItems: nightDifferentialLineItems,
+    }),
   ];
   const deductionRows = [
-    {
-      label: "Late deduction",
-      amount: record.late_deduction,
-      note: `${record.total_late_minutes} late minutes.`,
-    },
-    {
-      label: "Undertime deduction",
-      amount: record.undertime_deduction,
-      note: `${record.total_undertime_minutes} undertime minutes.`,
-    },
-    {
+    buildAttendanceBreakdownRow({
+      id: "deduction-absence",
       label: "Absence deduction",
       amount: record.absence_deduction,
       note: `${record.total_absences} absence day${record.total_absences === 1 ? "" : "s"}.`,
-    },
+      lineItems: absenceLineItems,
+    }),
+    buildAttendanceBreakdownRow({
+      id: "deduction-late",
+      label: "Late deduction",
+      amount: record.late_deduction,
+      note: `${record.total_late_minutes} late minutes.`,
+      lineItems: lateLineItems,
+    }),
+    buildAttendanceBreakdownRow({
+      id: "deduction-undertime",
+      label: "Undertime deduction",
+      amount: record.undertime_deduction,
+      note: `${record.total_undertime_minutes} undertime minutes.`,
+      lineItems: undertimeLineItems,
+    }),
     ...(Number(residualOtherDeductions) > 0
       ? [
           {
+            id: "deduction-other",
             label: "Other deductions",
             amount: residualOtherDeductions,
             note: "Stored deductions outside the employee loan plan.",
@@ -1403,6 +1447,7 @@ function ExpandedPayrollRecord({
   const governmentRows = deductionBreakdowns
     .filter((item) => !isEmployeeLoanBreakdown(item.snapshot))
     .map((item) => ({
+      id: `government-${item.id}`,
       label: item.deduction_name,
       amount: item.employee_share,
       note: `Basis ${formatCurrency(item.basis_amount)}${Number(item.employer_share) > 0 ? ` • Employer share ${formatCurrency(item.employer_share)}` : ""}`,
@@ -1684,6 +1729,7 @@ function BreakdownPanel({
   emptyMessage: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [expandedRowIds, setExpandedRowIds] = useState<string[]>([]);
   const itemCount = sections.reduce((count, section) => count + section.rows.length, 0);
 
   return (
@@ -1775,27 +1821,101 @@ function BreakdownPanel({
                 <div className="mt-4 grid gap-2">
                   {section.rows.map((row, index) => (
                     <div
-                      key={`${row.label}-${row.amount}-${index}`}
+                      key={row.id || `${row.label}-${row.amount}-${index}`}
                       className="rounded-2xl border border-white/90 bg-white/85 px-4 py-3"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">{row.label}</p>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">{row.note}</p>
+                      {row.details && row.details.length > 0 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedRowIds((currentValue) =>
+                                currentValue.includes(row.id)
+                                  ? currentValue.filter((item) => item !== row.id)
+                                  : [...currentValue, row.id],
+                              )
+                            }
+                            className="flex w-full items-start justify-between gap-3 text-left"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-950">{row.label}</p>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">{row.note}</p>
+                              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                {row.details.length} source entr{row.details.length === 1 ? "y" : "ies"}
+                              </p>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <span
+                                className={cn(
+                                  "whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
+                                  section.tone === "positive"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : section.tone === "negative"
+                                      ? "bg-rose-100 text-rose-800"
+                                      : "bg-amber-100 text-amber-800",
+                                )}
+                              >
+                                {formatCurrency(row.amount)}
+                              </span>
+                              <span className="mt-1 text-slate-400">
+                                {expandedRowIds.includes(row.id) ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </span>
+                            </div>
+                          </button>
+                          {expandedRowIds.includes(row.id) ? (
+                            <div className="mt-3 grid gap-2">
+                              {row.details.map((detail) => (
+                                <div
+                                  key={detail.id}
+                                  className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3"
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-semibold text-slate-900">{detail.title}</p>
+                                    </div>
+                                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                                      {formatCurrency(detail.amount)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                    {detail.fields.map((field) => (
+                                      <div key={`${detail.id}-${field.label}`} className="min-w-0">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                          {field.label}
+                                        </p>
+                                        <p className="mt-1 text-xs leading-5 text-slate-600">{field.value}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-950">{row.label}</p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">{row.note}</p>
+                          </div>
+                          <span
+                            className={cn(
+                              "whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
+                              section.tone === "positive"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : section.tone === "negative"
+                                  ? "bg-rose-100 text-rose-800"
+                                  : "bg-amber-100 text-amber-800",
+                            )}
+                          >
+                            {formatCurrency(row.amount)}
+                          </span>
                         </div>
-                        <span
-                          className={cn(
-                            "whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
-                            section.tone === "positive"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : section.tone === "negative"
-                                ? "bg-rose-100 text-rose-800"
-                                : "bg-amber-100 text-amber-800",
-                          )}
-                        >
-                          {formatCurrency(row.amount)}
-                        </span>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1993,6 +2113,141 @@ function parseBreakdownSnapshot(value: string | null | undefined) {
 
 function isEmployeeLoanBreakdown(snapshot: Record<string, unknown> | null) {
   return snapshot?.source === "employee_loan";
+}
+
+function buildAttendanceBreakdownRow({
+  id,
+  label,
+  amount,
+  note,
+  lineItems,
+}: {
+  id: string;
+  label: string;
+  amount: string;
+  note: string;
+  lineItems: PayrollAttendanceLineItemRecord[];
+}): BreakdownRow {
+  return {
+    id,
+    label,
+    amount,
+    note,
+    details: lineItems.length > 0 ? lineItems.map(buildAttendanceBreakdownDetail) : undefined,
+  };
+}
+
+function buildAttendanceBreakdownDetail(
+  item: PayrollAttendanceLineItemRecord,
+): BreakdownRowDetail {
+  const fields = [
+    { label: "Date", value: formatDate(item.attendance_date) },
+    { label: "Day type", value: formatAttendanceDayType(item) },
+    { label: "Time in", value: formatAttendanceClockTime(item.time_in) },
+    {
+      label: "Time out",
+      value: formatAttendanceClockTime(item.time_out, item.time_out_day_offset),
+    },
+    { label: "Shift", value: formatShiftWindow(item.shift_start, item.shift_end) },
+    ...(item.rendered_minutes > 0
+      ? [{ label: "Rendered", value: formatMinutesDuration(item.rendered_minutes) }]
+      : []),
+    ...(item.payroll_minutes > 0
+      ? [{ label: "Payroll basis", value: formatMinutesDuration(item.payroll_minutes) }]
+      : []),
+    ...(item.late_minutes > 0
+      ? [{ label: "Late", value: formatMinutesDuration(item.late_minutes) }]
+      : []),
+    ...(item.undertime_minutes > 0
+      ? [{ label: "Undertime", value: formatMinutesDuration(item.undertime_minutes) }]
+      : []),
+    ...(item.overtime_minutes > 0
+      ? [{ label: "Overtime", value: formatMinutesDuration(item.overtime_minutes) }]
+      : []),
+    ...(item.night_differential_minutes > 0
+      ? [
+          {
+            label: "Night differential",
+            value: formatMinutesDuration(item.night_differential_minutes),
+          },
+        ]
+      : []),
+    ...(item.source_reference
+      ? [{ label: "Source", value: item.source_reference }]
+      : []),
+    ...(item.approval_basis
+      ? [{ label: "Approval basis", value: item.approval_basis }]
+      : []),
+  ];
+
+  return {
+    id: `${item.category}-${item.attendance_record_id ?? item.attendance_date}`,
+    title: `${formatDate(item.attendance_date)}${item.is_rest_day ? " • Rest day" : ""}`,
+    amount: item.amount,
+    fields,
+  };
+}
+
+function formatAttendanceDayType(item: PayrollAttendanceLineItemRecord) {
+  if (item.is_rest_day) {
+    return "Rest day";
+  }
+
+  return pretty(item.day_type);
+}
+
+function formatAttendanceClockTime(
+  value: string | null | undefined,
+  dayOffset = 0,
+) {
+  if (!value) {
+    return "Missing";
+  }
+
+  const [hoursText, minutesText] = value.split(":");
+  const hours = Number(hoursText);
+  const minutes = Number(minutesText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return value;
+  }
+
+  const normalizedHours = ((hours % 24) + 24) % 24;
+  const suffix = normalizedHours >= 12 ? "PM" : "AM";
+  const displayHours = normalizedHours % 12 || 12;
+  const baseValue = `${displayHours}:${String(minutes).padStart(2, "0")} ${suffix}`;
+
+  if (dayOffset === 0) {
+    return baseValue;
+  }
+
+  return `${baseValue} (+${dayOffset} day${dayOffset === 1 ? "" : "s"})`;
+}
+
+function formatShiftWindow(
+  shiftStart: string | null | undefined,
+  shiftEnd: string | null | undefined,
+) {
+  if (!shiftStart || !shiftEnd) {
+    return "No shift schedule";
+  }
+
+  return `${formatAttendanceClockTime(shiftStart)} to ${formatAttendanceClockTime(shiftEnd)}`;
+}
+
+function formatMinutesDuration(minutes: number) {
+  if (minutes <= 0) {
+    return "0 min";
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours === 0) {
+    return `${minutes} min`;
+  }
+  if (remainingMinutes === 0) {
+    return `${hours} hr${hours === 1 ? "" : "s"}`;
+  }
+  return `${hours} hr${hours === 1 ? "" : "s"} ${remainingMinutes} min`;
 }
 
 function sumAmountStrings(amounts: string[]) {

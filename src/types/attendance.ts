@@ -87,6 +87,7 @@ export interface AttendanceRecord {
   attendance_date: string;
   time_in?: string | null;
   time_out?: string | null;
+  time_out_day_offset: number;
   late_minutes: number;
   undertime_minutes: number;
   overtime_minutes: number;

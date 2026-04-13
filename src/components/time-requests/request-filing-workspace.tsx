@@ -919,6 +919,10 @@ function renderFields(
               onChange={(event) => onChange("endTime", event.target.value)}
               className="ui-input"
             />
+            <span className="text-xs text-slate-500">
+              Overnight overtime is allowed. If the end time is earlier than the start
+              time, it will be treated as next-day work.
+            </span>
           </label>
         </>
       );
@@ -1062,9 +1066,8 @@ function validateForm(
       if (!formState.requestDate || !formState.startTime || !formState.endTime) {
         return "Complete the overtime date and time range before submitting.";
       }
-
-      if (formState.endTime <= formState.startTime) {
-        return "Overtime end time must be later than the start time.";
+      if (formState.startTime === formState.endTime) {
+        return "Overtime end time must be different from the start time.";
       }
       break;
     case "attendance":
@@ -1107,7 +1110,10 @@ function buildDraftDateSummary(
         return "Waiting for date and time range";
       }
 
-      return `${formatDate(formState.requestDate)}, ${formState.startTime || "--:--"} to ${formState.endTime || "--:--"}`;
+      return `${formatDate(formState.requestDate)}, ${formatRequestTimeRange(
+        formState.startTime,
+        formState.endTime,
+      )}`;
     case "attendance":
       if (!formState.requestDate) {
         return "Waiting for attendance date";
@@ -1131,7 +1137,10 @@ function buildStoredDateSummary(item: TimeRequestRecord) {
       return "Schedule pending";
     }
 
-    return `${formatDate(item.request_date)}, ${formatClock(item.start_time)} to ${formatClock(item.end_time)}`;
+    return `${formatDate(item.request_date)}, ${formatRequestTimeRange(
+      item.start_time,
+      item.end_time,
+    )}`;
   }
 
   if (!item.request_date) {
@@ -1172,6 +1181,20 @@ function formatClock(value: string | null) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatRequestTimeRange(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+) {
+  const formattedStart = startTime ? formatClock(startTime) : "--:--";
+  const formattedEnd = endTime ? formatClock(endTime) : "--:--";
+  if (!startTime || !endTime) {
+    return `${formattedStart} to ${formattedEnd}`;
+  }
+
+  const nextDaySuffix = endTime < startTime ? " (+1 day)" : "";
+  return `${formattedStart} to ${formattedEnd}${nextDaySuffix}`;
 }
 
 function formatTimestamp(value: string) {

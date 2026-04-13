@@ -208,6 +208,10 @@ export function parseAttendanceRecord(value: unknown): AttendanceRecord {
     attendance_date: parseString(record.attendance_date, "attendanceRecord.attendance_date"),
     time_in: parseOptionalString(record.time_in, "attendanceRecord.time_in"),
     time_out: parseOptionalString(record.time_out, "attendanceRecord.time_out"),
+    time_out_day_offset: parseNumber(
+      record.time_out_day_offset ?? 0,
+      "attendanceRecord.time_out_day_offset",
+    ),
     late_minutes: parseNumber(record.late_minutes, "attendanceRecord.late_minutes"),
     undertime_minutes: parseNumber(
       record.undertime_minutes,
