@@ -777,7 +777,6 @@ function SelectedCutoffPanel({ cutoff }: { cutoff: PayrollReportCutoffDetailReco
   const payRows = [
     { label: "Basic pay", value: cutoff.total_basic_pay },
     { label: "Allowances", value: cutoff.total_allowances },
-    { label: "Leave pay", value: cutoff.total_leave_pay },
     { label: "Overtime pay", value: cutoff.total_overtime_pay },
     { label: "Night differential", value: cutoff.total_night_differential_pay },
   ];

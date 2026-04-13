@@ -1301,7 +1301,6 @@ function ExpandedPayrollRecord({
 }) {
   const coreEarningTypes = new Set([
     "basic_pay",
-    "leave_pay",
     "overtime_pay",
     "night_differential_pay",
   ]);
@@ -1362,11 +1361,6 @@ function ExpandedPayrollRecord({
       label: "Basic pay",
       amount: record.basic_pay,
       note: "Base pay for the selected cutoff period.",
-    },
-    {
-      label: "Leave pay",
-      amount: record.leave_pay,
-      note: "Added only from approved paid leave requests.",
     },
     {
       label: "Overtime pay",
