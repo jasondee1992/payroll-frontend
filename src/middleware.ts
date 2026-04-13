@@ -21,10 +21,7 @@ const EMPLOYEE_ALLOWED_PATHS = new Set<string>([
   "/payslips",
 ]);
 const SYSTEM_ADMIN_ALLOWED_PATHS = new Set<string>([
-  "/audit-logs",
   "/employees",
-  "/holidays",
-  "/notifications",
   "/settings",
 ]);
 const HR_ALLOWED_PATHS = new Set<string>([
@@ -139,7 +136,7 @@ export function middleware(request: NextRequest) {
 
   if (
     hasAuthToken &&
-    rawUserRole === "system-admin" &&
+    userRole === "system-admin" &&
     isProtectedPath(pathname) &&
     !isSystemAdminAllowedPath(pathname)
   ) {

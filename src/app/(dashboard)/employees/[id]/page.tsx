@@ -14,7 +14,12 @@ import {
 } from "@/components/shared/resource-state";
 import { getEmployeeProfileResource } from "@/lib/api/employee-details";
 import { getServerAuthSession } from "@/lib/auth/server-session";
-import { canManageEmployeeLoans, canManageEmployees } from "@/lib/auth/session";
+import {
+  canManageEmployeeLoans,
+  canManageEmployees,
+  canViewEmployeeLoans,
+  canViewPayroll,
+} from "@/lib/auth/session";
 
 type EmployeeDetailPageProps = {
   params: Promise<{
@@ -28,12 +33,15 @@ export default async function EmployeeDetailPage({
   params,
 }: EmployeeDetailPageProps) {
   const { id } = await params;
-  const [{ data: employee, errorMessage }, authSession] = await Promise.all([
-    getEmployeeProfileResource(id),
-    getServerAuthSession(),
-  ]);
+  const authSession = await getServerAuthSession();
+  const { data: employee, errorMessage } = await getEmployeeProfileResource(id, {
+    includeLoans: canViewEmployeeLoans(authSession.role),
+    includePayrollHistory: canViewPayroll(authSession.role),
+  });
   const canEditEmployee = canManageEmployees(authSession.role);
   const canManageLoans = canManageEmployeeLoans(authSession.role);
+  const canViewLoans = canViewEmployeeLoans(authSession.role);
+  const canViewPayrollHistory = canViewPayroll(authSession.role);
 
   if (errorMessage || !employee) {
     return (
@@ -206,7 +214,10 @@ export default async function EmployeeDetailPage({
         </EmployeeDetailSection>
       ),
     },
-    {
+  ];
+
+  if (canViewLoans) {
+    tabs.push({
       id: "government-loans",
       label: "Government Loans",
       content: (
@@ -219,8 +230,11 @@ export default async function EmployeeDetailPage({
           canManage={canManageLoans}
         />
       ),
-    },
-    {
+    });
+  }
+
+  if (canViewPayrollHistory) {
+    tabs.push({
       id: "payroll-history",
       label: "Payroll History",
       content: (
@@ -238,8 +252,8 @@ export default async function EmployeeDetailPage({
           )}
         </EmployeeDetailSection>
       ),
-    },
-  ];
+    });
+  }
 
   return (
     <div className="space-y-6">

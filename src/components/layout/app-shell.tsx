@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { getActiveNavigationItem, type NavigationRole } from "@/config/navigation";
 import type { AppRole } from "@/lib/auth/session";
+import type { BrandingRecord } from "@/types/branding";
 import { cn } from "@/lib/utils";
 
 const SIDEBAR_STORAGE_KEY = "payroll.sidebar.collapsed";
@@ -17,11 +18,13 @@ export function AppShell({
   currentRole = null,
   currentUsername = null,
   currentDisplayRole = null,
+  branding,
 }: Readonly<{
   children: React.ReactNode;
   currentRole?: AppRole | null;
   currentUsername?: string | null;
   currentDisplayRole?: string | null;
+  branding: BrandingRecord;
 }>) {
   const pathname = usePathname();
   const router = useRouter();
@@ -111,6 +114,7 @@ export function AppShell({
           collapsed={collapsed}
           mobileOpen={mobileOpen}
           currentRole={navigationRole}
+          branding={branding}
           activeHref={displayedItem.href}
           pendingHref={isNavigationPending ? pendingHref : null}
           onNavigate={handleNavigate}
@@ -130,6 +134,7 @@ export function AppShell({
             currentRole={currentRole}
             currentUsername={currentUsername}
             currentDisplayRole={currentDisplayRole}
+            branding={branding}
             onToggleCollapsed={() => setCollapsed((current) => !current)}
             onOpenMobileNav={() => setMobileOpen(true)}
           />

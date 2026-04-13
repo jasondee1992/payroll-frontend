@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, FileText, LogIn, ShieldCheck } from "lucide-react";
+import { BrandMark } from "@/components/shared/brand-mark";
 import { DocsTableOfContents } from "@/components/docs/docs-table-of-contents";
 import {
   DocsCardGrid,
@@ -14,6 +15,7 @@ import {
 } from "@/components/docs/docs-primitives";
 import { PageHeader } from "@/components/shared/page-header";
 import { APP_NAME } from "@/config/branding";
+import { getBrandingResource, resolveBrandingAssetUrl } from "@/lib/api/branding";
 import { getServerAuthSession } from "@/lib/auth/server-session";
 import {
   payrollDocsHighlights,
@@ -52,10 +54,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DocsPage() {
-  const session = await getServerAuthSession();
+  const [session, brandingResult] = await Promise.all([
+    getServerAuthSession(),
+    getBrandingResource(),
+  ]);
   const primaryHref = session.isAuthenticated ? "/dashboard" : "/login";
   const primaryLabel = session.isAuthenticated ? "Open Dashboard" : "Sign In";
   const PrimaryIcon = session.isAuthenticated ? ArrowRight : LogIn;
+  const companyLogoUrl = resolveBrandingAssetUrl(brandingResult.data.companyLogoPath);
 
   return (
     <main className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -70,16 +76,20 @@ export default async function DocsPage() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/10">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                    {APP_NAME}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Public system documentation
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/10">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <BrandMark
+                      companyName={brandingResult.data.companyName}
+                      logoUrl={companyLogoUrl}
+                      textTone="dark"
+                    />
+                    <p className="mt-1 text-sm text-slate-600">
+                      Public system documentation
+                    </p>
+                  </div>
                 </div>
               </div>
 

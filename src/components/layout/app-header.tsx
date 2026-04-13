@@ -4,6 +4,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { NotificationBell } from "@/components/time-requests/notification-bell";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import type { AppRole } from "@/lib/auth/session";
+import type { BrandingRecord } from "@/types/branding";
 
 type AppHeaderProps = {
   collapsed: boolean;
@@ -14,6 +15,7 @@ type AppHeaderProps = {
   currentRole: AppRole | null;
   currentUsername: string | null;
   currentDisplayRole: string | null;
+  branding: BrandingRecord;
 };
 
 export function AppHeader({
@@ -25,7 +27,10 @@ export function AppHeader({
   currentRole,
   currentUsername,
   currentDisplayRole,
+  branding,
 }: AppHeaderProps) {
+  const isSystemAdmin = currentRole === "system-admin";
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
       <div className="flex min-h-20 w-full items-center justify-between gap-4 px-4 py-3 sm:px-5 lg:px-4">
@@ -66,17 +71,27 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <NotificationBell
-            currentRole={currentRole}
-            currentUsername={currentUsername}
-          />
+          {!isSystemAdmin ? (
+            <NotificationBell
+              currentRole={currentRole}
+              currentUsername={currentUsername}
+            />
+          ) : null}
 
           <div className="hidden rounded-[22px] border border-emerald-200/80 bg-emerald-50/90 px-4 py-2.5 text-right shadow-sm sm:block">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
-              {currentRole === "employee" ? "Portal access" : "Current period"}
+              {currentRole === "employee"
+                ? "Portal access"
+                : isSystemAdmin
+                  ? "Workspace mode"
+                  : "Current period"}
             </p>
             <p className="mt-1 text-sm font-semibold text-emerald-900">
-              {currentRole === "employee" ? "Payslips only" : "Apr 1 - Apr 30"}
+              {currentRole === "employee"
+                ? "Payslips only"
+                : isSystemAdmin
+                  ? `${branding.companyName} setup`
+                  : "Apr 1 - Apr 30"}
             </p>
           </div>
 

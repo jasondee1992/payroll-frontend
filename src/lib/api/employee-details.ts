@@ -116,6 +116,10 @@ async function loadPayrollRulesResource(employeeId: string) {
 
 export async function getEmployeeProfileResource(
   employeeCode: string,
+  options: {
+    includeLoans?: boolean;
+    includePayrollHistory?: boolean;
+  } = {},
 ): Promise<EmployeeProfileResource> {
   const employeeResult = await getEmployeeRecordsResource();
 
@@ -145,15 +149,22 @@ export async function getEmployeeProfileResource(
     salaryProfileRecord,
     loanTypesResult,
     employeeLoansResult,
-  ] =
-    await Promise.all([
+  ] = await Promise.all([
       getUserRecordsResource(),
-      getPayrollPeriodRecordsResource(),
-      getPayrollRunRecordsResource(),
+      options.includePayrollHistory === false
+        ? Promise.resolve({ data: [], errorMessage: null })
+        : getPayrollPeriodRecordsResource(),
+      options.includePayrollHistory === false
+        ? Promise.resolve({ data: [], errorMessage: null })
+        : getPayrollRunRecordsResource(),
       loadOptionalResource(() => getEmployeeGovernmentInfo(String(employee.id))),
       loadOptionalResource(() => getEmployeeSalaryProfile(String(employee.id))),
-      getLoanTypesResource(),
-      getEmployeeLoansResource(String(employee.id)),
+      options.includeLoans === false
+        ? Promise.resolve({ data: [], errorMessage: null })
+        : getLoanTypesResource(),
+      options.includeLoans === false
+        ? Promise.resolve({ data: [], errorMessage: null })
+        : getEmployeeLoansResource(String(employee.id)),
     ]);
   const [policyProfilesResult, payrollRulesResult] = await Promise.all([
     getPayrollPolicyProfilesResource(),

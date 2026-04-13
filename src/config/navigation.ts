@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth/session";
 
-export type NavigationRole = AppRole | "system-admin";
+export type NavigationRole = AppRole;
 
 export type NavigationItem = {
   title: string;
@@ -73,7 +73,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/holidays",
     description: "Manage the operating holiday calendar used by attendance and payroll.",
     icon: CalendarRange,
-    roles: ["admin", "admin-finance", "finance", "hr", "system-admin"],
+    roles: ["admin", "admin-finance", "finance", "hr"],
   },
   {
     title: "Payroll",
@@ -94,7 +94,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/audit-logs",
     description: "Track who changed what across payroll and operations.",
     icon: ClipboardList,
-    roles: ["admin", "admin-finance", "finance", "hr", "system-admin"],
+    roles: ["admin", "admin-finance", "finance", "hr"],
   },
   {
     title: "Reports",

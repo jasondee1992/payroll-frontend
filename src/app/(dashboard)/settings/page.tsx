@@ -1,11 +1,35 @@
 import { AdminFinanceSettingsTabs } from "@/components/settings/admin-finance-settings-tabs";
+import { SystemBrandingSettings } from "@/components/settings/system-branding-settings";
 import { PlannedModulePlaceholder } from "@/components/shared/planned-module-placeholder";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceEmptyState } from "@/components/shared/resource-state";
+import { getBrandingResource, resolveBrandingAssetUrl } from "@/lib/api/branding";
 import { getServerAuthSession } from "@/lib/auth/server-session";
 
 export default async function SettingsPage() {
-  const session = await getServerAuthSession();
+  const [session, brandingResult] = await Promise.all([
+    getServerAuthSession(),
+    getBrandingResource(),
+  ]);
+
+  if (session.role === "system-admin") {
+    return (
+      <>
+        <PageHeader
+          title="Settings"
+          description="Configure company branding, login visuals, and workspace identity for the client deployment."
+        />
+
+        <SystemBrandingSettings
+          initialBranding={brandingResult.data}
+          companyLogoUrl={resolveBrandingAssetUrl(brandingResult.data.companyLogoPath)}
+          loginBackgroundUrl={resolveBrandingAssetUrl(
+            brandingResult.data.loginBackgroundPath,
+          )}
+        />
+      </>
+    );
+  }
 
   if (session.role === "admin-finance") {
     return (

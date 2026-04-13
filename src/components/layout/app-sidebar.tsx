@@ -1,11 +1,14 @@
 "use client";
 
-import { Building2, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import {
   getNavigationItemsForRole,
   type NavigationRole,
 } from "@/config/navigation";
-import { APP_NAME, APP_SUBTITLE } from "@/config/branding";
+import { APP_SUBTITLE } from "@/config/branding";
+import { BrandMark } from "@/components/shared/brand-mark";
+import { resolveBrandingAssetUrl } from "@/lib/api/branding";
+import type { BrandingRecord } from "@/types/branding";
 import { cn } from "@/lib/utils";
 import { NavigationLink } from "./navigation-link";
 
@@ -14,6 +17,7 @@ type AppSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
   currentRole: NavigationRole | null;
+  branding: BrandingRecord;
   activeHref: string;
   pendingHref?: string | null;
   onNavigate: (href: string) => void;
@@ -24,11 +28,14 @@ export function AppSidebar({
   mobileOpen,
   onClose,
   currentRole,
+  branding,
   activeHref,
   pendingHref = null,
   onNavigate,
 }: AppSidebarProps) {
   const availableNavigationItems = getNavigationItemsForRole(currentRole);
+  const isSystemAdmin = currentRole === "system-admin";
+  const companyLogoUrl = resolveBrandingAssetUrl(branding.companyLogoPath);
 
   return (
     <aside
@@ -45,17 +52,12 @@ export function AppSidebar({
             collapsed && "lg:w-full lg:justify-center",
           )}
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/8 ring-1 ring-white/10">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
-          <div className={cn("min-w-0", collapsed && "lg:hidden")}>
-            <p className="truncate text-sm font-semibold text-white">
-              {APP_NAME}
-            </p>
-            <p className="truncate text-xs text-slate-400">
-              {APP_SUBTITLE}
-            </p>
-          </div>
+          <BrandMark
+            companyName={branding.companyName}
+            logoUrl={companyLogoUrl}
+            subtitle={APP_SUBTITLE}
+            compact={collapsed}
+          />
         </div>
 
         <button
@@ -76,12 +78,16 @@ export function AppSidebar({
               collapsed && "lg:text-center",
             )}
           >
-            {collapsed ? "FY26" : "Payroll cycle"}
+            {collapsed ? "Setup" : isSystemAdmin ? "System setup" : "Payroll cycle"}
           </p>
           <div className={cn("mt-3", collapsed && "lg:hidden")}>
-            <p className="text-sm font-medium text-white">April 2026 cycle</p>
+            <p className="text-sm font-medium text-white">
+              {isSystemAdmin ? "Branding and workspace setup" : "April 2026 cycle"}
+            </p>
             <p className="mt-1 text-xs text-slate-400">
-              Review time entries, finalize approvals, and publish payslips.
+              {isSystemAdmin
+                ? "Set up employee access, company identity, and login visuals for the client workspace."
+                : "Review time entries, finalize approvals, and publish payslips."}
             </p>
           </div>
           <div
@@ -90,8 +96,10 @@ export function AppSidebar({
               collapsed && "lg:mt-3 lg:flex-col lg:gap-1",
             )}
           >
-            <span>Progress</span>
-            <span className="font-semibold text-white">78%</span>
+            <span>{isSystemAdmin ? "Scope" : "Progress"}</span>
+            <span className="font-semibold text-white">
+              {isSystemAdmin ? "2 modules" : "78%"}
+            </span>
           </div>
         </div>
 
@@ -127,10 +135,13 @@ export function AppSidebar({
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
             Attention
           </p>
-          <p className="mt-2 text-sm font-medium text-white">17 pending approvals</p>
+          <p className="mt-2 text-sm font-medium text-white">
+            {isSystemAdmin ? "Client setup mode" : "17 pending approvals"}
+          </p>
           <p className="mt-1 text-xs leading-5 text-slate-400">
-            Attendance corrections and variable pay items are still awaiting
-            review.
+            {isSystemAdmin
+              ? "Only employee management and branding settings are available for this account."
+              : "Attendance corrections and variable pay items are still awaiting review."}
           </p>
         </div>
       </div>

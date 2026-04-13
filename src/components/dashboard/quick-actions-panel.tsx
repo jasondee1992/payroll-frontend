@@ -145,6 +145,20 @@ const actionsByRole: Record<AppRole, QuickAction[]> = {
       icon: Settings,
     },
   ],
+  "system-admin": [
+    {
+      title: "Employees",
+      description: "Create and maintain employee records and linked user accounts.",
+      href: "/employees",
+      icon: Users,
+    },
+    {
+      title: "Settings",
+      description: "Update company branding, logo, and login presentation.",
+      href: "/settings",
+      icon: Settings,
+    },
+  ],
 };
 
 type QuickActionsPanelProps = {

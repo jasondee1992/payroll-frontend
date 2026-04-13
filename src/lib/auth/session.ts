@@ -15,6 +15,7 @@ export type AppRole =
   | "admin-finance"
   | "finance"
   | "hr"
+  | "system-admin"
   | "employee";
 
 const ATTENDANCE_UPLOAD_ROLES = new Set<AppRole>([
@@ -31,8 +32,9 @@ const EMPLOYEE_VIEW_ROLES = new Set<AppRole>([
   "admin-finance",
   "finance",
   "hr",
+  "system-admin",
 ]);
-const EMPLOYEE_MANAGE_ROLES = new Set<AppRole>(["admin", "hr"]);
+const EMPLOYEE_MANAGE_ROLES = new Set<AppRole>(["admin", "hr", "system-admin"]);
 const EMPLOYEE_LOAN_VIEW_ROLES = new Set<AppRole>([
   "admin",
   "admin-finance",
@@ -58,6 +60,7 @@ const PAYROLL_POLICY_VIEW_ROLES = new Set<AppRole>([
   "admin-finance",
   "finance",
   "hr",
+  "system-admin",
 ]);
 const PAYROLL_POLICY_MANAGE_ROLES = new Set<AppRole>(["admin", "admin-finance"]);
 const PAYSLIP_VIEW_ROLES = new Set<AppRole>([
@@ -130,15 +133,12 @@ export function normalizeAppRole(value: string | null | undefined): AppRole | nu
 
   const normalizedValue = value.trim().toLowerCase();
 
-  if (normalizedValue === "system-admin") {
-    return "admin";
-  }
-
   if (
     normalizedValue === "admin" ||
     normalizedValue === "admin-finance" ||
     normalizedValue === "finance" ||
     normalizedValue === "hr" ||
+    normalizedValue === "system-admin" ||
     normalizedValue === "employee"
   ) {
     return normalizedValue;
@@ -148,7 +148,7 @@ export function normalizeAppRole(value: string | null | undefined): AppRole | nu
 }
 
 export function canManageTeamAttendance(role: AppRole | null | undefined) {
-  return role != null && role !== "employee";
+  return role != null && role !== "employee" && role !== "system-admin";
 }
 
 export function canManageAttendanceUploads(role: AppRole | null | undefined) {
