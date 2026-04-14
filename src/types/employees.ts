@@ -141,3 +141,17 @@ export type EmployeeManagerOption = {
   label: string;
   description: string;
 };
+
+export type EmployeeImportError = {
+  row_number: number;
+  employee_code?: string | null;
+  message: string;
+};
+
+export type EmployeeImportSummary = {
+  total_rows: number;
+  created_count: number;
+  updated_count: number;
+  error_count: number;
+  errors: EmployeeImportError[];
+};

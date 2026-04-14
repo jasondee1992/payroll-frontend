@@ -130,7 +130,6 @@ export function AppShell({
           <AppHeader
             collapsed={collapsed}
             currentTitle={displayedItem.title}
-            currentDescription={displayedItem.description}
             currentRole={currentRole}
             currentUsername={currentUsername}
             currentDisplayRole={currentDisplayRole}
@@ -139,7 +138,7 @@ export function AppShell({
             onOpenMobileNav={() => setMobileOpen(true)}
           />
 
-          <main className="flex-1 px-4 py-5 sm:px-5 sm:py-6 lg:px-4 lg:py-7">
+          <main className="flex-1 px-6 py-7 sm:px-7 sm:py-8 lg:px-8 lg:py-10">
             <div className="relative mx-auto w-full max-w-[1680px]">
               <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 rounded-[36px] bg-linear-to-r from-blue-100/35 via-white/10 to-slate-200/25 blur-3xl" />
               <div
@@ -194,11 +193,11 @@ export function AppShell({
 
               <div
                 className={cn(
-                  "flex w-full flex-col gap-7 transition-opacity duration-200",
+                  "flex w-full flex-col gap-9 transition-opacity duration-200 lg:gap-10",
                   isNavigationPending && "opacity-40",
                 )}
               >
-              {children}
+                {children}
               </div>
             </div>
           </main>

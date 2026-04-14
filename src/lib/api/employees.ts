@@ -17,6 +17,7 @@ import {
 import { normalizePayFrequency } from "@/lib/pay-frequency";
 import type {
   EmployeeApiRecord,
+  EmployeeImportSummary,
   EmployeeGovernmentInfoApiRecord,
   EmployeeListResponse,
   EmployeeListItem,
@@ -552,6 +553,47 @@ export type EmployeeUpdatePayload = {
   };
 };
 
+function parseEmployeeImportSummary(value: unknown): EmployeeImportSummary {
+  const record = parseRecord(value, "employee import summary");
+  return {
+    total_rows: parseNumber(record.total_rows, "employee import summary.total_rows"),
+    created_count: parseNumber(
+      record.created_count,
+      "employee import summary.created_count",
+    ),
+    updated_count: parseNumber(
+      record.updated_count,
+      "employee import summary.updated_count",
+    ),
+    error_count: parseNumber(
+      record.error_count,
+      "employee import summary.error_count",
+    ),
+    errors: parseCollection(
+      record.errors ?? [],
+      (error, index) => {
+        const errorRecord = parseRecord(error, `employee import summary.errors[${index}]`);
+        return {
+          row_number: parseNumber(
+            errorRecord.row_number,
+            `employee import summary.errors[${index}].row_number`,
+          ),
+          employee_code: parseString(
+            errorRecord.employee_code,
+            `employee import summary.errors[${index}].employee_code`,
+            { optional: true },
+          ),
+          message: parseString(
+            errorRecord.message,
+            `employee import summary.errors[${index}].message`,
+          ),
+        };
+      },
+      "employee import summary.errors",
+    ),
+  };
+}
+
 function parseEmployeeOnboardingResponse(
   value: unknown,
 ): EmployeeOnboardingResult {
@@ -705,4 +747,29 @@ export async function updateEmployeeProfile(
   return {
     employeeCode: payload.employee.employee_code,
   };
+}
+
+export async function importEmployeesCsv(file: File) {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+
+  const response = await fetch("/api/employees/import", {
+    method: "POST",
+    body: formData,
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseBody = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (await handleUnauthorizedClientResponse(response)) {
+    throw new Error("Your session has expired. Redirecting to login.");
+  }
+
+  if (!response.ok) {
+    throw new Error(getEmployeeOnboardingErrorMessage(responseBody));
+  }
+
+  return parseEmployeeImportSummary(responseBody);
 }

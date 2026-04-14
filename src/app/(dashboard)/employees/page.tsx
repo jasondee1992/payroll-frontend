@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmployeeImportExportControls } from "@/components/employees/employee-import-export-controls";
 import { EmployeeListToolbar } from "@/components/employees/employee-list-toolbar";
 import { EmployeePagination } from "@/components/employees/employee-pagination";
 import { EmployeeTable } from "@/components/employees/employee-table";
@@ -64,7 +65,9 @@ export default async function EmployeesPage() {
       </section>
 
       <section className="panel p-5 sm:p-6">
-        <EmployeeListToolbar />
+        <EmployeeListToolbar
+          actions={<EmployeeImportExportControls canManageEmployees={canAddEmployee} />}
+        />
 
         <div className="mt-6">
           {errorMessage ? (

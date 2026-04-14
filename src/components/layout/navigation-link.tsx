@@ -84,14 +84,6 @@ export function NavigationLink({
 
       <span className={cn("min-w-0 flex-1", collapsed && "lg:sr-only")}>
         <span className="block truncate font-medium tracking-[0.01em]">{item.title}</span>
-        <span
-          className={cn(
-            "mt-0.5 block truncate text-xs",
-            active ? "text-slate-300" : "text-slate-400",
-          )}
-        >
-          {pending ? "Loading page data..." : item.description}
-        </span>
       </span>
     </Link>
   );

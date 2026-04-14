@@ -63,10 +63,10 @@ export function EmployeeTable({
                           .toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900">
+                        <p className="text-[12px] font-semibold text-slate-900">
                           {employee.fullName}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-[10px] text-slate-500">
                           {employee.id} • {employee.position}
                         </p>
                       </div>
@@ -74,16 +74,16 @@ export function EmployeeTable({
                   </DataTableBodyCell>
                   <DataTableBodyCell>
                     <div>
-                      <p className="font-medium text-slate-900">{employee.department}</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="text-[11px] font-medium text-slate-900">{employee.department}</p>
+                      <p className="mt-1 text-[10px] text-slate-500">
                         Workforce assignment
                       </p>
                     </div>
                   </DataTableBodyCell>
                   <DataTableBodyCell>
                     <div>
-                      <p className="font-medium text-slate-900">{employee.position}</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="text-[11px] font-medium text-slate-900">{employee.position}</p>
+                      <p className="mt-1 text-[10px] text-slate-500">
                         Role title
                       </p>
                     </div>
@@ -98,7 +98,7 @@ export function EmployeeTable({
                   <DataTableBodyCell className="align-middle">
                     <Link
                       href={`/employees/${employee.id}`}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <Eye className="h-4 w-4" />
@@ -134,10 +134,10 @@ export function EmployeeTable({
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       {employee.id}
                     </p>
-                    <h2 className="mt-2 text-base font-semibold text-slate-950">
+                    <h2 className="mt-2 text-[13px] font-semibold text-slate-950">
                       {employee.fullName}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-600">{employee.position}</p>
+                    <p className="mt-1 text-[11px] text-slate-600">{employee.position}</p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-400" />

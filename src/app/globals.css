@@ -90,6 +90,27 @@ button {
       radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 28%);
   }
 
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--sidebar-muted) 55%, var(--sidebar-secondary) 45%)
+      color-mix(in srgb, var(--sidebar) 72%, transparent);
+  }
+
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--sidebar) 78%, rgba(255, 255, 255, 0.04));
+    border-radius: 999px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--sidebar-muted) 42%, var(--sidebar-secondary) 58%);
+    border: 2px solid color-mix(in srgb, var(--sidebar) 82%, transparent);
+    border-radius: 999px;
+  }
+
   .ui-page-header {
     @apply rounded-[30px] border px-6 py-6 shadow-[var(--shadow)] sm:px-7 sm:py-7;
     border-color: color-mix(in srgb, var(--border) 84%, white);
@@ -180,12 +201,12 @@ button {
   }
 
   .ui-table-body-cell {
-    @apply border-b px-4 py-4 text-sm text-slate-600;
+    @apply border-b px-4 py-4 text-[13px] leading-5 text-slate-600;
     border-color: color-mix(in srgb, var(--border) 86%, white);
   }
 
   .ui-table-row {
-    @apply transition duration-150 hover:bg-slate-50/92;
+    @apply text-[13px] leading-5 transition duration-150 hover:bg-slate-50/92;
   }
 
   .ui-table-row-selected {
@@ -255,6 +276,16 @@ button {
   .ui-metric-card {
     @apply rounded-[28px] border bg-white/96 px-5 py-5 shadow-[var(--shadow-soft)];
     border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-metric-card > p:nth-of-type(2) {
+    font-size: 1.2rem;
+    line-height: 1.3;
+  }
+
+  .ui-metric-card > p:nth-of-type(3) {
+    font-size: 0.8125rem;
+    line-height: 1.45;
   }
 
   .ui-kpi-card {

@@ -26,7 +26,7 @@ export function ResourceEmptyState({
         <Inbox className="h-6 w-6" />
       </div>
       <h2 className="mt-5 text-lg font-semibold text-slate-950">{title}</h2>
-      <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+      <p className="mx-auto mt-2 max-w-2xl text-[12px] leading-5 text-slate-600">
         {description}
       </p>
       {action ? <div className="mt-6">{action}</div> : null}
@@ -46,7 +46,7 @@ export function ResourceErrorState({
         <AlertTriangle className="h-6 w-6" />
       </div>
       <h2 className="mt-5 text-lg font-semibold text-slate-950">{title}</h2>
-      <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+      <p className="mx-auto mt-2 max-w-2xl text-[12px] leading-5 text-slate-600">
         {description}
       </p>
       {action ? <div className="mt-6">{action}</div> : null}

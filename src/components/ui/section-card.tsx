@@ -33,10 +33,10 @@ export function SectionCard({
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             Section
           </p>
-          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-950">{title}</h2>
+          <h2 className="mt-2 text-[15px] font-semibold tracking-tight text-slate-950">{title}</h2>
           <p
             className={cn(
-              "mt-1 max-w-3xl text-sm leading-6 text-slate-600",
+              "mt-1 max-w-3xl text-[12px] leading-5 text-slate-600",
               descriptionClassName,
             )}
           >

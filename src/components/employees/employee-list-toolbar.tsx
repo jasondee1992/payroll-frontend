@@ -1,24 +1,23 @@
 import { Search } from "lucide-react";
 import { FilterToolbar } from "@/components/ui/filter-toolbar";
 
+type EmployeeListToolbarProps = {
+  actions?: React.ReactNode;
+};
+
 const filterOptions = {
   departments: ["All Departments", "Finance", "Human Resources", "Operations"],
   statuses: ["All Statuses", "Active", "On Leave", "Pending", "Inactive"],
   payrollSchedules: ["All Schedules", "Monthly", "Semi-monthly", "Bi-weekly", "Weekly"],
 };
 
-export function EmployeeListToolbar() {
+export function EmployeeListToolbar({ actions }: EmployeeListToolbarProps) {
   return (
     <FilterToolbar
       eyebrow="Directory controls"
       title="Search and segment workforce records"
       description="Narrow the directory by department, employment status, or payroll schedule."
-      actions={
-        <>
-          <span className="ui-badge ui-badge-neutral">Enterprise directory</span>
-          <span className="ui-badge ui-badge-info">Live employee data</span>
-        </>
-      }
+      actions={actions}
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <label className="relative block">

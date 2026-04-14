@@ -56,7 +56,7 @@ export function MetricCard({
             className={cn(
               "mt-3 font-semibold tracking-tight",
               dark ? "text-white" : "text-slate-950",
-              tone === "primary" || dark ? "text-[30px]" : "text-2xl",
+              tone === "primary" || dark ? "text-[13px]" : "text-[12px]",
             )}
           >
             {value}
@@ -64,7 +64,7 @@ export function MetricCard({
           {description ? (
             <p
               className={cn(
-                "mt-2 text-sm leading-6",
+                "mt-2 text-[11px] leading-5",
                 dark ? "text-slate-300" : "text-slate-600",
               )}
             >

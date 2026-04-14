@@ -27,9 +27,9 @@ export function DetailItem({
       >
         {label}
       </span>
-      <span className={cn("text-sm text-slate-700", valueClassName)}>{value}</span>
+      <span className={cn("text-[11px] leading-5 text-slate-700", valueClassName)}>{value}</span>
       {helperText ? (
-        <span className="text-xs leading-5 text-slate-500">{helperText}</span>
+        <span className="text-[10px] leading-5 text-slate-500">{helperText}</span>
       ) : null}
     </div>
   );

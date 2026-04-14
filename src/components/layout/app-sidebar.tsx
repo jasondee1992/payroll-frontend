@@ -34,7 +34,6 @@ export function AppSidebar({
   onNavigate,
 }: AppSidebarProps) {
   const availableNavigationItems = getNavigationItemsForRole(currentRole);
-  const isSystemAdmin = currentRole === "system-admin";
   const companyLogoUrl = resolveBrandingAssetUrl(branding.companyLogoPath);
   const groupedNavigationItems = availableNavigationItems.reduce<
     Array<{ section: string; items: typeof availableNavigationItems }>
@@ -85,36 +84,9 @@ export function AppSidebar({
             <ChevronLeft className="h-5 w-5" />
           </button>
         </div>
-
-        <div
-          className={cn(
-            "mt-5 rounded-[26px] border border-white/10 bg-white/[0.06] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-            collapsed && "lg:hidden",
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-              {isSystemAdmin ? "Client workspace" : "Current environment"}
-            </p>
-            <p className="mt-3 text-base font-semibold text-white">
-              {isSystemAdmin ? "System setup and branding" : "Payroll operations center"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              {isSystemAdmin
-                ? "Manage employee access, company identity, and workspace presentation for the client deployment."
-                : "Track live payroll progress, workforce activity, and approval queues from one control surface."}
-            </p>
-            <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-xs text-slate-300">
-              <span>{isSystemAdmin ? "Accessible areas" : "Cycle state"}</span>
-              <span className="font-semibold text-white">
-                {isSystemAdmin ? "Employees + Settings" : "In progress"}
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-7 overflow-y-auto px-4 py-6">
+      <div className="sidebar-scroll flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-7">
         <nav className="flex flex-col gap-5">
           {groupedNavigationItems.map((group) => (
             <div key={group.section} className={cn("space-y-2", collapsed && "lg:space-y-3")}>
@@ -141,25 +113,6 @@ export function AppSidebar({
             </div>
           ))}
         </nav>
-
-        <div
-          className={cn(
-            "mt-auto rounded-[24px] border border-white/10 bg-white/[0.04] p-4",
-            collapsed && "lg:hidden",
-          )}
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Workspace guidance
-          </p>
-          <p className="mt-2 text-sm font-medium text-white">
-            {isSystemAdmin ? "Design and setup access only" : "Payroll operations workflow"}
-          </p>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            {isSystemAdmin
-              ? "Only employee management and branding settings are available for this account."
-              : "Use this navigation as the control layer for approvals, payroll movement, and reporting review."}
-          </p>
-        </div>
       </div>
     </aside>
   );
