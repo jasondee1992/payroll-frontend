@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { FilterToolbar } from "@/components/ui/filter-toolbar";
 
 const filterOptions = {
   departments: ["All Departments", "Finance", "Human Resources", "Operations"],
@@ -8,16 +9,17 @@ const filterOptions = {
 
 export function EmployeeListToolbar() {
   return (
-    <div className="ui-toolbar">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-slate-950">Directory filters</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Narrow the employee list by department, status, or payroll schedule.
-          </p>
-        </div>
-      </div>
-
+    <FilterToolbar
+      eyebrow="Directory controls"
+      title="Search and segment workforce records"
+      description="Narrow the directory by department, employment status, or payroll schedule."
+      actions={
+        <>
+          <span className="ui-badge ui-badge-neutral">Enterprise directory</span>
+          <span className="ui-badge ui-badge-info">Live employee data</span>
+        </>
+      }
+    >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <label className="relative block">
           <span className="sr-only">Search employees</span>
@@ -45,7 +47,7 @@ export function EmployeeListToolbar() {
           defaultValue="All Schedules"
         />
       </div>
-    </div>
+    </FilterToolbar>
   );
 }
 
@@ -58,7 +60,7 @@ type FilterSelectProps = {
 function FilterSelect({ label, options, defaultValue }: FilterSelectProps) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
         {label}
       </span>
       <select

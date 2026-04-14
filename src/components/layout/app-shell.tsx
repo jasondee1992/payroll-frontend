@@ -98,7 +98,7 @@ export function AppShell({
   );
 
   return (
-    <div className="min-h-screen text-slate-900">
+    <div className="enterprise-shell min-h-screen text-slate-900">
       <SessionActivityManager />
 
       <div
@@ -141,6 +141,7 @@ export function AppShell({
 
           <main className="flex-1 px-4 py-5 sm:px-5 sm:py-6 lg:px-4 lg:py-7">
             <div className="relative mx-auto w-full max-w-[1680px]">
+              <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 rounded-[36px] bg-linear-to-r from-blue-100/35 via-white/10 to-slate-200/25 blur-3xl" />
               <div
                 className={cn(
                   "pointer-events-none absolute inset-x-0 top-0 z-20 overflow-hidden rounded-full transition-opacity duration-200",

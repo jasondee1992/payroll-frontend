@@ -53,26 +53,26 @@ export function NavigationLink({
       onFocus={() => router.prefetch(item.href)}
       onClick={handleClick}
       className={cn(
-        "group relative flex items-center gap-3 rounded-2xl border px-3 py-3 text-sm transition-all",
+        "group relative flex items-center gap-3 rounded-[20px] border px-3 py-3 text-sm transition-all duration-200",
         collapsed ? "justify-center lg:px-0" : "justify-start",
         active
-          ? "border-white/10 bg-white/[0.10] text-white shadow-[inset_0_0_0_1px_rgba(148,163,184,0.10)]"
-          : "border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.06] hover:text-white",
+          ? "border-white/12 bg-linear-to-r from-white/[0.12] to-blue-400/[0.10] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),0_14px_24px_-20px_rgba(8,26,50,0.7)]"
+          : "border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.055] hover:text-white",
       )}
     >
       <span
         className={cn(
-          "absolute inset-y-3 left-0 w-1 rounded-r-full transition-opacity",
+          "absolute inset-y-2 left-0 w-1 rounded-r-full transition-opacity",
           active ? "bg-blue-400 opacity-100" : "opacity-0",
         )}
       />
       <span
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+          "flex h-10 w-10 items-center justify-center rounded-2xl border transition-colors",
           active
-            ? "bg-blue-400/15 text-blue-100"
-            : "bg-white/[0.05] text-slate-300 group-hover:bg-white/[0.10] group-hover:text-white",
-          pending && "bg-blue-400/15 text-blue-100",
+            ? "border-blue-300/20 bg-blue-400/12 text-blue-50"
+            : "border-white/8 bg-white/[0.04] text-slate-300 group-hover:border-white/12 group-hover:bg-white/[0.08] group-hover:text-white",
+          pending && "border-blue-300/20 bg-blue-400/12 text-blue-50",
         )}
       >
         {pending ? (
@@ -83,7 +83,7 @@ export function NavigationLink({
       </span>
 
       <span className={cn("min-w-0 flex-1", collapsed && "lg:sr-only")}>
-        <span className="block truncate font-medium">{item.title}</span>
+        <span className="block truncate font-medium tracking-[0.01em]">{item.title}</span>
         <span
           className={cn(
             "mt-0.5 block truncate text-xs",

@@ -19,77 +19,85 @@ export function DashboardValueGrid({
       className={cn(
         "grid gap-3",
         variant === "summary"
-          ? "md:grid-cols-2 xl:grid-cols-3"
+          ? "md:grid-cols-2 xl:grid-cols-4"
           : compact
             ? "md:grid-cols-2 xl:grid-cols-3"
             : "md:grid-cols-2 xl:grid-cols-3",
       )}
     >
-      {items.map((item) => (
-        <article
-          key={item.key}
-          data-tone={item.tone}
-          className={cn(
-            "rounded-[24px] border border-slate-200/80",
-            variant === "summary"
-              ? "bg-white px-5 py-5 shadow-sm"
-              : "bg-slate-50/70",
-            compact ? "px-4 py-4" : "px-5 py-5",
-            variant === "summary" &&
-              item.tone !== "neutral" &&
-              summaryAccentClassNames[item.tone],
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <p
-              className={cn(
-                "text-xs font-semibold uppercase tracking-[0.18em]",
-                variant === "summary" && item.tone === "strong"
-                  ? "text-slate-300"
-                  : "text-slate-500",
-              )}
-            >
-              {item.label}
-            </p>
-            {item.tone !== "neutral" ? (
-              <DashboardStatusBadge
-                label={toneLabelMap[item.tone]}
-                tone={item.tone}
-              />
-            ) : null}
-          </div>
+      {items.map((item, index) => {
+        const isSummaryHero = variant === "summary" && index === 0;
 
-          <p
+        return (
+          <article
+            key={item.key}
+            data-tone={item.tone}
             className={cn(
-              "mt-3 font-semibold tracking-tight",
-              variant === "summary" && item.tone === "strong"
-                ? "text-white"
-                : "text-slate-950",
+              "rounded-[24px] border border-slate-200/80",
               variant === "summary"
-                ? "text-[28px] sm:text-[30px]"
-                : compact
-                  ? "text-xl"
-                  : "text-2xl",
+                ? "bg-white px-5 py-5 shadow-sm"
+                : "bg-slate-50/70",
+              compact ? "px-4 py-4" : "px-5 py-5",
+              isSummaryHero && "ui-hero-card border-0 px-6 py-6 md:col-span-2 xl:col-span-2",
+              variant === "summary" &&
+                !isSummaryHero &&
+                item.tone !== "neutral" &&
+                summaryAccentClassNames[item.tone],
             )}
           >
-            {formatDashboardValue(item)}
-          </p>
+            <div className="flex items-start justify-between gap-3">
+              <p
+                className={cn(
+                  "text-xs font-semibold uppercase tracking-[0.18em]",
+                  isSummaryHero || (variant === "summary" && item.tone === "strong")
+                    ? "text-slate-300"
+                    : "text-slate-500",
+                )}
+              >
+                {item.label}
+              </p>
+              {item.tone !== "neutral" ? (
+                <DashboardStatusBadge
+                  label={toneLabelMap[item.tone]}
+                  tone={item.tone}
+                />
+              ) : null}
+            </div>
 
-          {item.context ? (
             <p
               className={cn(
-                "mt-2 text-sm leading-6",
-                variant === "summary" && item.tone === "strong"
-                  ? "text-slate-300"
-                  : "text-slate-500",
-                variant === "summary" && "max-w-[24rem]",
+                "mt-3 font-semibold tracking-tight",
+                isSummaryHero || (variant === "summary" && item.tone === "strong")
+                  ? "text-white"
+                  : "text-slate-950",
+                variant === "summary"
+                  ? isSummaryHero
+                    ? "text-[34px] sm:text-[40px]"
+                    : "text-[28px] sm:text-[30px]"
+                  : compact
+                    ? "text-xl"
+                    : "text-2xl",
               )}
             >
-              {item.context}
+              {formatDashboardValue(item)}
             </p>
-          ) : null}
-        </article>
-      ))}
+
+            {item.context ? (
+              <p
+                className={cn(
+                  "mt-2 text-sm leading-6",
+                  isSummaryHero || (variant === "summary" && item.tone === "strong")
+                    ? "text-slate-300"
+                    : "text-slate-500",
+                  variant === "summary" && "max-w-[24rem]",
+                )}
+              >
+                {item.context}
+              </p>
+            ) : null}
+          </article>
+        );
+      })}
     </div>
   );
 }

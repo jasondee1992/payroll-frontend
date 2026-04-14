@@ -42,10 +42,10 @@ export default async function DashboardPage() {
         description={snapshot.description}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+            <span className="ui-badge ui-badge-neutral">
               {snapshot.role.replace("-", " ").replace(/\b\w/g, (character) => character.toUpperCase())}
             </span>
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+            <span className="ui-badge bg-slate-900 text-white ring-slate-900/10">
               Live snapshot {formatDateTime(snapshot.generated_at)}
             </span>
           </div>

@@ -13,8 +13,11 @@ export function AuthInput({
   ...props
 }: AuthInputProps) {
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+    <div className="space-y-2.5">
+      <label
+        htmlFor={id}
+        className="text-[13px] font-semibold uppercase tracking-[0.16em] text-slate-500"
+      >
         {label}
       </label>
       <input

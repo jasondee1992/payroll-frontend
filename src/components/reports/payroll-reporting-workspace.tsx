@@ -9,6 +9,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { ResourceEmptyState, ResourceErrorState, ResourceTableSkeleton } from "@/components/shared/resource-state";
+import { FilterToolbar } from "@/components/ui/filter-toolbar";
+import { MetricCard } from "@/components/ui/metric-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { getPayrollReportingSnapshot } from "@/lib/api/payroll";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
@@ -223,12 +225,103 @@ export function PayrollReportingWorkspace({ role }: { role: AppRole | null }) {
         </div>
       ) : null}
 
-      <SectionCard
-        title="Report filters"
-        description="Filter payroll reporting by year, payroll status, and selected cutoff detail."
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
+        <article className="ui-hero-card">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-100">
+                Reporting scope
+              </p>
+              <h2 className="mt-3 text-[30px] font-semibold tracking-tight text-white">
+                Finance reporting workspace
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+                Review payroll totals, statutory cost, cutoff approval readiness, and year-to-date figures from a structured reporting surface.
+              </p>
+            </div>
+            <span className="ui-badge bg-white/10 text-white ring-white/10">
+              {snapshot.selected_year} reporting year
+            </span>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                Processed payroll
+              </p>
+              <p className="mt-3 text-2xl font-semibold text-white">
+                {formatCurrency(snapshot.year_to_date.total_gross_pay)}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                Gross pay across {snapshot.year_to_date.total_cutoff_runs} payroll runs.
+              </p>
+            </div>
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                Government remittances
+              </p>
+              <p className="mt-3 text-2xl font-semibold text-white">
+                {formatCurrency(snapshot.year_to_date.total_government_remittances)}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                Employee and employer remittance totals captured in payroll.
+              </p>
+            </div>
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                Employees processed
+              </p>
+              <p className="mt-3 text-2xl font-semibold text-white">
+                {snapshot.year_to_date.total_employees_processed}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                Unique employees included in the reporting year.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article className="panel-strong p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Cutoff readiness
+          </p>
+          <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
+            Approved versus in-progress payroll runs
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Monitor final cutoffs against live and not-started periods before deeper financial review.
+          </p>
+
+          <div className="mt-6 grid gap-3">
+            <div className="rounded-[22px] border border-emerald-200/80 bg-emerald-50/70 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                Approved / final
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{approvedCutoffCount}</p>
+            </div>
+            <div className="rounded-[22px] border border-amber-200/80 bg-amber-50/70 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                Live / unapproved
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{unapprovedCutoffCount}</p>
+            </div>
+            <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Not started
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{notStartedCutoffCount}</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <FilterToolbar
+        eyebrow="Report filters"
+        title="Filter payroll reporting by year, status, and cutoff"
+        description="Narrow the reporting scope without leaving the current workspace."
         className="ui-sticky-band z-20"
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <label className="space-y-2">
             <span className="ui-label">Reporting year</span>
             <select
@@ -266,6 +359,25 @@ export function PayrollReportingWorkspace({ role }: { role: AppRole | null }) {
             </select>
           </label>
 
+          <label className="space-y-2">
+            <span className="ui-label">Selected cutoff</span>
+            <select
+              className="ui-select"
+              value={filters.cutoffId ?? ""}
+              onChange={(event) => {
+                applyFilters({ cutoffId: event.target.value ? Number(event.target.value) : null });
+              }}
+              disabled={refreshing || snapshot.cutoff_summaries.length === 0}
+            >
+              <option value="">All cutoffs</option>
+              {snapshot.cutoff_summaries.map((cutoff) => (
+                <option key={cutoff.cutoff_id} value={cutoff.cutoff_id}>
+                  {cutoff.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="flex items-end">
             <button
               type="button"
@@ -282,7 +394,7 @@ export function PayrollReportingWorkspace({ role }: { role: AppRole | null }) {
         </div>
 
         {error ? <div className="ui-state-banner ui-state-banner-warning mt-4">{error}</div> : null}
-      </SectionCard>
+      </FilterToolbar>
 
       <SectionCard
         title="Admin-Finance overview"
@@ -335,54 +447,54 @@ export function PayrollReportingWorkspace({ role }: { role: AppRole | null }) {
       </SectionCard>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(0,0.9fr)_minmax(0,0.9fr)]">
-        <SummaryMetricCard
-          title="Gross pay YTD"
+        <MetricCard
+          eyebrow="Gross pay YTD"
           value={formatCurrency(snapshot.year_to_date.total_gross_pay)}
-          note={`${snapshot.year_to_date.total_cutoff_runs} payroll runs included`}
+          description={`${snapshot.year_to_date.total_cutoff_runs} payroll runs included`}
           icon={ReceiptText}
-          emphasis="primary"
+          tone="primary"
         />
-        <SummaryMetricCard
-          title="Net pay YTD"
+        <MetricCard
+          eyebrow="Net pay YTD"
           value={formatCurrency(snapshot.year_to_date.total_net_pay)}
-          note={`${snapshot.year_to_date.total_records_processed} payroll records processed`}
+          description={`${snapshot.year_to_date.total_records_processed} payroll records processed`}
           icon={TrendingUp}
-          emphasis="primary"
+          tone="primary"
         />
-        <SummaryMetricCard
-          title="Employer cost YTD"
+        <MetricCard
+          eyebrow="Employer cost YTD"
           value={formatCurrency(snapshot.year_to_date.total_employer_contributions)}
-          note="Employer-paid government cost"
+          description="Employer-paid government cost"
           icon={Building2}
         />
-        <SummaryMetricCard
-          title="Government remittances YTD"
+        <MetricCard
+          eyebrow="Government remittances YTD"
           value={formatCurrency(snapshot.year_to_date.total_government_remittances)}
-          note={`${snapshot.year_to_date.total_employees_processed} employees covered`}
+          description={`${snapshot.year_to_date.total_employees_processed} employees covered`}
           icon={Landmark}
         />
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <CompactMetricCard
-          title="Employee deductions"
+        <MetricCard
+          eyebrow="Employee deductions"
           value={formatCurrency(snapshot.year_to_date.total_employee_deductions)}
-          note="Attendance, loans, and government"
+          description="Attendance, loans, and government"
         />
-        <CompactMetricCard
-          title="Government deductions"
+        <MetricCard
+          eyebrow="Government deductions"
           value={formatCurrency(snapshot.year_to_date.total_government_deductions)}
-          note="Captured in payroll runs"
+          description="Captured in payroll runs"
         />
-        <CompactMetricCard
-          title="Basic pay"
+        <MetricCard
+          eyebrow="Basic pay"
           value={formatCurrency(snapshot.year_to_date.total_basic_pay)}
-          note={`Reporting year ${snapshot.year_to_date.year}`}
+          description={`Reporting year ${snapshot.year_to_date.year}`}
         />
-        <CompactMetricCard
-          title="Employees processed"
+        <MetricCard
+          eyebrow="Employees processed"
           value={String(snapshot.year_to_date.total_employees_processed)}
-          note="Unique employees this year"
+          description="Unique employees this year"
         />
       </section>
 
@@ -545,53 +657,6 @@ export function PayrollReportingWorkspace({ role }: { role: AppRole | null }) {
         </SectionCard>
       </div>
     </div>
-  );
-}
-
-function SummaryMetricCard({
-  title,
-  value,
-  note,
-  icon: Icon,
-  emphasis = "secondary",
-}: {
-  title: string;
-  value: string;
-  note: string;
-  icon: typeof ReceiptText;
-  emphasis?: "primary" | "secondary";
-}) {
-  return (
-    <article className={cn(emphasis === "primary" ? "ui-report-card-primary" : "ui-metric-card")}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="ui-report-kicker">{title}</p>
-          <p className={cn("mt-3 font-semibold tracking-tight text-slate-950", emphasis === "primary" ? "text-[30px]" : "text-2xl")}>{value}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{note}</p>
-        </div>
-        <div className={cn("rounded-2xl border p-3 text-slate-700 shadow-sm", emphasis === "primary" ? "border-slate-300/80 bg-slate-900 text-white" : "border-slate-200/80 bg-white")}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function CompactMetricCard({
-  title,
-  value,
-  note,
-}: {
-  title: string;
-  value: string;
-  note: string;
-}) {
-  return (
-    <article className="ui-report-card-secondary">
-      <p className="ui-report-kicker">{title}</p>
-      <p className="mt-2 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-sm text-slate-600">{note}</p>
-    </article>
   );
 }
 

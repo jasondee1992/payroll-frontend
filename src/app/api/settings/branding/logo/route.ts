@@ -98,3 +98,52 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const apiBaseUrl = getApiBaseUrl();
+
+  if (!apiBaseUrl) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_API_URL is not configured." },
+      { status: 500 },
+    );
+  }
+
+  const accessToken = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/branding/logo`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    const responseBody = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return createUnauthorizedAuthResponse(getBackendErrorMessage(responseBody));
+      }
+
+      return NextResponse.json(
+        { error: getBackendErrorMessage(responseBody) },
+        { status: response.status },
+      );
+    }
+
+    return NextResponse.json({
+      branding: parseBrandingRecord(responseBody),
+      assetUrl: null,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to reach the FastAPI backend." },
+      { status: 502 },
+    );
+  }
+}

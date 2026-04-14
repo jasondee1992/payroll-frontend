@@ -1,21 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f6fb;
-  --background-accent: #e7eef8;
+  --background: #eef3f9;
+  --background-accent: #f3f7fc;
   --surface: #ffffff;
-  --surface-secondary: #f8fafc;
-  --surface-emphasis: #eff6ff;
-  --border: #d7dee9;
+  --surface-secondary: #f7fafd;
+  --surface-emphasis: #edf4ff;
+  --surface-strong: #0b1f3a;
+  --border: #d9e2ec;
+  --border-strong: #c8d3e0;
   --text: #0f172a;
-  --text-muted: #526277;
-  --sidebar: #0f172a;
-  --sidebar-border: rgba(148, 163, 184, 0.18);
-  --sidebar-muted: #94a3b8;
+  --text-muted: #475569;
+  --sidebar: #0b1f3a;
+  --sidebar-secondary: #112b4e;
+  --sidebar-border: rgba(148, 163, 184, 0.14);
+  --sidebar-muted: #8ea0ba;
   --sidebar-active: #2563eb;
-  --primary: #0f766e;
-  --primary-foreground: #ecfeff;
-  --shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+  --primary: #2563eb;
+  --primary-foreground: #eff6ff;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --shadow: 0 20px 48px -28px rgba(11, 31, 58, 0.24);
+  --shadow-soft: 0 12px 28px -22px rgba(11, 31, 58, 0.18);
 }
 
 * {
@@ -30,9 +37,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, #fbfdff 0%, rgba(251, 253, 255, 0.9) 18%, transparent 42%),
-    radial-gradient(circle at top right, rgba(219, 234, 254, 0.55) 0%, transparent 28%),
-    linear-gradient(180deg, #f8fbff 0%, var(--background) 38%, #edf2f8 100%);
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08) 0%, rgba(255, 255, 255, 0.92) 24%, transparent 46%),
+    radial-gradient(circle at top right, rgba(11, 31, 58, 0.06) 0%, transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--background) 42%, #e9f0f8 100%);
   color: var(--text);
   font-family: var(--font-public-sans), sans-serif;
 }
@@ -52,23 +59,43 @@ button {
 
 @layer utilities {
   .panel {
-    @apply rounded-[24px] border border-slate-200/80 bg-white/95 shadow-[var(--shadow)];
+    @apply rounded-[24px] border bg-white/96 shadow-[var(--shadow-soft)];
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .panel-muted {
-    @apply rounded-[24px] border border-slate-200/70 bg-slate-50/85;
+    @apply rounded-[24px] border bg-slate-50/88;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .panel-strong {
-    @apply rounded-[28px] border border-slate-200/90 bg-white/96 shadow-[0_18px_44px_-26px_rgba(15,23,42,0.28)];
+    @apply rounded-[28px] border bg-white/97 shadow-[var(--shadow)];
+    border-color: color-mix(in srgb, var(--border-strong) 78%, white);
   }
 
   .panel-subtle {
-    @apply rounded-[24px] border border-slate-200/80 bg-linear-to-br from-white via-slate-50/75 to-slate-100/70;
+    @apply rounded-[24px] border bg-linear-to-br from-white via-slate-50/72 to-slate-100/78;
+    border-color: color-mix(in srgb, var(--border) 82%, white);
+  }
+
+  .enterprise-shell {
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 26%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(243, 247, 252, 0.88));
+  }
+
+  .enterprise-sidebar {
+    background:
+      linear-gradient(180deg, rgba(17, 43, 78, 0.98) 0%, rgba(11, 31, 58, 0.98) 52%, rgba(7, 20, 39, 1) 100%),
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 28%);
   }
 
   .ui-page-header {
-    @apply rounded-[28px] border border-slate-200/80 bg-linear-to-r from-white via-white to-slate-50/90 px-6 py-6 shadow-[0_16px_38px_-28px_rgba(15,23,42,0.3)] sm:px-7;
+    @apply rounded-[30px] border px-6 py-6 shadow-[var(--shadow)] sm:px-7 sm:py-7;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 252, 0.94)),
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 24%);
   }
 
   .ui-section-header {
@@ -76,19 +103,29 @@ button {
   }
 
   .ui-section-eyebrow {
-    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500;
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600;
+    border-color: color-mix(in srgb, var(--border) 88%, white);
+    background: rgba(255, 255, 255, 0.8);
   }
 
   .ui-toolbar {
-    @apply rounded-[24px] border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm;
+    @apply rounded-[26px] border bg-white/92 p-5 shadow-[var(--shadow-soft)] backdrop-blur-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-filter-toolbar {
+    @apply rounded-[28px] border bg-white/95 p-5 shadow-[var(--shadow-soft)] backdrop-blur-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-toolbar-muted {
-    @apply rounded-[22px] border border-slate-200/80 bg-slate-50/88 p-3 shadow-sm;
+    @apply rounded-[22px] border bg-slate-50/88 p-3 shadow-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-action-bar {
-    @apply rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-sm backdrop-blur-sm;
+    @apply rounded-[24px] border bg-white/94 p-4 shadow-[var(--shadow-soft)] backdrop-blur-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-sticky-band {
@@ -96,15 +133,20 @@ button {
   }
 
   .ui-icon-button {
-    @apply inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/10;
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/10;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-button-primary {
-    @apply inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500;
+    @apply inline-flex h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500;
+    background: linear-gradient(135deg, #112b4e 0%, #0b1f3a 100%);
+    box-shadow: 0 18px 34px -24px rgba(11, 31, 58, 0.68);
+    @apply hover:brightness-110 focus-visible:ring-blue-600/20;
   }
 
   .ui-button-secondary {
-    @apply inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/10 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400;
+    @apply inline-flex h-11 items-center justify-center rounded-2xl border bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/10 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-label {
@@ -112,31 +154,38 @@ button {
   }
 
   .ui-input {
-    @apply h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+    @apply h-12 w-full rounded-2xl border bg-white px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+    @apply hover:border-slate-300 focus:border-blue-700 focus:ring-blue-600/10;
   }
 
   .ui-select {
-    @apply h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+    @apply h-12 w-full rounded-2xl border bg-white px-4 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-700 focus:ring-4 focus:ring-blue-600/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-textarea {
-    @apply min-h-32 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+    @apply min-h-32 w-full rounded-2xl border bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-700 focus:ring-4 focus:ring-blue-600/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-table-shell {
-    @apply overflow-hidden rounded-[26px] border border-slate-200/80 bg-white/95 shadow-[0_12px_32px_-26px_rgba(15,23,42,0.35)];
+    @apply overflow-hidden rounded-[28px] border bg-white/96 shadow-[var(--shadow-soft)];
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-table-head-cell {
-    @apply border-b border-slate-200/80 bg-slate-50/85 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500;
+    @apply border-b bg-slate-50/88 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500;
+    border-color: color-mix(in srgb, var(--border) 86%, white);
   }
 
   .ui-table-body-cell {
-    @apply border-b border-slate-200/70 px-4 py-4 text-sm text-slate-600;
+    @apply border-b px-4 py-4 text-sm text-slate-600;
+    border-color: color-mix(in srgb, var(--border) 86%, white);
   }
 
   .ui-table-row {
-    @apply transition duration-150 hover:bg-slate-50/90;
+    @apply transition duration-150 hover:bg-slate-50/92;
   }
 
   .ui-table-row-selected {
@@ -160,7 +209,7 @@ button {
   }
 
   .ui-badge {
-    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ring-black/5;
+    @apply inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ring-1 ring-inset ring-black/5;
   }
 
   .ui-badge-success {
@@ -204,11 +253,48 @@ button {
   }
 
   .ui-metric-card {
-    @apply rounded-[26px] border border-slate-200/80 bg-white/96 px-5 py-5 shadow-sm;
+    @apply rounded-[28px] border bg-white/96 px-5 py-5 shadow-[var(--shadow-soft)];
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-kpi-card {
+    @apply rounded-[24px] border bg-white/96 p-5 shadow-[var(--shadow-soft)];
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-kpi-card-primary {
+    @apply rounded-[28px] border p-5 shadow-[var(--shadow)];
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 252, 0.94)),
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 26%);
+  }
+
+  .ui-kpi-card-dark {
+    @apply rounded-[28px] border p-5 text-white shadow-[0_24px_48px_-28px_rgba(11,31,58,0.62)];
+    border-color: rgba(148, 163, 184, 0.16);
+    background:
+      linear-gradient(135deg, rgba(17, 43, 78, 0.98), rgba(11, 31, 58, 1)),
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.32), transparent 28%);
+  }
+
+  .ui-kpi-card-soft {
+    @apply rounded-[24px] border p-5 shadow-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  }
+
+  .ui-kpi-icon {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-2xl border shadow-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-report-card-primary {
-    @apply rounded-[28px] border border-slate-200/90 bg-linear-to-br from-white via-white to-slate-50/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.26)];
+    @apply rounded-[28px] border p-5 shadow-[var(--shadow)];
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 252, 0.94)),
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 26%);
   }
 
   .ui-report-card-secondary {
@@ -232,11 +318,50 @@ button {
   }
 
   .ui-report-section-soft {
-    @apply rounded-[24px] border border-slate-200/80 bg-linear-to-br from-white via-slate-50/70 to-slate-100/70 p-4;
+    @apply rounded-[24px] border bg-linear-to-br from-white via-slate-50/70 to-slate-100/70 p-4;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
   }
 
   .ui-report-stat-strip {
-    @apply rounded-[22px] border border-slate-200/80 bg-slate-50/90 px-4 py-3;
+    @apply rounded-[22px] border bg-slate-50/92 px-4 py-3;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-hero-card {
+    @apply rounded-[30px] border px-6 py-6 text-white shadow-[0_24px_48px_-28px_rgba(11,31,58,0.62)];
+    border-color: rgba(148, 163, 184, 0.16);
+    background:
+      linear-gradient(135deg, rgba(17, 43, 78, 0.98), rgba(11, 31, 58, 1)),
+      radial-gradient(circle at top right, rgba(37, 99, 235, 0.32), transparent 28%);
+  }
+
+  .ui-alert-card {
+    @apply rounded-[24px] border bg-linear-to-r from-white to-slate-50/90 p-4 shadow-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-command-bar {
+    @apply rounded-[26px] border bg-white/94 p-5 shadow-[var(--shadow-soft)] backdrop-blur-sm;
+    border-color: color-mix(in srgb, var(--border) 84%, white);
+  }
+
+  .ui-auth-shell {
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(22, 163, 74, 0.08), transparent 24%),
+      linear-gradient(135deg, #112b4e 0%, #0b1f3a 48%, #081a32 100%);
+  }
+
+  .ui-auth-pattern {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .ui-auth-card {
+    @apply rounded-[32px] border bg-white/96 shadow-[0_30px_60px_-34px_rgba(8,26,50,0.48)] backdrop-blur-md;
+    border-color: rgba(217, 226, 236, 0.84);
   }
 
   .text-muted {

@@ -84,7 +84,7 @@ export function LoginForm() {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="inline-flex items-center gap-3 text-sm text-slate-600">
           <input
             type="checkbox"
@@ -112,7 +112,7 @@ export function LoginForm() {
           usernameOrEmail.trim().length === 0 ||
           password.trim().length === 0
         }
-        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+        className="ui-button-primary inline-flex h-12 w-full items-center justify-center gap-2 px-4"
       >
         {isSubmitting ? "Signing in..." : "Sign in"}
         {isSubmitting ? (
@@ -121,6 +121,10 @@ export function LoginForm() {
           <ArrowRight className="h-4 w-4" />
         )}
       </button>
+
+      <div className="rounded-[22px] border border-slate-200/80 bg-white/80 px-4 py-3 text-xs leading-6 text-slate-500">
+        Access is intended for authorized payroll, HR, finance, and operations users only. Use the credentials issued for your workspace account.
+      </div>
     </form>
   );
 }

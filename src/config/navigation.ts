@@ -22,6 +22,7 @@ export type NavigationItem = {
   href: string;
   description: string;
   icon: LucideIcon;
+  section?: "Workspace" | "Operations" | "Analysis" | "Configuration";
   roles?: NavigationRole[];
 };
 
@@ -31,6 +32,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/dashboard",
     description: "Operational overview and payroll cycle status.",
     icon: LayoutDashboard,
+    section: "Workspace",
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {
@@ -38,6 +40,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/exceptions",
     description: "Operational blockers and validation issues before payroll finalization.",
     icon: AlertTriangle,
+    section: "Operations",
     roles: ["admin", "admin-finance", "finance", "hr"],
   },
   {
@@ -45,6 +48,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/employees",
     description: "Workforce records, onboarding, and directory views.",
     icon: Users,
+    section: "Workspace",
     roles: ["admin", "admin-finance", "finance", "hr", "system-admin"],
   },
   {
@@ -52,6 +56,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/attendance",
     description: "Time tracking, shifts, and attendance exceptions.",
     icon: Clock3,
+    section: "Operations",
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {
@@ -59,6 +64,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/leave-requests",
     description: "File leave, overtime, undertime, half-day, and related requests.",
     icon: CalendarDays,
+    section: "Operations",
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {
@@ -66,6 +72,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/notifications",
     description: "Important in-app updates for approvals, payroll, and action items.",
     icon: Bell,
+    section: "Workspace",
     roles: ["admin", "admin-finance", "finance", "hr", "employee"],
   },
   {
@@ -73,6 +80,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/holidays",
     description: "Manage the operating holiday calendar used by attendance and payroll.",
     icon: CalendarRange,
+    section: "Configuration",
     roles: ["admin", "admin-finance", "finance", "hr"],
   },
   {
@@ -80,6 +88,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/payroll",
     description: "Payroll runs, approvals, and pay cycle monitoring.",
     icon: WalletCards,
+    section: "Operations",
     roles: ["admin", "admin-finance", "finance"],
   },
   {
@@ -87,6 +96,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/payslips",
     description: "Published statements and employee pay documents.",
     icon: Receipt,
+    section: "Operations",
     roles: ["admin-finance", "finance", "employee"],
   },
   {
@@ -94,6 +104,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/audit-logs",
     description: "Track who changed what across payroll and operations.",
     icon: ClipboardList,
+    section: "Analysis",
     roles: ["admin", "admin-finance", "finance", "hr"],
   },
   {
@@ -101,6 +112,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/reports",
     description: "Reporting views for payroll, attendance, and costs.",
     icon: BarChart3,
+    section: "Analysis",
     roles: ["admin", "admin-finance", "finance"],
   },
   {
@@ -108,6 +120,7 @@ export const navigationItems: NavigationItem[] = [
     href: "/settings",
     description: "Organization settings and payroll configuration.",
     icon: Settings,
+    section: "Configuration",
     roles: ["admin", "admin-finance", "hr", "system-admin"],
   },
 ];

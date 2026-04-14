@@ -4,6 +4,7 @@ import { EmployeePagination } from "@/components/employees/employee-pagination";
 import { EmployeeTable } from "@/components/employees/employee-table";
 import { PageHeader } from "@/components/shared/page-header";
 import { ResourceErrorState } from "@/components/shared/resource-state";
+import { MetricCard } from "@/components/ui/metric-card";
 import { getEmployeesResource } from "@/lib/api/employees";
 import { getServerAuthSession } from "@/lib/auth/server-session";
 import { canManageEmployees } from "@/lib/auth/session";
@@ -16,21 +17,51 @@ export default async function EmployeesPage() {
     getServerAuthSession(),
   ]);
   const canAddEmployee = canManageEmployees(authSession.role);
+  const activeCount = employees.filter((employee) => employee.status === "Active").length;
+  const onLeaveCount = employees.filter((employee) => employee.status === "On Leave").length;
+  const inactiveCount = employees.filter((employee) => employee.status === "Inactive").length;
 
   return (
     <>
       <PageHeader
+        eyebrow="Workforce directory"
         title="Employees"
         description="Manage employee records, payroll assignments, and workforce status from a central directory."
         actions={canAddEmployee ? (
-          <Link
-            href="/employees/new"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/15"
-          >
-            Add Employee
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="ui-badge ui-badge-neutral">{employees.length} employees</span>
+            <Link href="/employees/new" className="ui-button-primary">
+              Add Employee
+            </Link>
+          </div>
         ) : null}
       />
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          eyebrow="Total employees"
+          value={String(employees.length)}
+          description="Current directory records"
+          tone="primary"
+        />
+        <MetricCard
+          eyebrow="Active"
+          value={String(activeCount)}
+          description="Available for payroll and operations"
+          tone="success"
+        />
+        <MetricCard
+          eyebrow="On leave"
+          value={String(onLeaveCount)}
+          description="Temporarily away from active duty"
+          tone="warning"
+        />
+        <MetricCard
+          eyebrow="Inactive"
+          value={String(inactiveCount)}
+          description="Archived or separated records"
+        />
+      </section>
 
       <section className="panel p-5 sm:p-6">
         <EmployeeListToolbar />

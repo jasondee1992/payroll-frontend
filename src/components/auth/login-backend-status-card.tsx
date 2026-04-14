@@ -26,7 +26,7 @@ export function LoginBackendStatusCard() {
   );
 
   return (
-    <div className="mt-8 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-4">
+    <div className="mt-8 rounded-[24px] border border-slate-200/80 bg-linear-to-r from-slate-50/95 to-white px-4 py-4 shadow-sm">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
           {!backendStatus ? (

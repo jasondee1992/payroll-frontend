@@ -36,8 +36,7 @@ export function EmployeeTable({
           <table className="min-w-full border-separate border-spacing-0">
             <thead className="bg-slate-50/80">
               <tr className="text-left">
-                <DataTableHeaderCell>Employee ID</DataTableHeaderCell>
-                <DataTableHeaderCell>Full Name</DataTableHeaderCell>
+                <DataTableHeaderCell>Employee</DataTableHeaderCell>
                 <DataTableHeaderCell>Department</DataTableHeaderCell>
                 <DataTableHeaderCell>Position</DataTableHeaderCell>
                 <DataTableHeaderCell>Employment Type</DataTableHeaderCell>
@@ -52,28 +51,54 @@ export function EmployeeTable({
                   key={employee.id}
                   onClick={() => router.push(`/employees/${employee.id}`)}
                 >
-                  <DataTableBodyCell>{employee.id}</DataTableBodyCell>
+                  <DataTableBodyCell>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700 ring-1 ring-slate-200/80">
+                        {employee.fullName
+                          .split(" ")
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0])
+                          .join("")
+                          .toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {employee.fullName}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {employee.id} • {employee.position}
+                        </p>
+                      </div>
+                    </div>
+                  </DataTableBodyCell>
                   <DataTableBodyCell>
                     <div>
-                      <p className="font-semibold text-slate-900">
-                        {employee.fullName}
-                      </p>
+                      <p className="font-medium text-slate-900">{employee.department}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Payroll profile ready
+                        Workforce assignment
                       </p>
                     </div>
                   </DataTableBodyCell>
-                  <DataTableBodyCell>{employee.department}</DataTableBodyCell>
-                  <DataTableBodyCell>{employee.position}</DataTableBodyCell>
+                  <DataTableBodyCell>
+                    <div>
+                      <p className="font-medium text-slate-900">{employee.position}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Role title
+                      </p>
+                    </div>
+                  </DataTableBodyCell>
                   <DataTableBodyCell>{employee.employmentType}</DataTableBodyCell>
-                  <DataTableBodyCell>{employee.payrollSchedule}</DataTableBodyCell>
+                  <DataTableBodyCell>
+                    <span className="ui-badge ui-badge-neutral">{employee.payrollSchedule}</span>
+                  </DataTableBodyCell>
                   <DataTableBodyCell>
                     <EmployeeStatusBadge status={employee.status} />
                   </DataTableBodyCell>
                   <DataTableBodyCell className="align-middle">
                     <Link
                       href={`/employees/${employee.id}`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <Eye className="h-4 w-4" />
@@ -95,14 +120,25 @@ export function EmployeeTable({
           >
             <Link href={`/employees/${employee.id}`} className="block">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {employee.id}
-                  </p>
-                  <h2 className="mt-2 text-base font-semibold text-slate-950">
-                    {employee.fullName}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-600">{employee.position}</p>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700 ring-1 ring-slate-200/80">
+                    {employee.fullName
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part) => part[0])
+                      .join("")
+                      .toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      {employee.id}
+                    </p>
+                    <h2 className="mt-2 text-base font-semibold text-slate-950">
+                      {employee.fullName}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-600">{employee.position}</p>
+                  </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
               </div>

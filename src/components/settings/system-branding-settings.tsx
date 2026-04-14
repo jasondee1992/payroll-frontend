@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { LoaderCircle, Upload } from "lucide-react";
+import { LoaderCircle, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import type { BrandingRecord } from "@/types/branding";
@@ -25,9 +25,9 @@ export function SystemBrandingSettings({
     useState(loginBackgroundUrl);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [pendingUpload, setPendingUpload] = useState<"logo" | "background" | null>(
-    null,
-  );
+  const [pendingUpload, setPendingUpload] = useState<
+    "logo" | "background" | "delete-logo" | "delete-background" | null
+  >(null);
   const [isSaving, startSaving] = useTransition();
   const logoInputRef = useRef<HTMLInputElement | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement | null>(null);
@@ -154,6 +154,56 @@ export function SystemBrandingSettings({
     }
   }
 
+  async function deleteBrandingImage(kind: "logo" | "background") {
+    resetMessages();
+    setPendingUpload(kind === "logo" ? "delete-logo" : "delete-background");
+
+    try {
+      const response = await fetch(
+        kind === "logo"
+          ? "/api/settings/branding/logo"
+          : "/api/settings/branding/login-background",
+        {
+          method: "DELETE",
+          headers: {
+            Accept: "application/json",
+          },
+        },
+      );
+      const responseBody = (await response.json()) as {
+        error?: string;
+        branding?: BrandingRecord;
+      };
+
+      if (!response.ok || !responseBody.branding) {
+        setFailure(responseBody.error ?? "Unable to delete the branding image.");
+        return;
+      }
+
+      applyBranding(responseBody.branding);
+
+      if (kind === "logo") {
+        setLogoPreviewUrl(null);
+        if (logoInputRef.current) {
+          logoInputRef.current.value = "";
+        }
+        setSuccess("Company logo removed.");
+      } else {
+        setBackgroundPreviewUrl(null);
+        if (backgroundInputRef.current) {
+          backgroundInputRef.current.value = "";
+        }
+        setSuccess("Login background removed.");
+      }
+
+      router.refresh();
+    } catch {
+      setFailure("Unable to delete the branding image.");
+    } finally {
+      setPendingUpload(null);
+    }
+  }
+
   return (
     <section className="panel p-6 sm:p-7">
       <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-5">
@@ -209,7 +259,15 @@ export function SystemBrandingSettings({
             previewLabel={branding.companyName}
             inputRef={logoInputRef}
             busy={pendingUpload === "logo"}
+            deleting={pendingUpload === "delete-logo"}
             onSelect={(file) => void uploadBrandingImage("logo", file)}
+            onDelete={
+              logoPreviewUrl
+                ? () => {
+                    void deleteBrandingImage("logo");
+                  }
+                : undefined
+            }
           />
 
           <UploadCard
@@ -219,7 +277,15 @@ export function SystemBrandingSettings({
             previewLabel="Login background preview"
             inputRef={backgroundInputRef}
             busy={pendingUpload === "background"}
+            deleting={pendingUpload === "delete-background"}
             onSelect={(file) => void uploadBrandingImage("background", file)}
+            onDelete={
+              backgroundPreviewUrl
+                ? () => {
+                    void deleteBrandingImage("background");
+                  }
+                : undefined
+            }
             previewHeight="h-40"
           />
         </div>
@@ -300,7 +366,9 @@ function UploadCard({
   previewLabel,
   inputRef,
   busy,
+  deleting,
   onSelect,
+  onDelete,
   previewHeight = "h-28",
 }: {
   title: string;
@@ -309,7 +377,9 @@ function UploadCard({
   previewLabel: string;
   inputRef: RefObject<HTMLInputElement | null>;
   busy: boolean;
+  deleting: boolean;
   onSelect: (file: File | null) => void;
+  onDelete?: () => void;
   previewHeight?: string;
 }) {
   const fieldId = title.toLowerCase().replace(/\s+/g, "-");
@@ -339,17 +409,34 @@ function UploadCard({
         </div>
 
         <div className="flex-1">
-          <label
-            htmlFor={fieldId}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300"
-          >
-            {busy ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
-            <span>{busy ? "Uploading..." : "Choose Image"}</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <label
+              htmlFor={fieldId}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300"
+            >
+              {busy ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              <span>{busy ? "Uploading..." : "Choose Image"}</span>
+            </label>
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={busy || deleting}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:cursor-not-allowed disabled:border-rose-100 disabled:bg-rose-50 disabled:text-rose-300"
+              >
+                {deleting ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span>{deleting ? "Removing..." : "Delete Image"}</span>
+              </button>
+            ) : null}
+          </div>
           <input
             id={fieldId}
             ref={inputRef}
@@ -359,7 +446,7 @@ function UploadCard({
             onChange={(event) => onSelect(event.target.files?.[0] ?? null)}
           />
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            Accepts JPG, PNG, or WEBP up to 5 MB.
+            Accepts JPG, PNG, or WEBP up to 5 MB. Delete will revert this area to the default system appearance.
           </p>
         </div>
       </div>

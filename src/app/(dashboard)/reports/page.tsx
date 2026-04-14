@@ -13,6 +13,14 @@ export default async function ReportsPage() {
         title="Payroll reports"
         description="Review year-to-date payroll totals, current month processing, cutoff approval status, and statutory payroll cost breakdowns for payroll review operations."
         eyebrow="Reporting"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="ui-badge ui-badge-neutral">
+              {session.role?.replace("-", " ") ?? "restricted"} role
+            </span>
+            <span className="ui-badge ui-badge-info">Finance reporting workspace</span>
+          </div>
+        }
       />
 
       {canViewPayroll(session.role) ? (
