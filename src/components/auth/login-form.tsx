@@ -121,10 +121,6 @@ export function LoginForm() {
           <ArrowRight className="h-4 w-4" />
         )}
       </button>
-
-      <div className="rounded-[22px] border border-slate-200/80 bg-white/80 px-4 py-3 text-xs leading-6 text-slate-500">
-        Access is intended for authorized payroll, HR, finance, and operations users only. Use the credentials issued for your workspace account.
-      </div>
     </form>
   );
 }

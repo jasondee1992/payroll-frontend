@@ -133,12 +133,11 @@ export function AppShell({
             currentRole={currentRole}
             currentUsername={currentUsername}
             currentDisplayRole={currentDisplayRole}
-            branding={branding}
             onToggleCollapsed={() => setCollapsed((current) => !current)}
             onOpenMobileNav={() => setMobileOpen(true)}
           />
 
-          <main className="flex-1 px-6 py-7 sm:px-7 sm:py-8 lg:px-8 lg:py-10">
+          <main className="flex-1 px-6 py-8 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
             <div className="relative mx-auto w-full max-w-[1680px]">
               <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 rounded-[36px] bg-linear-to-r from-blue-100/35 via-white/10 to-slate-200/25 blur-3xl" />
               <div
@@ -193,7 +192,7 @@ export function AppShell({
 
               <div
                 className={cn(
-                  "flex w-full flex-col gap-9 transition-opacity duration-200 lg:gap-10",
+                  "flex w-full flex-col gap-10 transition-opacity duration-200 lg:gap-11",
                   isNavigationPending && "opacity-40",
                 )}
               >

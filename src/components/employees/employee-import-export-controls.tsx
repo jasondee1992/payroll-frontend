@@ -67,7 +67,7 @@ export function EmployeeImportExportControls({
           onClick={() => downloadCsv("/api/employees/export?template=true")}
         >
           <FileSpreadsheet className="h-4 w-4" />
-          Template
+          Export Template
         </button>
         <button
           type="button"
@@ -75,7 +75,7 @@ export function EmployeeImportExportControls({
           onClick={() => downloadCsv("/api/employees/export")}
         >
           <Download className="h-4 w-4" />
-          Export
+          Export Data
         </button>
         <button
           type="button"
@@ -92,8 +92,8 @@ export function EmployeeImportExportControls({
         </button>
       </div>
 
-      <p className="max-w-[34rem] text-[11px] leading-5 text-slate-500 sm:text-right">
-        Exported employee CSV files and the blank template use the same import columns for bulk upload.
+      <p className="max-w-[34rem] text-[10px] leading-5 text-slate-500 sm:text-right">
+        Exported employee CSV files and the blank template use the same column order for bulk create and update imports.
       </p>
 
       <input

@@ -199,7 +199,7 @@ export function PayslipWorkspace() {
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="ui-metric-card"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p><p className="mt-2 text-sm text-slate-600">{detail}</p></div>;
+  return <div className="ui-metric-card"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p><p className="mt-3 text-[1.1rem] font-semibold tracking-tight text-slate-950">{value}</p><p className="mt-2 text-[11px] text-slate-600">{detail}</p></div>;
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

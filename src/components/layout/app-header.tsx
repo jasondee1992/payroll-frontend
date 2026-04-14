@@ -4,7 +4,6 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { NotificationBell } from "@/components/time-requests/notification-bell";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import type { AppRole } from "@/lib/auth/session";
-import type { BrandingRecord } from "@/types/branding";
 
 type AppHeaderProps = {
   collapsed: boolean;
@@ -14,7 +13,6 @@ type AppHeaderProps = {
   currentRole: AppRole | null;
   currentUsername: string | null;
   currentDisplayRole: string | null;
-  branding: BrandingRecord;
 };
 
 export function AppHeader({
@@ -25,13 +23,12 @@ export function AppHeader({
   currentRole,
   currentUsername,
   currentDisplayRole,
-  branding,
 }: AppHeaderProps) {
   const isSystemAdmin = currentRole === "system-admin";
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/86 backdrop-blur-xl">
-      <div className="flex min-h-22 w-full items-center justify-between gap-5 px-5 py-4 sm:px-6 lg:px-8">
+      <div className="flex min-h-22 w-full items-center justify-between gap-5 px-5 py-4 sm:px-6 lg:px-9">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"

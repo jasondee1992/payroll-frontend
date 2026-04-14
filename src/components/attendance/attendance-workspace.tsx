@@ -1870,7 +1870,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+      <p className="mt-2 text-[1.05rem] font-semibold text-slate-950">{value}</p>
     </div>
   );
 }
@@ -1881,7 +1881,7 @@ function MetaItem({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-sm text-slate-700">{value}</p>
+      <p className="mt-2 text-[12px] text-slate-700">{value}</p>
     </div>
   );
 }

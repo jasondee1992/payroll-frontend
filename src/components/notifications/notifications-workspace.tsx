@@ -311,10 +311,10 @@ function SummaryCard({
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
         {label}
       </p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+      <p className="mt-3 text-[1.2rem] font-semibold tracking-tight text-slate-950">
         {value}
       </p>
-      <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+      <p className="mt-3 text-[12px] leading-5 text-slate-600">{description}</p>
     </article>
   );
 }

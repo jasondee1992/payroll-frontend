@@ -92,8 +92,9 @@ button {
 
   .sidebar-scroll {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--sidebar-muted) 55%, var(--sidebar-secondary) 45%)
-      color-mix(in srgb, var(--sidebar) 72%, transparent);
+    scrollbar-color: color-mix(in srgb, var(--sidebar-secondary) 68%, var(--sidebar-muted) 32%)
+      color-mix(in srgb, var(--sidebar-secondary) 84%, var(--sidebar) 16%);
+    scrollbar-gutter: stable;
   }
 
   .sidebar-scroll::-webkit-scrollbar {
@@ -101,13 +102,13 @@ button {
   }
 
   .sidebar-scroll::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--sidebar) 78%, rgba(255, 255, 255, 0.04));
+    background: color-mix(in srgb, var(--sidebar-secondary) 86%, var(--sidebar) 14%);
     border-radius: 999px;
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--sidebar-muted) 42%, var(--sidebar-secondary) 58%);
-    border: 2px solid color-mix(in srgb, var(--sidebar) 82%, transparent);
+    background: color-mix(in srgb, var(--sidebar-secondary) 62%, var(--sidebar-muted) 38%);
+    border: 2px solid color-mix(in srgb, var(--sidebar-secondary) 88%, var(--sidebar) 12%);
     border-radius: 999px;
   }
 
@@ -201,12 +202,12 @@ button {
   }
 
   .ui-table-body-cell {
-    @apply border-b px-4 py-4 text-[13px] leading-5 text-slate-600;
+    @apply border-b px-4 py-4 text-[11px] leading-4 text-slate-600;
     border-color: color-mix(in srgb, var(--border) 86%, white);
   }
 
   .ui-table-row {
-    @apply text-[13px] leading-5 transition duration-150 hover:bg-slate-50/92;
+    @apply text-[11px] leading-4 transition duration-150 hover:bg-slate-50/92;
   }
 
   .ui-table-row-selected {
@@ -279,13 +280,13 @@ button {
   }
 
   .ui-metric-card > p:nth-of-type(2) {
-    font-size: 1.2rem;
-    line-height: 1.3;
+    font-size: 0.95rem;
+    line-height: 1.25;
   }
 
   .ui-metric-card > p:nth-of-type(3) {
-    font-size: 0.8125rem;
-    line-height: 1.45;
+    font-size: 0.7rem;
+    line-height: 1.4;
   }
 
   .ui-kpi-card {

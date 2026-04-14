@@ -123,8 +123,8 @@ export function AttendanceCutoffManager() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
             Total Cutoffs
           </p>
-          <p className="mt-3 text-3xl font-semibold text-slate-950">{cutoffs.length}</p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-3 text-[1.15rem] font-semibold text-slate-950">{cutoffs.length}</p>
+          <p className="mt-2 text-[12px] text-slate-600">
             Every attendance cutoff currently saved for upload management.
           </p>
         </div>
@@ -133,8 +133,8 @@ export function AttendanceCutoffManager() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
             Uploaded Periods
           </p>
-          <p className="mt-3 text-3xl font-semibold text-slate-950">{uploadedCount}</p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-3 text-[1.15rem] font-semibold text-slate-950">{uploadedCount}</p>
+          <p className="mt-2 text-[12px] text-slate-600">
             Cutoffs that already have an attendance file attached.
           </p>
         </div>
@@ -143,10 +143,10 @@ export function AttendanceCutoffManager() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
             Locked Or Draft
           </p>
-          <p className="mt-3 text-3xl font-semibold text-slate-950">
+          <p className="mt-3 text-[1.15rem] font-semibold text-slate-950">
             {lockedCount} / {draftCount}
           </p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-[12px] text-slate-600">
             Locked cutoffs stay protected. Draft cutoffs can still be cleaned up here.
           </p>
         </div>

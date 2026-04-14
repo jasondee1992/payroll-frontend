@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { APP_SUBTITLE } from "@/config/branding";
 import { LoginBackendStatusCard } from "@/components/auth/login-backend-status-card";
 import { LoginForm } from "@/components/auth/login-form";
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -59,9 +58,6 @@ export default async function LoginPage() {
                 <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-[34px]">
                   Sign in to the payroll workspace
                 </h1>
-                <p className="mt-3 text-[13px] leading-6 text-slate-600">
-                  Access {APP_SUBTITLE.toLowerCase()} and employee operations.
-                </p>
               </div>
 
               <Suspense fallback={null}>

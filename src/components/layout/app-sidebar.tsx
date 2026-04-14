@@ -86,7 +86,7 @@ export function AppSidebar({
         </div>
       </div>
 
-      <div className="sidebar-scroll flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-7">
+      <div className="sidebar-scroll flex flex-1 flex-col gap-7 overflow-y-auto px-4 py-8 pr-3">
         <nav className="flex flex-col gap-5">
           {groupedNavigationItems.map((group) => (
             <div key={group.section} className={cn("space-y-2", collapsed && "lg:space-y-3")}>

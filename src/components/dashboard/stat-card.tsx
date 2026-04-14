@@ -32,8 +32,8 @@ export function StatCard({
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-500">{title}</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+            <p className="text-[12px] font-medium text-slate-500">{title}</p>
+            <p className="mt-3 text-[1.2rem] font-semibold tracking-tight text-slate-950">
               {value}
             </p>
           </div>
@@ -49,7 +49,7 @@ export function StatCard({
         </span>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-600">{detail}</p>
+      <p className="mt-4 text-[12px] leading-5 text-slate-600">{detail}</p>
     </article>
   );
 }
