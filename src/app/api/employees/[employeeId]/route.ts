@@ -101,90 +101,27 @@ export async function PUT(
   const accessToken = request.cookies.get(AUTH_TOKEN_COOKIE)?.value;
 
   try {
-    const employeeResponse = await requestBackend(
-      `${apiBaseUrl}${apiEndpoints.employees.detail(employeeId)}`,
+    const onboardingUpdateResponse = await requestBackend(
+      `${apiBaseUrl}${apiEndpoints.employees.onboardUpdate(employeeId)}`,
       "PUT",
       accessToken,
-      body.employee,
+      body,
     );
 
-    if (!employeeResponse.ok) {
-      if (employeeResponse.status === 401) {
+    if (!onboardingUpdateResponse.ok) {
+      if (onboardingUpdateResponse.status === 401) {
         return createUnauthorizedAuthResponse(
-          getBackendErrorMessage(employeeResponse.body),
+          getBackendErrorMessage(onboardingUpdateResponse.body),
         );
       }
 
       return NextResponse.json(
-        { error: getBackendErrorMessage(employeeResponse.body) },
-        { status: employeeResponse.status },
+        { error: getBackendErrorMessage(onboardingUpdateResponse.body) },
+        { status: onboardingUpdateResponse.status },
       );
     }
 
-    let governmentInfoResponse = await requestBackend(
-      `${apiBaseUrl}${apiEndpoints.employees.governmentInfo(employeeId)}`,
-      "PUT",
-      accessToken,
-      body.government_info,
-    );
-
-    if (!governmentInfoResponse.ok && governmentInfoResponse.status === 404) {
-      governmentInfoResponse = await requestBackend(
-        `${apiBaseUrl}${apiEndpoints.employees.governmentInfo(employeeId)}`,
-        "POST",
-        accessToken,
-        body.government_info,
-      );
-    }
-
-    if (!governmentInfoResponse.ok) {
-      if (governmentInfoResponse.status === 401) {
-        return createUnauthorizedAuthResponse(
-          getBackendErrorMessage(governmentInfoResponse.body),
-        );
-      }
-
-      return NextResponse.json(
-        { error: getBackendErrorMessage(governmentInfoResponse.body) },
-        { status: governmentInfoResponse.status },
-      );
-    }
-
-    let salaryProfileResponse = await requestBackend(
-      `${apiBaseUrl}${apiEndpoints.employees.salaryProfile(employeeId)}`,
-      "PUT",
-      accessToken,
-      body.salary_profile,
-    );
-
-    if (!salaryProfileResponse.ok && salaryProfileResponse.status === 404) {
-      salaryProfileResponse = await requestBackend(
-        `${apiBaseUrl}${apiEndpoints.employees.salaryProfile(employeeId)}`,
-        "POST",
-        accessToken,
-        body.salary_profile,
-      );
-    }
-
-    if (!salaryProfileResponse.ok) {
-      if (salaryProfileResponse.status === 401) {
-        return createUnauthorizedAuthResponse(
-          getBackendErrorMessage(salaryProfileResponse.body),
-        );
-      }
-
-      return NextResponse.json(
-        { error: getBackendErrorMessage(salaryProfileResponse.body) },
-        { status: salaryProfileResponse.status },
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      employee: employeeResponse.body,
-      government_info: governmentInfoResponse.body,
-      salary_profile: salaryProfileResponse.body,
-    });
+    return NextResponse.json(onboardingUpdateResponse.body);
   } catch {
     return NextResponse.json(
       { error: "Unable to reach the FastAPI backend." },

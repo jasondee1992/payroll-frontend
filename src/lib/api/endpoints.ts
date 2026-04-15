@@ -15,6 +15,8 @@ export const apiEndpoints = {
   employees: {
     list: `${API_V1_PREFIX}/employees`,
     onboard: `${API_V1_PREFIX}/employees/onboard`,
+    onboardUpdate: (employeeId: string) =>
+      `${API_V1_PREFIX}/employees/${employeeId}/onboard-update`,
     export: `${API_V1_PREFIX}/employees/export`,
     import: `${API_V1_PREFIX}/employees/import`,
     detail: (employeeId: string) => `${API_V1_PREFIX}/employees/${employeeId}`,

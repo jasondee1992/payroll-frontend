@@ -585,10 +585,6 @@ export function EmployeeForm({
         selectedAllowanceOptions,
         allowanceValues,
       );
-      const allowancesChanged = !areAllowanceInputsEqual(
-        initialData?.allowances ?? [],
-        nextAllowancePayload,
-      );
       const salaryProfileFields = {
         basic_salary: basicSalaryAmount,
         rate_type: rateType,
@@ -602,11 +598,7 @@ export function EmployeeForm({
 
         const salaryProfilePayload: EmployeeUpdatePayload["salary_profile"] = {
           ...salaryProfileFields,
-          ...(allowancesChanged
-            ? {
-                allowances: nextAllowancePayload,
-              }
-            : {}),
+          allowances: nextAllowancePayload,
         };
         const payload = {
           employee: employeePayload,
@@ -2131,28 +2123,6 @@ function buildAllowanceComparisonMap(allowances: AllowanceComparisonInput[]) {
   }
 
   return entries;
-}
-
-function areAllowanceInputsEqual(
-  previousAllowances: AllowanceComparisonInput[],
-  currentAllowances: AllowanceComparisonInput[],
-) {
-  const previousEntries = buildAllowanceComparisonMap(previousAllowances);
-  const currentEntries = buildAllowanceComparisonMap(currentAllowances);
-
-  if (previousEntries.size !== currentEntries.size) {
-    return false;
-  }
-
-  for (const [allowanceName, previousEntry] of previousEntries.entries()) {
-    const currentEntry = currentEntries.get(allowanceName);
-
-    if (!currentEntry || currentEntry.amount !== previousEntry.amount) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 function mergeSelectOptions(options: string[], selectedValue?: string) {
